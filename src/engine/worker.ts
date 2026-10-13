@@ -4,9 +4,14 @@ import { expose, transfer } from 'comlink'
 import { build, transferables, type BuildResult } from './build'
 import { buildClosedMesh } from './sweep/closedMesh'
 import { parseRecipe } from '../recipe/schema'
+import { exportFile, type ExportFile, type ExportFormat } from './export'
 import type { SolidMesh } from './types'
 
 const api = {
+  exportFile(input: unknown, format: ExportFormat): ExportFile | { error: string } {
+    const f = exportFile(input, format)
+    return 'bytes' in f ? transfer(f, [f.bytes.buffer as ArrayBuffer]) : f
+  },
   build(input: unknown): BuildResult {
     const r = build(input)
     return transfer(r, transferables(r))

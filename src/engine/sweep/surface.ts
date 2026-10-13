@@ -94,10 +94,15 @@ export function vertexNormals(p: Float32Array, indices: Uint32Array): Float32Arr
   }
   for (let v = 0; v < n.length; v += 3) {
     const x = n[v]!, y = n[v + 1]!, z = n[v + 2]!
-    const L = Math.sqrt(x * x + y * y + z * z) || 1
-    n[v] = n[v]! / L
-    n[v + 1] = n[v + 1]! / L
-    n[v + 2] = n[v + 2]! / L
+    const L = Math.sqrt(x * x + y * y + z * z)
+    if (L === 0) {
+      // A vertex no triangle uses (inside an opening, or a row without floor): any unit vector keeps exports valid.
+      n[v + 1] = 1
+      continue
+    }
+    n[v] = x / L
+    n[v + 1] = y / L
+    n[v + 2] = z / L
   }
   return n
 }

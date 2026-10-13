@@ -1,0 +1,56 @@
+{
+  "concept": "umbilic torus pavilion",
+  "mode": "shell",
+  "units": "m",
+  "ring_radius_R": 18,
+  "section_a": 2.4,
+  "cusp_radius": 7.2,
+  "face_radius": 2.4,
+  "section_curve": "deltoid x=a(2cos t+cos 2t), y=a(2sin t-sin 2t)",
+  "twist_turns_per_lap": 0.3333,
+  "twist_deg": 120,
+  "initial_section_angle_deg": -90,
+  "section_center_height": 1.5,
+  "edges": 1,
+  "edge_length": 342.5,
+  "outer_diameter": 50.4,
+  "concrete_volume_m3": 772.3,
+  "concrete_tonnes": 1854,
+  "material": {
+    "name": "light polished concrete",
+    "color": "#D8D2C6",
+    "roughness": 0.38
+  },
+  "sun": {
+    "elevation_deg": 12,
+    "azimuth_deg": 262
+  },
+  "camera": {
+    "height": 1.6,
+    "fov_deg": 42,
+    "aspect": "1:1"
+  },
+  "wall_thickness_faces": 0.3,
+  "wall_thickness_cusps": 0.9,
+  "inner_scale": 0.875,
+  "floor_level": "sand level (y=0)",
+  "floor_width_range": [
+    3.14,
+    8.37
+  ],
+  "clear_height_range": [
+    4.65,
+    7.8
+  ],
+  "floor_continuous": true,
+  "passages": {
+    "count": 3,
+    "width": 3.2,
+    "height": 2.6
+  },
+  "light_slots": {
+    "count": 24,
+    "width_fraction_of_face": 0.28
+  },
+  "opening_fraction": 0.195
+}

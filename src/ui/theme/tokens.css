@@ -1,0 +1,69 @@
+/*
+ * Design tokens. The identity comes from the reference model "הטבעת המשולשת" (docs/reference): light concrete
+ * neutrals, a deep teal accent for the continuous edge, warm orange for warnings. One place to change them.
+ */
+:root {
+  --bg: #e5e8e6;
+  --panel: #f4f5f3;
+  --ink: #1b2223;
+  --muted: #4f5a5b;
+  --line: #c3cac8;
+  --accent: #1d6c75;
+  --accent-ink: #ffffff;
+  --chip: #dfe5e3;
+  --warn: #9a5a12;
+  --warn-bg: #f6eadb;
+  --error: #9b2c1f;
+  --error-bg: #f7e3df;
+  --stage: #d9d4ca;
+
+  --f-display: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
+  --f-body: 'Assistant', 'Segoe UI', Arial, sans-serif;
+  --f-data: 'IBM Plex Mono', 'Assistant', ui-monospace, Menlo, monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius: 4px;
+  --z-overlay: 10;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #141a1b;
+    --panel: #1c2324;
+    --ink: #e3e8e6;
+    --muted: #a3aeae;
+    --line: #2f393a;
+    --accent: #5db0b8;
+    --accent-ink: #0d1516;
+    --chip: #253031;
+    --warn: #e2a35a;
+    --warn-bg: #2e2416;
+    --error: #ef8a7c;
+    --error-bg: #2f1c19;
+    --stage: #2a2f2f;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #141a1b;
+  --panel: #1c2324;
+  --ink: #e3e8e6;
+  --muted: #a3aeae;
+  --line: #2f393a;
+  --accent: #5db0b8;
+  --accent-ink: #0d1516;
+  --chip: #253031;
+  --warn: #e2a35a;
+  --warn-bg: #2e2416;
+  --error: #ef8a7c;
+  --error-bg: #2f1c19;
+  --stage: #2a2f2f;
+  color-scheme: dark;
+}

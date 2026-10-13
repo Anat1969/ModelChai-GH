@@ -6,12 +6,15 @@
 - **שלב 0 הושלם:** החוזה (`src/recipe/schema.ts`) והכללים הסמנטיים (`src/recipe/rules.ts`).
 - **שלב 1 הושלם:** מנוע הסוויפ ב-`src/engine`, כולל Worker. כל המדדים נבדקים מול חישוב אנליטי בסטייה של עד 0.5%.
 
-השלב הבא הוא שלב 2: סטודיו ומודל ערום. ראו `docs/BUILD_PLAN.md`.
+- **שלב 2 הושלם:** מסך הסטודיו עם המודל הערום, מדדים, ארבע מצלמות, מעקב אחרי הקצה, חתך נע, וייצוא ל-glTF, OBJ, STL, JSON ו-PNG.
+
+השלב הבא הוא שלב 3: ממושג למתכון. ראו `docs/BUILD_PLAN.md`.
 
 ## פקודות
 ```
 npm install
-npm test          # vitest
+npm test          # vitest: חוזה, כללים, מנוע, ייצוא
+npm run e2e       # Playwright: מבחני הקבלה של שלב 2 בדפדפן
 npm run typecheck
 npm run dev
 ```

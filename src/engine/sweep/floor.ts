@@ -25,54 +25,73 @@ export interface FloorResult {
   mesh: MeshData | null
 }
 
-export function computeFloor(s: SweepSetup, kInner: number, level: number): FloorResult {
-  const { rows, frames, theta, scale } = s
-  const sx = new Float64Array(FLOOR_SAMPLES)
-  const sy = new Float64Array(FLOOR_SAMPLES)
+/** The inner section sampled at FLOOR_SAMPLES points, unrotated. */
+export function floorSamples(s: SweepSetup, kInner: number): { x: Float64Array; y: Float64Array } {
+  const x = new Float64Array(FLOOR_SAMPLES)
+  const y = new Float64Array(FLOOR_SAMPLES)
   for (let j = 0; j < FLOOR_SAMPLES; j++) {
     const p = sectionPoint(s.params.section, (TAU * j) / FLOOR_SAMPLES, kInner)
-    sx[j] = p[0]
-    sy[j] = p[1]
+    x[j] = p[0]
+    y[j] = p[1]
   }
+  return { x, y }
+}
+
+export interface RowChord {
+  /** Chord ends in the section's x axis, or null where the floor misses the inner section. */
+  x0: number
+  x1: number
+  ok: boolean
+  /** Highest inner point minus the floor level. */
+  clear: number
+}
+
+/** Floor chord and clear height in one row (GENERATORS.md 1.7). */
+export function chordAtRow(s: SweepSetup, samples: { x: Float64Array; y: Float64Array }, level: number, i: number, xs: number[] = []): RowChord {
+  const c = Math.cos(s.theta[i]!) * s.scale[i]!, sn = Math.sin(s.theta[i]!) * s.scale[i]!
+  const yLevel = level - s.frames.C[3 * i + 1]!
+  xs.length = 0
+  let top = -Infinity
+  let px = 0, py = 0
+  for (let j = 0; j <= FLOOR_SAMPLES; j++) {
+    const jj = j % FLOOR_SAMPLES
+    const X = samples.x[jj]! * c - samples.y[jj]! * sn
+    const Y = samples.x[jj]! * sn + samples.y[jj]! * c
+    if (Y > top) top = Y
+    if (j > 0 && (py <= yLevel) !== (Y <= yLevel)) xs.push(px + ((X - px) * (yLevel - py)) / (Y - py))
+    px = X
+    py = Y
+  }
+  xs.sort((p, q) => p - q)
+  let best = -1, x0 = NaN, x1 = NaN
+  for (let k = 0; k + 1 < xs.length; k += 2) {
+    const w = xs[k + 1]! - xs[k]!
+    if (w > best) {
+      best = w
+      x0 = xs[k]!
+      x1 = xs[k + 1]!
+    }
+  }
+  return best > 0 ? { x0, x1, ok: true, clear: top - yLevel } : { x0: NaN, x1: NaN, ok: false, clear: top - yLevel }
+}
+
+export function computeFloor(s: SweepSetup, kInner: number, level: number): FloorResult {
+  const { rows } = s
+  const samples = floorSamples(s, kInner)
   const x0 = new Float64Array(rows).fill(NaN)
   const x1 = new Float64Array(rows).fill(NaN)
   let wMin = Infinity, wMax = -Infinity, hMin = Infinity, hMax = -Infinity, found = 0
   const xs: number[] = []
   for (let i = 0; i < rows; i++) {
-    const c = Math.cos(theta[i]!) * scale[i]!, sn = Math.sin(theta[i]!) * scale[i]!
-    const yLevel = level - frames.C[3 * i + 1]!
-    xs.length = 0
-    let top = -Infinity
-    let px = 0, py = 0
-    for (let j = 0; j <= FLOOR_SAMPLES; j++) {
-      const jj = j % FLOOR_SAMPLES
-      const X = sx[jj]! * c - sy[jj]! * sn
-      const Y = sx[jj]! * sn + sy[jj]! * c
-      if (Y > top) top = Y
-      if (j > 0 && (py <= yLevel) !== (Y <= yLevel)) xs.push(px + ((X - px) * (yLevel - py)) / (Y - py))
-      px = X
-      py = Y
-    }
-    const clear = top - yLevel
-    hMin = Math.min(hMin, clear)
-    hMax = Math.max(hMax, clear)
-    xs.sort((p, q) => p - q)
-    let best = -1
-    for (let k = 0; k + 1 < xs.length; k += 2) {
-      const w = xs[k + 1]! - xs[k]!
-      if (w > best) {
-        best = w
-        x0[i] = xs[k]!
-        x1[i] = xs[k + 1]!
-      }
-    }
-    if (best > 0) {
+    const r = chordAtRow(s, samples, level, i, xs)
+    hMin = Math.min(hMin, r.clear)
+    hMax = Math.max(hMax, r.clear)
+    if (r.ok) {
+      x0[i] = r.x0
+      x1[i] = r.x1
       found++
-      wMin = Math.min(wMin, best)
-      wMax = Math.max(wMax, best)
-    } else {
-      x0[i] = NaN
-      x1[i] = NaN
+      wMin = Math.min(wMin, r.x1 - r.x0)
+      wMax = Math.max(wMax, r.x1 - r.x0)
     }
   }
   return {

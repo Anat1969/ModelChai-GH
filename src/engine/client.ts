@@ -6,6 +6,7 @@
  */
 import { wrap, releaseProxy, type Remote } from 'comlink'
 import type { BuildResult } from './build'
+import type { ExportFile, ExportFormat } from './export'
 import type { EngineApi } from './worker'
 
 export type BuildOutcome = { status: 'done'; result: BuildResult } | { status: 'superseded' }
@@ -18,6 +19,8 @@ interface Pending {
 
 export interface EngineClient {
   build(input: unknown): Promise<BuildOutcome>
+  /** Export runs beside the build queue; it never cancels or delays a build request. */
+  exportFile(input: unknown, format: ExportFormat): Promise<ExportFile | { error: string }>
   /** Number of builds the Worker actually ran. Used to prove that switching levels never rebuilds. */
   readonly buildCount: number
   dispose(): void
@@ -51,6 +54,9 @@ export function createEngineClient(worker: Worker): EngineClient {
         waiting?.resolve({ status: 'superseded' })
         waiting = job
       })
+    },
+    exportFile(input, format) {
+      return remote.exportFile(input, format) as Promise<ExportFile | { error: string }>
     },
     get buildCount() {
       return buildCount
