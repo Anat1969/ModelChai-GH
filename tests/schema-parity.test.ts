@@ -1,0 +1,63 @@
+/**
+ * zod must accept and reject exactly what the JSON Schema accepts and rejects.
+ * Each case mutates a fixture; both validators must agree on the outcome.
+ */
+import { describe, expect, it } from 'vitest'
+import { parseRecipe } from '../src/recipe/schema'
+import { fixture, jsonSchemaValid, type FixtureName } from './helpers'
+
+type Case = [label: string, base: FixtureName, mutate: (r: any) => void, valid: boolean] // eslint-disable-line @typescript-eslint/no-explicit-any
+
+const cases: Case[] = [
+  ['unchanged', 'umbilic-torus', () => {}, true],
+  ['wrong schema_version', 'umbilic-torus', (r) => (r.schema_version = '2.0'), false],
+  ['extra root field', 'umbilic-torus', (r) => (r.extra = 1), false],
+  ['extra nested field', 'umbilic-torus', (r) => (r.bare.shell.color = 'red'), false],
+  ['bad id pattern', 'umbilic-torus', (r) => (r.meta.id = 'Umbilic Torus'), false],
+  ['id too short', 'umbilic-torus', (r) => (r.meta.id = 'ab'), false],
+  ['bad date-time', 'umbilic-torus', (r) => (r.meta.created_at = 'yesterday'), false],
+  ['UTC date-time', 'umbilic-torus', (r) => (r.meta.created_at = '2026-10-13T00:00:00Z'), true],
+  ['null parent_id', 'umbilic-torus', (r) => (r.meta.parent_id = null), true],
+  ['notes too long', 'umbilic-torus', (r) => (r.meta.notes = 'x'.repeat(281)), false],
+  ['empty concept name', 'umbilic-torus', (r) => (r.concept.name = ''), false],
+  ['unknown generator', 'umbilic-torus', (r) => (r.generator.type = 'fractal'), false],
+  ['tiling with free params', 'umbilic-torus', (r) => (r.generator = { type: 'tiling', params: { n: 3 } }), true],
+  ['a below range', 'umbilic-torus', (r) => (r.generator.params.section.a = 0.05), false],
+  ['hypocycloid without cusps', 'umbilic-torus', (r) => (r.generator.params.section.curve = 'hypocycloid'), false],
+  ['hypocycloid with cusps', 'umbilic-torus', (r) => Object.assign(r.generator.params.section, { curve: 'hypocycloid', cusps: 4 }), true],
+  ['fractional cusps', 'umbilic-torus', (r) => Object.assign(r.generator.params.section, { curve: 'hypocycloid', cusps: 4.5 }), false],
+  ['polygon without sides', 'umbilic-torus', (r) => (r.generator.params.section.curve = 'polygon'), false],
+  ['superellipse without exponent', 'umbilic-torus', (r) => (r.generator.params.section.curve = 'superellipse'), false],
+  ['ellipse without R2', 'umbilic-torus', (r) => (r.generator.params.path.type = 'ellipse'), false],
+  ['helix without pitch', 'umbilic-torus', (r) => Object.assign(r.generator.params.path, { type: 'helix', turns: 2 }), false],
+  ['line without length', 'umbilic-torus', (r) => (r.generator.params.path = { type: 'line' }), false],
+  ['twist out of range', 'umbilic-torus', (r) => (r.generator.params.twist.turns_per_lap = 4.5), false],
+  ['missing twist', 'umbilic-torus', (r) => delete r.generator.params.twist, false],
+  ['resolution too low', 'umbilic-torus', (r) => (r.generator.params.resolution.path_segments = 10), false],
+  ['shell mode without shell', 'umbilic-torus', (r) => delete r.bare.shell, false],
+  ['solid mode without shell', 'umbilic-torus', (r) => { r.bare.mode = 'solid'; delete r.bare.shell }, true],
+  ['thickness too thin', 'umbilic-torus', (r) => (r.bare.shell.thickness = 0.05), false],
+  ['passages without count', 'umbilic-torus', (r) => delete r.bare.openings.passages.count, false],
+  ['duplicate highlight', 'umbilic-torus', (r) => (r.bare.highlight = ['edges', 'edges']), false],
+  ['unknown material', 'umbilic-torus', (r) => (r.realistic.materials.outer = 'marble'), false],
+  ['camera aspect 16:9', 'umbilic-torus', (r) => (r.realistic.camera.aspect = '16:9'), false],
+  ['camera without aspect', 'umbilic-torus', (r) => delete r.realistic.camera.aspect, true],
+  ['lat out of range', 'umbilic-torus', (r) => (r.realistic.site.lat = 91), false],
+  ['people not integer', 'umbilic-torus', (r) => (r.realistic.context.people = 2.5), false],
+  ['insight too short', 'umbilic-torus', (r) => (r.narrative.insight = 'קצר'), false],
+  ['fit_note string', 'umbilic-torus', (r) => (r.narrative.fit_note = 'משהו אבד'), true],
+  ['missing narrative', 'umbilic-torus', (r) => delete r.narrative, false],
+  ['mobius unchanged', 'mobius-strip', () => {}, true],
+  ['mobius aspect too thin', 'mobius-strip', (r) => (r.generator.params.section.aspect = 0.01), false],
+  ['golden unchanged', 'golden-ratio', () => {}, true],
+  ['golden turns too low', 'golden-ratio', (r) => (r.generator.params.path.turns = 0.1), false],
+]
+
+describe('zod ↔ JSON Schema parity', () => {
+  it.each(cases)('%s', (_label, base, mutate, valid) => {
+    const raw = fixture(base)
+    mutate(raw)
+    expect(jsonSchemaValid(raw).ok).toBe(valid)
+    expect(parseRecipe(raw).ok).toBe(valid)
+  })
+})
