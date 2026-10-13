@@ -153,6 +153,10 @@ async function storage(route) {
 }
 
 async function mock(page) {
+  // The device account: the app signs in on its own, with no email (DECISIONS.md 81).
+  await page.route('**/functions/v1/mathcreator-device', (r) =>
+    offline ? r.abort('internetdisconnected') : (log.push('DEVICE'), r.fulfill({ contentType: 'application/json', body: JSON.stringify({ email: 'device-test@device.math-creator.app', password: 'p' }) })),
+  )
   await page.route('**/auth/v1/**', (r) => (offline ? r.abort('internetdisconnected') : r.fulfill({ contentType: 'application/json', body: JSON.stringify(session()) })))
   await page.route('**/rest/v1/**', (r) => (offline ? r.abort('internetdisconnected') : rest(r)))
   await page.route('**/storage/v1/**', (r) => (offline ? r.abort('internetdisconnected') : storage(r)))
@@ -221,6 +225,7 @@ try {
   await open(page, '#/projects')
   await page.waitForSelector('[data-testid=empty]', { timeout: 30000 })
   check('projects is the home screen, empty at first', (await page.textContent('h1')) === 'פרויקטים')
+  check('no login: the device signs in on its own, without an email', log.includes('DEVICE') && !(await page.$('[data-testid=email-login]')))
 
   // ---------- version 1: edited geometry, realistic level, an orbited camera ----------
   await open(page, '#/studio')

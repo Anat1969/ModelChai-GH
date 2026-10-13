@@ -58,3 +58,47 @@ export function parsePost(text: string): { ok: true; post: Post } | { ok: false;
   if (EMOJI.test(short + post)) return { ok: false, error: 'the post has emoji' }
   return { ok: true, post: { short, post } }
 }
+
+// ---------- reading: the concept from mathematics to architecture ----------
+
+export interface Reading {
+  logic: string
+  space: string
+  figure_ground: string
+  synthesis: string
+}
+
+export interface ReadingInput extends PostInput {
+  /** Figure-ground rows as shown on screen, e.g. { "בתוכנית: בנוי מול חצר": "1,600 מ\"ר בנוי, 366 מ\"ר חצר" }. */
+  figureGround?: Record<string, string>
+}
+
+export function readingUserMessage(input: ReadingInput): string {
+  const base = postUserMessage({ recipe: input.recipe, metrics: input.metrics }).replace(/\n\nWrite the post now\.[^]*$/, '')
+  const fg = input.figureGround && Object.keys(input.figureGround).length
+    ? `\n\nFigure-ground numbers:\n${Object.entries(input.figureGround).map(([k, v]) => `- ${k}: ${v}`).join('\n')}`
+    : ''
+  return `${base}${fg}\n\nWrite the reading now. Output: one JSON object and nothing else.`
+}
+
+const READING_KEYS = ['logic', 'space', 'figure_ground', 'synthesis'] as const
+
+export function parseReading(text: string): { ok: true; reading: Reading } | { ok: false; error: string } {
+  const start = text.indexOf('{'), end = text.lastIndexOf('}')
+  if (start < 0 || end <= start) return { ok: false, error: 'no JSON object in the reply' }
+  let o: Record<string, unknown>
+  try {
+    o = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    return { ok: false, error: 'the reply is not valid JSON' }
+  }
+  const out = {} as Reading
+  for (const k of READING_KEYS) {
+    const v = o[k]
+    if (typeof v !== 'string' || !v.trim()) return { ok: false, error: `${k} is missing` }
+    if (v.length > 900) return { ok: false, error: `${k} is too long` }
+    if (EMOJI.test(v)) return { ok: false, error: 'the reading has emoji' }
+    out[k] = v.trim()
+  }
+  return { ok: true, reading: out }
+}

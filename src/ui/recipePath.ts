@@ -17,4 +17,4 @@ export function setAt<T>(obj: T, path: string, value: unknown): T {
 }
 
 /** Only generator and bare change geometry (CLAUDE.md, "הפרדת רמות"). */
-export const changesGeometry = (path: string) => path.startsWith('generator.') || path.startsWith('bare.')
+export const changesGeometry = (path: string) => /^(generator|bare)(\.|$)/.test(path)

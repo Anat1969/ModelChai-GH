@@ -63,14 +63,18 @@ interface StudioState {
   dirty: boolean
   /** A saved camera, applied once when the model is on screen. */
   pendingView: View | null
+  /** The recipe as it arrived: its ideal, balanced state. "איפוס" returns to it. */
+  baseline: RawRecipe | null
   save: SaveState
 
-  loadRecipe(raw: unknown, sourceName: string, origin?: ConceptOrigin, from?: { project: ProjectRef | null; versionId: string | null; view: View | null; dirty?: boolean }): void
+  loadRecipe(raw: unknown, sourceName: string, origin?: ConceptOrigin, from?: { project: ProjectRef | null; versionId: string | null; view: View | null; dirty?: boolean; baseline?: RawRecipe | null }): void
   setParam(path: string, value: unknown): void
   /** Several fields in one step and one build, e.g. switching to shell together with a wall thickness. */
   setParams(entries: [path: string, value: unknown][]): void
   dismissNotice(): void
   setCamera(c: CameraPreset): void
+  /** Back to the baseline: the shape (generator and bare), the scene (realistic), or both. */
+  reset(part: 'shape' | 'scene' | 'all'): void
   set<K extends keyof StudioState>(key: K, value: StudioState[K]): void
 }
 
@@ -174,6 +178,7 @@ export const useStudio = create<StudioState>((set, get) => {
     versionId: null,
     dirty: false,
     pendingView: null,
+    baseline: null,
     save: { status: 'idle' },
 
     loadRecipe(raw, sourceName, origin, from) {
@@ -196,6 +201,7 @@ export const useStudio = create<StudioState>((set, get) => {
         // A recipe that did not come from a saved version has not been saved yet.
         dirty: from?.dirty ?? !from?.versionId,
         pendingView: from?.view ?? null,
+        baseline: structuredClone(from?.baseline ?? raw) as RawRecipe,
         save: { status: 'idle' },
         ...(from?.view ? { level: from.view.level, camera: from.view.camera.preset } : {}),
       })
@@ -224,6 +230,14 @@ export const useStudio = create<StudioState>((set, get) => {
 
     dismissNotice() {
       set({ notice: null })
+    },
+
+    reset(part) {
+      const base = get().baseline
+      if (!base) return
+      const keys = part === 'shape' ? ['generator', 'bare'] : part === 'scene' ? ['realistic'] : ['generator', 'bare', 'realistic']
+      get().setParams(keys.map((k) => [k, structuredClone(base[k])]))
+      set({ notice: null, tracing: false })
     },
 
     setCamera(c) {

@@ -3,6 +3,7 @@ import { flushPending } from './data/offline'
 import { useRoute } from './ui/router'
 import { Compare } from './ui/screens/Compare'
 import { NewConcept } from './ui/screens/NewConcept'
+import { Connect } from './ui/screens/Connect'
 import { LibraryScreen } from './ui/screens/LibraryScreen'
 import { Projects } from './ui/screens/Projects'
 import { Studio } from './ui/screens/Studio'
@@ -31,5 +32,6 @@ export function App() {
   if (route === 'new') return <NewConcept />
   if (route === 'compare') return <Compare />
   if (route === 'library') return <LibraryScreen />
+  if (route === 'connect') return <Connect />
   return <Projects />
 }

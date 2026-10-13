@@ -30,3 +30,19 @@ describe('concept-post core', () => {
     expect(parsePost(text).ok).toBe(false)
   })
 })
+
+import { parseReading, readingUserMessage } from '../supabase/functions/concept-post/src/core'
+
+describe('concept-post reading mode', () => {
+  it('sends the figure-ground numbers, and no post instruction', () => {
+    const msg = readingUserMessage({ recipe: fixture('umbilic-torus'), figureGround: { 'בתוכנית: בנוי מול חצר': 'x' } })
+    expect(msg).toContain('Figure-ground numbers:\n- בתוכנית: בנוי מול חצר: x')
+    expect(msg).toContain('Write the reading now.')
+    expect(msg).not.toContain('Write the post now')
+  })
+  it('reads all four parts, and refuses a missing one', () => {
+    const ok = parseReading('{"logic":"a","space":"b","figure_ground":"c","synthesis":"d"}')
+    expect(ok).toEqual({ ok: true, reading: { logic: 'a', space: 'b', figure_ground: 'c', synthesis: 'd' } })
+    expect(parseReading('{"logic":"a","space":"b","synthesis":"d"}').ok).toBe(false)
+  })
+})

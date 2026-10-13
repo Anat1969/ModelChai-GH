@@ -37,6 +37,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 1 })
   page.on('pageerror', (e) => console.log('pageerror:', e.message))
   let sentAuth = null
+  await page.route('**/functions/v1/mathcreator-device', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ email: 'device-test@device.math-creator.app', password: 'p' }) }))
   await page.route('**/auth/v1/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(session) }))
   await page.route('**/functions/v1/concept-to-recipe', async (route) => {
     sentAuth = route.request().headers()['authorization']

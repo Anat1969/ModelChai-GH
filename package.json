@@ -16,9 +16,8 @@
     "integration": "vite build && node tests/e2e/concepts.integration.mjs"
   },
   "dependencies": {
-    "@fontsource/assistant": "5.3.0",
-    "@fontsource/frank-ruhl-libre": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
+    "@fontsource/ibm-plex-sans-hebrew": "5.3.0",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.1",
     "@supabase/supabase-js": "2.117.3",

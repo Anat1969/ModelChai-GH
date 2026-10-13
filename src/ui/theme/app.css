@@ -1107,3 +1107,133 @@ button.quiet:hover:not(:disabled) {
     grid-area: status;
   }
 }
+
+/* ---------- type: thin text, strong headings, a clear order (DECISIONS.md 79) ----------
+   1. h1, the concept: 600, the largest thing on the screen.
+   2. h2, a section: 600.
+   3. h3 and labels for groups: monospace, small, spaced, grey 3.
+   4. Running text: 300, 17 px. Quiet text: 300, grey 3.
+   Numbers: IBM Plex Mono, tabular. */
+body {
+  font-weight: 300;
+  font-size: 17px;
+  letter-spacing: 0.003em;
+}
+strong,
+b {
+  font-weight: 600;
+}
+h1 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 21px;
+  letter-spacing: -0.005em;
+}
+h3,
+.eyebrow {
+  font-family: var(--f-data);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.lead {
+  font-weight: 200;
+  font-size: 20px;
+  color: var(--ink);
+}
+button,
+.filebtn,
+.topnav a {
+  font-weight: 500;
+}
+.ctl label,
+.ctl .label,
+.field label,
+.check {
+  font-weight: 500;
+}
+.ctl .why,
+.hint,
+.metrics dt {
+  font-weight: 300;
+}
+.topbar .brand {
+  font-family: var(--f-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.titleband h1 {
+  font-weight: 600;
+}
+
+/* Black and white states: the selected thing is black, everything else is outlined. */
+button,
+.filebtn {
+  background: var(--white);
+  border-color: var(--line);
+}
+button:hover:not(:disabled),
+.filebtn:hover {
+  border-color: var(--black);
+}
+button[aria-pressed='true'] {
+  border-color: var(--black);
+  box-shadow: inset 0 -2px 0 var(--black);
+}
+.seg button[aria-pressed='true'],
+.tabs button[aria-selected='true'] {
+  background: var(--black);
+  color: var(--white);
+}
+.sidetabs button[aria-selected='true'] {
+  color: var(--black);
+  border-block-end-color: var(--black);
+  font-weight: 600;
+}
+.badge,
+.stage-status {
+  color: var(--white);
+  background: color-mix(in srgb, var(--black) 72%, transparent);
+}
+.notice {
+  border-width: 0;
+  border-inline-start-width: 4px;
+  border-radius: 0;
+}
+.notice.warning,
+.notice.info {
+  background: var(--grey-1);
+  border-color: var(--grey-3);
+}
+.notice.error {
+  background: var(--white);
+  border: 2px solid var(--black);
+  border-inline-start-width: 6px;
+}
+.metrics .warn dd,
+.metrics .warn .rule {
+  color: var(--black);
+  font-weight: 600;
+}
+.metrics .warn dd::after {
+  content: ' *';
+}
+.diff tr.changed th,
+.diff tr.changed td {
+  background: var(--grey-1);
+}
+.diff tr.changed td:last-child {
+  color: var(--black);
+}
+.post {
+  border-inline-start-color: var(--black);
+}
+button.quiet:hover:not(:disabled) {
+  color: var(--black);
+}

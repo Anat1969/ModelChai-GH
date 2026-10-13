@@ -20,6 +20,7 @@ import type { Sweep } from '../params'
 import { useStudio, type CameraPreset } from '../store'
 import { TopNav } from '../TopNav'
 import { SavePanel } from '../panels/SavePanel'
+import { DevicePanel } from '../panels/DevicePanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
 import { navigate, useParam } from '../router'
 
@@ -121,7 +122,7 @@ export function Studio() {
     if (st.recipe) return
     const draft = loadDraft()
     if (draft) {
-      load(draft.recipe, draft.sourceName, undefined, { project: draft.project, versionId: draft.versionId, view: draft.view, dirty: true })
+      load(draft.recipe, draft.sourceName, undefined, { project: draft.project, versionId: draft.versionId, view: draft.view, dirty: true, baseline: draft.baseline })
       st.set('notice', {
         tone: 'info',
         title: `שוחזרה טיוטה מקומית מ-${new Date(draft.at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}`,
@@ -149,6 +150,7 @@ export function Studio() {
           project: cur.project,
           versionId: cur.versionId,
           view: pose ? { level: cur.level, camera: { preset: cur.camera, ...pose } } : null,
+          baseline: cur.baseline,
           at: Date.now(),
         })
       }, 600)
@@ -280,6 +282,7 @@ export function Studio() {
               <>
                 <SavePanel />
                 <ExportPanel />
+                <DevicePanel />
                 <section className="panel" aria-label="מתכון מקובץ">
                   <h2>מתכון מקובץ</h2>
                   <div ref={fileInput}>

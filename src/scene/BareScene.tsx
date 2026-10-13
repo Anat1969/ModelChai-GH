@@ -15,15 +15,16 @@ import { useStudio } from '../ui/store'
 import { bounds, cameraPose, peopleSpots, type Vec3 } from './cameras'
 
 export const BARE = {
-  background: '#e4e1da',
-  ground: '#d9d4ca',
-  outer: '#d8d2c6',
-  inner: '#cfc8bb',
-  floor: '#b9b2a5',
-  accent: '#1d6c75',
-  tracer: '#2bb3c0',
-  section: '#9a5a12',
-  person: '#3b3631',
+  // The bare level speaks the interface's language: white, three greys and black (DECISIONS.md 78).
+  background: '#f2f2f2',
+  ground: '#e9e9e9',
+  outer: '#ffffff',
+  inner: '#e9e9e9',
+  floor: '#d4d4d4',
+  accent: '#111111',
+  tracer: '#4a4a4a',
+  section: '#4a4a4a',
+  person: '#111111',
 }
 
 export function useGeometry(mesh: MeshData | null) {
@@ -221,7 +222,7 @@ export function BareScene({ result, recipe, rows, still = false }: { result: Bui
   return (
     <>
       <color attach="background" args={[BARE.background]} />
-      <hemisphereLight args={['#f6f4ef', '#c9c2b4', 1.6]} />
+      <hemisphereLight args={['#ffffff', '#cfcfcf', 1.6]} />
       <directionalLight
         position={sun}
         intensity={2.3}
@@ -245,10 +246,10 @@ export function BareScene({ result, recipe, rows, still = false }: { result: Bui
         args={[ext * 12, ext * 12]}
         cellSize={1}
         cellThickness={0.6}
-        cellColor="#bdb6a8"
+        cellColor="#d0d0d0"
         sectionSize={10}
         sectionThickness={1.2}
-        sectionColor="#8f877a"
+        sectionColor="#a3a3a3"
         fadeDistance={ext * 5}
         fadeStrength={1.5}
       />

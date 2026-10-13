@@ -197,6 +197,9 @@ Output: one JSON object and nothing else, in this shape:
 Separate the post's paragraphs with a blank line (\\n\\n).
 `;
 
+// supabase/functions/concept-post/reading.md
+var reading_default = 'You read a mathematical concept as architecture standing in a real place, in Hebrew, in four short parts.\n\nThe input is a recipe (the concept, the geometry built from it, the place, the hour, the materials, the people), measured metrics, and figure-ground numbers: how much is built and how much is left open, in plan, in volume and in the envelope. Write only from these facts. Never invent a size, a place or a number that is not in the input.\n\nThe four parts:\n- logic, "המושג הלוגי": what the concept is in mathematics, in plain words. Two sentences at most. No formulas.\n- space, "המושג המרחבי": how this geometry carries the concept into space: which property of the form keeps the mathematical idea. Two sentences.\n- figure_ground, "פוזיטיב ונגטיב": the meeting of the built and the void, the closed and the open, the building and its surroundings. Use the figure-ground numbers. Say where the environment enters the building and where the building holds the environment. Two or three sentences.\n- synthesis: one sentence that joins the logical and the spatial meaning. It must stand alone.\n\nRules:\n- Natural, precise, professional Hebrew. Not poetic, not translated-sounding. No emoji, no lists inside the parts.\n- When you name a place, write its Hebrew name and its full name in Latin letters once, for example: אשדוד (Ashdod, Israel).\n- Spell mathematical terms correctly in Hebrew, for example דלתואיד, היפוציקלואיד, טורוס, רצועת מביוס.\n\nOutput: one JSON object and nothing else:\n{"logic": "...", "space": "...", "figure_ground": "...", "synthesis": "..."}\n';
+
 // supabase/functions/concept-post/src/core.ts
 var pick = (o, keys) => o && typeof o === "object" ? Object.fromEntries(keys.filter((k) => k in o).map((k) => [k, o[k]])) : {};
 function postUserMessage(input) {
@@ -235,6 +238,36 @@ function parsePost(text) {
   if (EMOJI.test(short + post)) return { ok: false, error: "the post has emoji" };
   return { ok: true, post: { short, post } };
 }
+function readingUserMessage(input) {
+  const base = postUserMessage({ recipe: input.recipe, metrics: input.metrics }).replace(/\n\nWrite the post now\.[^]*$/, "");
+  const fg = input.figureGround && Object.keys(input.figureGround).length ? `
+
+Figure-ground numbers:
+${Object.entries(input.figureGround).map(([k, v]) => `- ${k}: ${v}`).join("\n")}` : "";
+  return `${base}${fg}
+
+Write the reading now. Output: one JSON object and nothing else.`;
+}
+var READING_KEYS = ["logic", "space", "figure_ground", "synthesis"];
+function parseReading(text) {
+  const start = text.indexOf("{"), end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return { ok: false, error: "no JSON object in the reply" };
+  let o;
+  try {
+    o = JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return { ok: false, error: "the reply is not valid JSON" };
+  }
+  const out = {};
+  for (const k of READING_KEYS) {
+    const v = o[k];
+    if (typeof v !== "string" || !v.trim()) return { ok: false, error: `${k} is missing` };
+    if (v.length > 900) return { ok: false, error: `${k} is too long` };
+    if (EMOJI.test(v)) return { ok: false, error: "the reading has emoji" };
+    out[k] = v.trim();
+  }
+  return { ok: true, reading: out };
+}
 
 // supabase/functions/concept-post/src/handler.ts
 var RATE_LIMIT_PER_HOUR = 20;
@@ -268,13 +301,16 @@ Deno.serve(async (req) => {
   const parsed = parseRecipe(body.recipe);
   if (!parsed.ok) return json({ ok: false, error: "המתכון לא עומד בסכמה" }, 400);
   const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 2e3) : void 0;
+  const reading = body.mode === "reading";
+  const strings = (v) => v && typeof v === "object" ? Object.fromEntries(Object.entries(v).filter(([, x]) => typeof x === "string").slice(0, 16)) : void 0;
+  const figureGround = strings(body.figureGround);
   const metrics = body.metrics && typeof body.metrics === "object" ? Object.fromEntries(Object.entries(body.metrics).filter(([, v]) => typeof v === "string").slice(0, 16)) : void 0;
   const since = new Date(Date.now() - 36e5).toISOString();
   const { count } = await db.from("mathcreator_ai_calls").select("id", { count: "exact", head: true }).eq("owner", user.id).gte("created_at", since);
   if ((count ?? 0) >= RATE_LIMIT_PER_HOUR) return json({ ok: false, error: `הגעת למגבלה של ${RATE_LIMIT_PER_HOUR} קריאות בשעה. אפשר לנסות שוב בעוד שעה.` }, 429);
   const client = new Anthropic({ apiKey, timeout: 9e4, maxRetries: 1 });
   const started = Date.now();
-  const concept = `פוסט: ${parsed.recipe.concept.name_he}`.slice(0, 120);
+  const concept = `${reading ? "פרשנות" : "פוסט"}: ${parsed.recipe.concept.name_he}`.slice(0, 120);
   const record = (ok, used) => db.from("mathcreator_ai_calls").insert({ owner: user.id, concept, model: used, ok, attempts: 1, first_try_ok: ok, duration_ms: Date.now() - started, issues: [], recipe: null });
   try {
     const res = await client.beta.messages.create({
@@ -283,10 +319,21 @@ Deno.serve(async (req) => {
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       output_config: { effort: "low" },
-      system: [{ type: "text", text: system_default, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: postUserMessage({ recipe: body.recipe, prompt, metrics }) }]
+      system: [{ type: "text", text: reading ? reading_default : system_default, cache_control: { type: "ephemeral" } }],
+      messages: [
+        {
+          role: "user",
+          content: reading ? readingUserMessage({ recipe: body.recipe, metrics, figureGround }) : postUserMessage({ recipe: body.recipe, prompt, metrics })
+        }
+      ]
     });
     const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+    if (reading) {
+      const r = parseReading(text);
+      await record(r.ok, res.model);
+      if (!r.ok) return json({ ok: false, error: `הפרשנות שהתקבלה לא תקינה (${r.error}). אפשר לנסות שוב.` }, 502);
+      return json({ ok: true, reading: r.reading, model: res.model, durationMs: Date.now() - started });
+    }
     const out = parsePost(text);
     await record(out.ok, res.model);
     if (!out.ok) return json({ ok: false, error: `הפוסט שהתקבל לא תקין (${out.error}). אפשר לנסות שוב.` }, 502);

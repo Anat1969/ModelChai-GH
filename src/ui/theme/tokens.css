@@ -1,25 +1,39 @@
 /*
- * Design tokens. The identity comes from the reference model "הטבעת המשולשת" (docs/reference): light concrete
- * neutrals, a deep teal accent for the continuous edge, warm orange for warnings. One place to change them.
+ * Design tokens. Black and white with three greys, nothing else: the model and its numbers carry the
+ * color of the place; the interface stays out of the way (DECISIONS.md 78). One place to change them.
+ *
+ *   white  #ffffff   page and panels
+ *   grey 1 #e9e9e9   chips, stage, quiet fills
+ *   grey 2 #a3a3a3   lines and dividers (never text)
+ *   grey 3 #4a4a4a   secondary text, 8.9:1 on white
+ *   black  #111111   text, the selected state, the continuous edge
  */
 :root {
-  --bg: #e5e8e6;
-  --panel: #f4f5f3;
-  --ink: #1b2223;
-  --muted: #4f5a5b;
-  --line: #c3cac8;
-  --accent: #1d6c75;
-  --accent-ink: #ffffff;
-  --chip: #dfe5e3;
-  --warn: #9a5a12;
-  --warn-bg: #f6eadb;
-  --error: #9b2c1f;
-  --error-bg: #f7e3df;
-  --stage: #d9d4ca;
+  --white: #ffffff;
+  --grey-1: #e9e9e9;
+  --grey-2: #a3a3a3;
+  --grey-3: #4a4a4a;
+  --black: #111111;
 
-  --f-display: 'Frank Ruhl Libre', 'David Libre', Georgia, serif;
-  --f-body: 'Assistant', 'Segoe UI', Arial, sans-serif;
-  --f-data: 'IBM Plex Mono', 'Assistant', ui-monospace, Menlo, monospace;
+  --bg: var(--white);
+  --panel: var(--white);
+  --ink: var(--black);
+  --muted: var(--grey-3);
+  --line: var(--grey-2);
+  --hairline: var(--grey-1);
+  --accent: var(--black);
+  --accent-ink: var(--white);
+  --chip: var(--grey-1);
+  /* Warnings and errors are told apart by words and a heavy rule, not by hue. */
+  --warn: var(--grey-3);
+  --warn-bg: var(--grey-1);
+  --error: var(--black);
+  --error-bg: var(--white);
+  --stage: var(--grey-1);
+
+  --f-display: 'IBM Plex Sans Hebrew', 'Assistant', 'Segoe UI', Arial, sans-serif;
+  --f-body: 'IBM Plex Sans Hebrew', 'Assistant', 'Segoe UI', Arial, sans-serif;
+  --f-data: 'IBM Plex Mono', 'IBM Plex Sans Hebrew', ui-monospace, Menlo, monospace;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -27,43 +41,27 @@
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
-  --radius: 4px;
+  --radius: 2px;
   --z-overlay: 10;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #141a1b;
-    --panel: #1c2324;
-    --ink: #e3e8e6;
-    --muted: #a3aeae;
-    --line: #2f393a;
-    --accent: #5db0b8;
-    --accent-ink: #0d1516;
-    --chip: #253031;
-    --warn: #e2a35a;
-    --warn-bg: #2e2416;
-    --error: #ef8a7c;
-    --error-bg: #2f1c19;
-    --stage: #2a2f2f;
+    --white: #111111;
+    --grey-1: #2a2a2a;
+    --grey-2: #6b6b6b;
+    --grey-3: #bdbdbd;
+    --black: #f5f5f5;
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
-  --bg: #141a1b;
-  --panel: #1c2324;
-  --ink: #e3e8e6;
-  --muted: #a3aeae;
-  --line: #2f393a;
-  --accent: #5db0b8;
-  --accent-ink: #0d1516;
-  --chip: #253031;
-  --warn: #e2a35a;
-  --warn-bg: #2e2416;
-  --error: #ef8a7c;
-  --error-bg: #2f1c19;
-  --stage: #2a2f2f;
+  --white: #111111;
+  --grey-1: #2a2a2a;
+  --grey-2: #6b6b6b;
+  --grey-3: #bdbdbd;
+  --black: #f5f5f5;
   color-scheme: dark;
 }

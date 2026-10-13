@@ -17,7 +17,7 @@ const npmSpecifiers = {
   },
 }
 
-for (const fn of ['concept-to-recipe', 'concept-post']) {
+for (const fn of ['concept-to-recipe', 'concept-post', 'mathcreator-device']) {
 await build({
   entryPoints: [`supabase/functions/${fn}/src/handler.ts`],
   outfile: `supabase/functions/${fn}/index.ts`,

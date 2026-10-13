@@ -34,6 +34,8 @@ export interface Draft {
   project: SaveInput['project'] | null
   versionId: string | null
   view: View | null
+  /** The ideal state the draft started from, so "איפוס" still works after a reload. */
+  baseline?: RawRecipe | null
   /** ms since epoch */
   at: number
 }
