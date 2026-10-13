@@ -15,7 +15,9 @@ import {
   type Library,
   type LibraryItem,
 } from '../../data/library'
+import { readingOf } from '../../data/library'
 import { visualPrompt } from '../../prompt/visualPrompt'
+import { ReadingText } from './ReadingPanel'
 import type { Sweep } from '../params'
 
 export interface LibrarySource {
@@ -189,8 +191,15 @@ export function LibraryView({ projectId, source, wide = false }: { projectId: st
         </div>
       )}
 
+      {lib?.readings[0] && readingOf(lib.readings[0]) && (
+        <section className="library-section sec-reading" aria-labelledby="lib-reading-title">
+          <h2 id="lib-reading-title">פרשנות: מעולם המתמטיקה לעולם האדריכלי</h2>
+          <ReadingText r={readingOf(lib.readings[0])!} />
+        </section>
+      )}
+
       <section className="library-section sec-post" aria-labelledby="post-title">
-        <h2 id="post-title">פרשנות: המושג כמבנה במקום</h2>
+        <h2 id="post-title">פוסט: המושג כמבנה במקום</h2>
         {latestPost ? (
           <PostCard post={latestPost} onCopy={async () => setStatus((await copyText(`${latestPost.distill}\n\n${latestPost.body}`)) ? 'הפוסט הועתק.' : 'ההעתקה נכשלה.')} />
         ) : (

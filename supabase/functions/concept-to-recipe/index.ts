@@ -436,6 +436,11 @@ Path geometry (the engine's axes: y is up, the ground is the xz plane):
 - helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
 - line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
 
+The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
+- Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
+- Human scale: enterable shells have a continuous floor at least 1.2 m wide and at least 2.4 m to stand under; passages 3.2 m wide and 2.6 m high above the floor. Prefer satisfying every soft rule below.
+- Figure and ground: choose openings, mode and context so the built form and its surroundings meet: what the form closes (a courtyard, a void, a shadow) is as deliberate as what it builds. Say it in the insight.
+
 Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
 - Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.
@@ -850,7 +855,22 @@ async function conceptToRecipe(input, deps) {
       if (v.stage === "rules" && g && !input.generators.includes(g)) {
         schemaErrors = [{ path: "generator.type", message: `"${g}" is not available; use one of ${JSON.stringify(input.generators)}` }];
       }
-      if (!schemaErrors.length && v.ok) return { ok: true, recipe: parsed.value, attempts: attempt, issues, model };
+      if (!schemaErrors.length && v.ok) {
+        const first = { ok: true, recipe: parsed.value, attempts: attempt, issues, model };
+        const soft = issues.filter((i) => i.severity === "warning" && POLISH_RULES.includes(i.rule));
+        if (!soft.length || attempt > MAX_REPAIRS) return first;
+        deps.onProgress?.({ type: "progress", stage: "repairing", attempt, problems: soft.map((i) => `rule ${i.rule}`) });
+        deps.onProgress?.({ type: "progress", stage: "calling", attempt: attempt + 1 });
+        const polished = await deps.call([...turns, { role: "assistant", content: reply.content }, { role: "user", content: polishMessage(soft) }]);
+        if (polished.stopReason !== "end_turn") return first;
+        deps.onProgress?.({ type: "progress", stage: "validating", attempt: attempt + 1 });
+        const pp = parse(polished.text);
+        if (pp.error) return first;
+        const pv = validateRecipe(pp.value);
+        const stillSoft = pv.issues.filter((i) => i.severity === "warning" && POLISH_RULES.includes(i.rule)).length;
+        if (!pv.ok || stillSoft >= soft.length) return first;
+        return { ok: true, recipe: pp.value, attempts: attempt + 1, issues: pv.issues, model: polished.model };
+      }
     }
     last = { recipe: parsed.value, schemaErrors, issues };
     if (attempt > MAX_REPAIRS) break;
@@ -872,6 +892,14 @@ async function conceptToRecipe(input, deps) {
     attempts: MAX_REPAIRS + 1,
     model
   };
+}
+var POLISH_RULES = [4, 5, 6];
+function polishMessage(soft) {
+  return [
+    "The recipe builds, but it is not yet in its ideal default state. These human-scale rules are not met:",
+    ...soft.map((i) => `- ${i.rule}: ${i.message} (current value ${i.value}, required ${i.required})`),
+    "Adjust only what is needed to meet them, keep the concept and its proportions, and answer again with the full recipe."
+  ].join("\n");
 }
 var pick = (l) => ({ schemaErrors: l.schemaErrors, issues: l.issues });
 

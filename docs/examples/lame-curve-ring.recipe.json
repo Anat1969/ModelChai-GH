@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "lame-curve-ring",
+    "created_at": "2026-10-13T12:00:00+03:00",
+    "source": "manual",
+    "notes": "Example: balanced default state"
+  },
+  "concept": {
+    "name": "Superellipse",
+    "name_he": "סופר-אליפסה",
+    "use": "מרכז קהילתי",
+    "context_hint": "פארק"
+  },
+  "generator": {
+    "type": "sweep",
+    "params": {
+      "section": {
+        "curve": "superellipse",
+        "exponent": 2.5,
+        "a": 3
+      },
+      "path": {
+        "type": "circle",
+        "R": 16
+      },
+      "twist": {
+        "turns_per_lap": 0,
+        "initial_angle_deg": 0
+      },
+      "scale_along_path": 1
+    }
+  },
+  "bare": {
+    "mode": "shell",
+    "section_center_height": 2.2,
+    "shell": {
+      "thickness": 0.3,
+      "inner_method": "scaled_section"
+    },
+    "openings": {
+      "passages": {
+        "count": 3,
+        "width": 3.6,
+        "height": 2.7,
+        "start_angle_deg": 20
+      },
+      "slots": {
+        "count": 18,
+        "width_fraction": 0.3,
+        "duty": 0.4,
+        "position": "face_center"
+      }
+    },
+    "floor": {
+      "level": 0,
+      "type": "chord"
+    },
+    "highlight": [
+      "section"
+    ]
+  },
+  "realistic": {
+    "site": {
+      "lat": 31.78,
+      "lon": 35.22,
+      "name": "Jerusalem"
+    },
+    "datetime": "2026-04-15T16:00:00+03:00",
+    "weather": "clear",
+    "materials": {
+      "outer": "jerusalem_stone",
+      "inner": "polished_concrete_light",
+      "floor": "timber_oak"
+    },
+    "context": {
+      "preset": "park_lawn",
+      "vegetation": "olive_trees",
+      "people": 10
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "הטבעת שבין העיגול לריבוע",
+    "insight": "החתך אינו עיגול ואינו ריבוע, אלא המעבר ביניהם. הפינות הרכות מחזיקות חלל ישר לעמידה, והדופן המעוגלת פונה אל הפארק בלי לחתוך אותו.",
+    "maxim": "בין העיגול לריבוע יש מקום לאנשים.",
+    "fit_note": null
+  }
+}

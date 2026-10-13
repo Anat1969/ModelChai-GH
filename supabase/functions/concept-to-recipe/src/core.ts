@@ -130,7 +130,23 @@ export async function conceptToRecipe(
       if (v.stage === 'rules' && g && !input.generators.includes(g)) {
         schemaErrors = [{ path: 'generator.type', message: `"${g}" is not available; use one of ${JSON.stringify(input.generators)}` }]
       }
-      if (!schemaErrors.length && v.ok) return { ok: true, recipe: parsed.value, attempts: attempt, issues, model }
+      if (!schemaErrors.length && v.ok) {
+        const first = { ok: true as const, recipe: parsed.value, attempts: attempt, issues, model }
+        // The ideal state (DECISIONS.md 83): a recipe that builds but misses a human-scale rule gets one polish.
+        const soft = issues.filter((i) => i.severity === 'warning' && POLISH_RULES.includes(i.rule))
+        if (!soft.length || attempt > MAX_REPAIRS) return first
+        deps.onProgress?.({ type: 'progress', stage: 'repairing', attempt, problems: soft.map((i) => `rule ${i.rule}`) })
+        deps.onProgress?.({ type: 'progress', stage: 'calling', attempt: attempt + 1 })
+        const polished = await deps.call([...turns, { role: 'assistant', content: reply.content }, { role: 'user', content: polishMessage(soft) }])
+        if (polished.stopReason !== 'end_turn') return first
+        deps.onProgress?.({ type: 'progress', stage: 'validating', attempt: attempt + 1 })
+        const pp = parse(polished.text)
+        if (pp.error) return first
+        const pv = validateRecipe(pp.value)
+        const stillSoft = pv.issues.filter((i) => i.severity === 'warning' && POLISH_RULES.includes(i.rule)).length
+        if (!pv.ok || stillSoft >= soft.length) return first
+        return { ok: true, recipe: pp.value, attempts: attempt + 1, issues: pv.issues, model: polished.model }
+      }
     }
     last = { recipe: parsed.value, schemaErrors, issues }
     if (attempt > MAX_REPAIRS) break
@@ -154,6 +170,21 @@ export async function conceptToRecipe(
     attempts: MAX_REPAIRS + 1,
     model,
   }
+}
+
+/**
+ * Human-scale rules worth one more round: wall thickness (4), a continuous floor (5), full standing height (6).
+ * Rule 8, cusp burial, is a design choice with a cost (the reference model buries its cusp 5.7 m), so it stays
+ * a warning and is never polished away.
+ */
+export const POLISH_RULES = [4, 5, 6]
+
+export function polishMessage(soft: RuleIssue[]): string {
+  return [
+    'The recipe builds, but it is not yet in its ideal default state. These human-scale rules are not met:',
+    ...soft.map((i) => `- ${i.rule}: ${i.message} (current value ${i.value}, required ${i.required})`),
+    'Adjust only what is needed to meet them, keep the concept and its proportions, and answer again with the full recipe.',
+  ].join('\n')
 }
 
 const pick = (l: { schemaErrors: SchemaError[]; issues: RuleIssue[] }) => ({ schemaErrors: l.schemaErrors, issues: l.issues })

@@ -164,6 +164,11 @@ async function mock(page) {
   await page.route('**/functions/v1/concept-post', async (r) => {
     const body = JSON.parse(r.request().postData())
     postCalls.push({ auth: r.request().headers()['authorization'], body })
+    if (body.mode === 'reading')
+      return r.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ ok: true, reading: { logic: 'לוגיקה.', space: 'מרחב.', figure_ground: 'החצר היא הנגטיב.', synthesis: 'משפט אחד שמחבר.' }, model: 'mock', durationMs: 3100 }),
+      })
     await r.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({ ok: true, short: 'טבעת אחת שנראית כשלוש.', post: 'פסקה ראשונה.\n\nפסקה שנייה.', model: 'mock', durationMs: 4200 }),
@@ -225,6 +230,8 @@ try {
   await open(page, '#/projects')
   await page.waitForSelector('[data-testid=empty]', { timeout: 30000 })
   check('projects is the home screen, empty at first', (await page.textContent('h1')) === 'פרויקטים')
+  const exampleCount = await page.$$eval('[data-testid^=example-]', (els) => els.length)
+  check('the projects screen offers ready examples', exampleCount >= 8, `${exampleCount}`)
   check('no login: the device signs in on its own, without an email', log.includes('DEVICE') && !(await page.$('[data-testid=email-login]')))
 
   // ---------- version 1: edited geometry, realistic level, an orbited camera ----------
@@ -346,6 +353,32 @@ try {
   const notice = await fresh.textContent('[data-testid=notice]')
   check('an unsaved change survives a reload as a local draft', restored === rDraft && /טיוטה מקומית/.test(notice), `R ${restored} / ${rDraft}`)
 
+  // ---------- reset to the ideal state ----------
+  await open(fresh, `#/studio?v=${v1.id}`)
+  await modelReady(fresh)
+  await fresh.click('[data-testid=level-bare]')
+  const before = Number(await fresh.$eval('[data-testid=param-R]', (el) => el.value))
+  await nudgeR(fresh, 2)
+  const resetEnabled = await fresh.$eval('[data-testid=reset-all]', (el) => !el.disabled)
+  const vNow = await version(fresh)
+  await fresh.click('[data-testid=reset-all]')
+  await modelReady(fresh, vNow)
+  const after = Number(await fresh.$eval('[data-testid=param-R]', (el) => el.value))
+  const resetDisabled = await fresh.$eval('[data-testid=reset-all]', (el) => el.disabled)
+  check('reset returns the concept to the state it arrived in', resetEnabled && after === before && resetDisabled, `R ${before} → ${before + 2} → ${after}`)
+
+  // ---------- interpretation: positive and negative, and the reading ----------
+  await fresh.click('[data-testid=tab-reading]')
+  await fresh.waitForSelector('[data-testid=figure-ground]', { timeout: 30000 })
+  const fg = await fresh.$$eval('[data-testid=figure-ground] > div', (els) => els.map((e) => [e.dataset.key, Number(e.dataset.share)]))
+  check('positive and negative are measured on the model', fg.some(([k, v]) => k === 'plan' && v > 0 && v < 1) && fg.some(([k]) => k === 'volume'), JSON.stringify(fg))
+  const callsBefore = postCalls.length
+  await fresh.click('[data-testid=write-reading]')
+  await fresh.waitForSelector('[data-testid=reading]', { timeout: 30000 })
+  const sentReading = postCalls[callsBefore]
+  const readingRow = db.mathcreator_library.find((r) => r.kind === 'reading')
+  check('the reading is asked with the figure-ground numbers and kept in the library', sentReading?.body.mode === 'reading' && Object.keys(sentReading.body.figureGround ?? {}).length >= 3 && readingRow?.distill === 'משפט אחד שמחבר.', Object.keys(sentReading?.body.figureGround ?? {}).join(' | '))
+
   // ---------- library: prompts, uploaded images, a post ----------
   await open(fresh, `#/studio?v=${v1.id}`)
   await modelReady(fresh)
@@ -370,7 +403,7 @@ try {
 
   await fresh.click('[data-testid=write-post]')
   await fresh.waitForSelector('[data-testid=post]', { timeout: 30000 })
-  const sent = postCalls[0]
+  const sent = postCalls.find((c) => c.body.mode !== 'reading')
   check('the post is asked from the server function with the session and the recipe', sent?.auth === 'Bearer mock-token' && sent.body.recipe?.meta?.id && /3:2/.test(sent.body.prompt) && Object.keys(sent.body.metrics ?? {}).length > 3, `${Object.keys(sent?.body.metrics ?? {}).length} metrics`)
   const postRow = db.mathcreator_library.find((r) => r.kind === 'post')
   check('the post is saved in the library and shown', postRow?.distill === 'טבעת אחת שנראית כשלוש.' && (await fresh.textContent('[data-testid=post]')).includes('פסקה שנייה'))

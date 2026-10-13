@@ -14,7 +14,7 @@ export interface LibraryItem {
   id: string
   project_id: string
   version_id: string | null
-  kind: 'prompt' | 'image' | 'post'
+  kind: 'prompt' | 'image' | 'post' | 'reading'
   prompt_id: string | null
   distill: string | null
   body: string | null
@@ -25,6 +25,8 @@ export interface LibraryItem {
 }
 
 export interface Library {
+  /** Newest first. body holds the four parts as JSON; distill holds the synthesis. */
+  readings: LibraryItem[]
   posts: LibraryItem[]
   /** Newest first, each with its images. */
   prompts: (LibraryItem & { images: LibraryItem[] })[]
@@ -50,6 +52,7 @@ export async function loadLibrary(projectId: string): Promise<Library> {
     for (const i of images) i.url = byPath.get(i.image_path!) ?? undefined
   }
   return {
+    readings: items.filter((i) => i.kind === 'reading'),
     posts: items.filter((i) => i.kind === 'post'),
     prompts: items
       .filter((i) => i.kind === 'prompt')
@@ -144,4 +147,56 @@ export async function projectWithLatest(projectId: string): Promise<{ project: P
   const v = await supabase.from('mathcreator_recipe_versions').select('*').eq('project_id', projectId).order('created_at', { ascending: false }).limit(1)
   if (v.error) fail(v.error, 'טעינת הגרסה')
   return { project: p.data as ProjectRow, latest: ((v.data ?? [])[0] as (VersionRow & { recipe: Record<string, unknown> }) | undefined) ?? null }
+}
+
+// ---------- reading ----------
+
+export interface Reading {
+  logic: string
+  space: string
+  figure_ground: string
+  synthesis: string
+}
+
+export function readingOf(item: LibraryItem): Reading | null {
+  try {
+    const r = JSON.parse(item.body ?? '') as Reading
+    return r.logic && r.space && r.figure_ground ? { ...r, synthesis: item.distill ?? r.synthesis } : null
+  } catch {
+    return null
+  }
+}
+
+export async function addReading(input: { projectId: string; versionId: string | null; reading: Reading }): Promise<LibraryItem> {
+  const row = {
+    id: crypto.randomUUID(),
+    project_id: input.projectId,
+    version_id: input.versionId,
+    kind: 'reading' as const,
+    distill: input.reading.synthesis,
+    body: JSON.stringify({ logic: input.reading.logic, space: input.reading.space, figure_ground: input.reading.figure_ground }),
+  }
+  const res = await supabase.from('mathcreator_library').insert(row).select().single()
+  if (res.error) fail(res.error, 'שמירת הפרשנות')
+  return res.data as LibraryItem
+}
+
+export type ReadingOutcome = { ok: true; reading: Reading; durationMs: number } | { ok: false; error: string }
+
+export async function requestReading(input: { recipe: unknown; metrics?: Record<string, string>; figureGround?: Record<string, string> }): Promise<ReadingOutcome> {
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
+  if (!token) return { ok: false, error: 'החיבור לשרת עוד לא מוכן. אפשר לנסות שוב בעוד רגע.' }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/concept-post`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'reading', ...input }),
+    })
+    const body = await res.json().catch(() => null)
+    if (!res.ok || !body?.ok) return { ok: false, error: body?.error ?? `השרת החזיר שגיאה ${res.status}. אפשר לנסות שוב.` }
+    return body as ReadingOutcome
+  } catch (e) {
+    return { ok: false, error: `לא הצלחנו להגיע לשרת (${String(e)}). כדאי לבדוק את החיבור ולנסות שוב.` }
+  }
 }

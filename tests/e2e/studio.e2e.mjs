@@ -179,6 +179,8 @@ try {
   check('edge tracer reports the lap', /הקפה 1 מתוך 3/.test(trace), trace)
   await page.click('text=עצירת המעקב')
   await page.click('[data-testid=camera-aerial]')
+  // The moving section lives in the "צורה" tab, beside the shape it cuts.
+  await page.click('[data-testid=tab-shape]')
   await page.check('[data-testid=section-toggle]')
   await page.waitForTimeout(1200)
   const readout = await page.textContent('[data-testid=section-readout]')
@@ -223,7 +225,7 @@ try {
   check('New concept: breadcrumbs and screen name', /מושג חדש/.test(form.crumbs) && form.title === 'מושג חדש', form.crumbs)
   check('New concept: no horizontal scroll and no icons at 400 px', form.scrollWidth <= form.clientWidth && form.icons === 0, `${form.scrollWidth} ≤ ${form.clientWidth}, icons ${form.icons}`)
   check('New concept: submit waits for a concept', form.submitDisabled === true)
-  await narrow.click('text=Hyperboloid')
+  await narrow.click('text=היפרבולואיד')
   const filled = await narrow.$eval('[data-testid=concept]', (el) => el.value)
   check('New concept: an example fills the form', filled === 'Hyperboloid', filled)
   await narrow.screenshot({ path: shots + 'stage3-new-concept-400px.png', fullPage: true })

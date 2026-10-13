@@ -752,9 +752,13 @@ textarea.code {
   text-decoration-color: var(--accent);
 }
 
-/* ---------- studio: a workspace that fits the screen ---------- */
+/* ---------- studio: a workspace that fits any screen (DECISIONS.md 82) ----------
+   Wide screens: the page never scrolls. The left area is a size container; the 3:2 window takes the largest
+   size it can in it, and whatever width is left goes to the metrics, beside the window or under it. The view
+   buttons float on the window's lower edge. The side panel scrolls by itself.
+   Narrow screens: one column; the window (and its buttons) stays pinned to the top. */
 .studio {
-  --side: 400px;
+  --side: clamp(360px, 27vw, 520px);
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
@@ -762,63 +766,89 @@ textarea.code {
 .titleband {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
   gap: var(--space-2) var(--space-5);
-  flex-wrap: wrap;
-  padding: 10px var(--space-4) 8px;
+  padding: 10px var(--space-4) 10px;
+  min-width: 0;
 }
 .titleband-main {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 0 1 auto;
 }
 .titleband h1 {
-  font-size: clamp(30px, 3.6vw, 48px);
+  font-size: clamp(30px, 3.2vw, 50px);
   line-height: 1.02;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.titleband .eyebrow {
-  font-size: 14px;
-}
-.about {
-  max-width: 62ch;
-  font-size: 15px;
-  color: var(--muted);
-}
-.about summary {
-  font-family: var(--f-display);
+.titleband-maxim {
+  margin: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  font-weight: 200;
   font-size: 19px;
-  color: var(--ink);
-  cursor: pointer;
-  list-style-position: inside;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
-.about p {
-  margin: 6px 0 0;
+.titleband .reset {
+  flex: 0 0 auto;
 }
 .work {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'stage' 'viewbar' 'side' 'metrics';
+  grid-template-areas: 'left' 'side';
   gap: var(--space-3);
   padding: 0 var(--space-4) var(--space-4);
 }
+.work-left,
+.work-left-inner {
+  display: contents;
+}
+.work-left {
+  grid-area: left;
+}
 .work-stage {
-  grid-area: stage;
-  /* On a phone the model stays in view while the controls scroll under it. */
   position: sticky;
   inset-block-start: 0;
   z-index: 10;
   background: var(--bg);
-  padding-block-end: 4px;
+  padding-block-end: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.work-viewbar {
-  grid-area: viewbar;
+.viewbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-3);
+  gap: 6px;
 }
-.work-metrics {
-  grid-area: metrics;
+.viewbar .seg {
+  display: inline-grid;
+  background: var(--white);
+}
+.viewbar .seg.level {
+  min-width: 170px;
+}
+.viewbar .seg.cams button {
+  padding-inline: 10px;
+}
+.viewbar-checks {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.work-metrics .panel {
+  padding: 10px 12px;
+  gap: 8px;
+}
+.work-metrics h2 {
+  font-size: 17px;
 }
 .work-side {
   grid-area: side;
@@ -827,13 +857,12 @@ textarea.code {
   min-height: 0;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
 }
 .side-scroll {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 12px 14px 16px;
+  padding: 12px 16px 18px;
 }
 .side-scroll > .panel {
   padding: 0;
@@ -842,31 +871,27 @@ textarea.code {
 }
 .sidetabs {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   border-block-end: 1px solid var(--line);
   position: sticky;
   inset-block-start: 0;
   background: var(--panel);
   z-index: 2;
-  border-start-start-radius: var(--radius);
-  border-start-end-radius: var(--radius);
 }
 .sidetabs button {
   border: 0;
   border-radius: 0;
   background: transparent;
   border-block-end: 3px solid transparent;
+  padding-inline: 4px;
 }
-.sidetabs button[aria-selected='true'] {
-  border-block-end-color: var(--accent);
-  color: var(--accent);
-}
-.seg.level {
-  display: inline-grid;
-  min-width: 190px;
-}
-.toolbar.compact {
-  gap: 6px;
+.tabhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding-block-end: 10px;
+  border-block-end: 1px solid var(--hairline);
 }
 .sectionctl {
   display: flex;
@@ -876,25 +901,8 @@ textarea.code {
 .sectionctl.on {
   flex-basis: 100%;
 }
-.sectionctl .ctl,
-.sectionctl .section-readout {
-  max-width: 560px;
-}
-/* On a phone the model owns the top of the screen; the bar scrolls away with the page. */
-@media (max-width: 1023px) {
-  .studio .topbar {
-    position: static;
-  }
-}
-.work-metrics .panel {
-  padding: 10px 12px;
-  gap: 8px;
-}
-.work-metrics h2 {
-  font-size: 18px;
-}
 .metrics {
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
   gap: 6px 12px;
 }
 .metrics dt {
@@ -909,8 +917,6 @@ textarea.code {
 .work-metrics .hint {
   font-size: 13px;
 }
-
-/* Controls: denser, still a value, a unit and one sentence each. */
 fieldset {
   gap: 10px;
 }
@@ -931,8 +937,6 @@ legend {
 .ctl input[type='range'] {
   min-height: 24px;
 }
-
-/* A mouse needs smaller targets than a finger: 36 px where the pointer is fine, 44 px on touch. */
 @media (pointer: fine) {
   button,
   .filebtn,
@@ -945,10 +949,20 @@ legend {
     padding: 6px 12px;
   }
 }
+@media (max-width: 1023px) {
+  .studio .topbar {
+    position: static;
+  }
+  .titleband {
+    flex-wrap: wrap;
+  }
+  .titleband-maxim {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
 
-/* Wide screens: no page scroll. The model keeps its 3:2 frame at the largest size that leaves room for the
-   view bar and some metrics; the side panel and the metrics scroll on their own. */
-@media (min-width: 1024px) and (min-height: 620px) {
+@media (min-width: 1024px) and (min-height: 600px) {
   .studio {
     height: 100dvh;
     overflow: hidden;
@@ -957,17 +971,53 @@ legend {
     flex: 1;
     min-height: 0;
     grid-template-columns: minmax(0, 1fr) var(--side);
-    grid-template-rows: auto auto minmax(0, 1fr);
-    grid-template-areas: 'stage side' 'viewbar side' 'metrics side';
+    grid-template-areas: 'left side';
+  }
+  .work-left {
+    display: block;
+    container: left / size;
+    min-height: 0;
+    min-width: 0;
+  }
+  .work-left-inner {
+    display: grid;
+    height: 100%;
+    gap: var(--space-3);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: 'stage' 'metrics';
   }
   .work-stage {
-    position: static;
+    grid-area: stage;
+    position: relative;
     padding: 0;
+    width: fit-content;
+    max-width: 100%;
+    align-self: start;
+    justify-self: start;
   }
+  /* The window: the largest 3:2 that leaves 150 px for the metrics under it. */
   .work-stage .stage {
-    width: min(100%, calc((100dvh - var(--chrome, 300px)) * 1.5));
+    width: min(100cqw, calc((100cqh - 150px) * 1.5));
+  }
+  .work-stage .viewbar {
+    position: absolute;
+    inset-inline: 10px;
+    inset-block-end: 10px;
+    z-index: 11;
+    pointer-events: none;
+  }
+  .work-stage .viewbar > * {
+    pointer-events: auto;
+  }
+  .viewbar-checks {
+    background: color-mix(in srgb, var(--white) 88%, transparent);
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    min-height: 36px;
   }
   .work-metrics {
+    grid-area: metrics;
     overflow: auto;
     min-height: 0;
   }
@@ -980,10 +1030,20 @@ legend {
     min-height: 0;
     flex: 1;
   }
-}
-@media (min-width: 1400px) {
-  .studio {
-    --side: 440px;
+  /* When the area is wide for its height, the metrics move beside the window and the window grows. Below,
+     the window is 1.5 × (h − 150) wide; 240 px of metrics fit beside it once w > 1.5h + 15, about w/h > 1.52. */
+  @container left (min-aspect-ratio: 152 / 100) {
+    .work-left-inner {
+      grid-template-columns: auto minmax(220px, 1fr);
+      grid-template-rows: minmax(0, 1fr);
+      grid-template-areas: 'stage metrics';
+    }
+    .work-stage .stage {
+      width: min(calc(100cqw - 240px), calc(100cqh * 1.5));
+    }
+    .work-metrics .metrics {
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
   }
 }
 
@@ -1236,4 +1296,146 @@ button[aria-pressed='true'] {
 }
 button.quiet:hover:not(:disabled) {
   color: var(--black);
+}
+
+/* ---------- reading ---------- */
+.readingpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.reading-insight {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 200;
+  line-height: 1.5;
+}
+.reading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.reading section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reading p {
+  margin: 0;
+  line-height: 1.6;
+}
+.reading-synthesis {
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.35;
+  border-inline-start: 3px solid var(--black);
+  padding-inline-start: 12px;
+}
+.fg {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fg > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+.fg dt {
+  font-weight: 500;
+}
+.fg dd {
+  margin: 0;
+  font-family: var(--f-data);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.fg .why {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+/* The positive in black, the negative in the light grey it leaves. */
+.fg-bar {
+  grid-column: 1 / -1;
+  height: 10px;
+  background: var(--grey-1);
+  border: 1px solid var(--grey-2);
+}
+.fg-bar span {
+  display: block;
+  height: 100%;
+  background: var(--black);
+}
+button.reset {
+  background: var(--white);
+  border-color: var(--black);
+}
+button.reset:disabled {
+  border-color: var(--line);
+}
+.library.wide .sec-reading {
+  grid-column: 1 / -1;
+}
+
+/* ---------- examples and suggestions ---------- */
+.examples {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-block-start: 1px solid var(--line);
+  padding-block-start: var(--space-4);
+}
+.example-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-2);
+}
+.example {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: start;
+  padding: 12px 14px;
+}
+.example-concept {
+  font-family: var(--f-data);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.example-name {
+  font-size: 19px;
+  font-weight: 600;
+}
+.example-maxim {
+  font-weight: 300;
+  font-size: 15px;
+  color: var(--muted);
+}
+.suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 6px;
+}
+.suggestion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: start;
+  gap: 2px;
+}
+.suggestion small {
+  font-weight: 300;
+  font-size: 13px;
+  color: var(--muted);
 }

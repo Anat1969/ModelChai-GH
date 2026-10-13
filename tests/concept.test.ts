@@ -199,3 +199,26 @@ describe('the key stays on the server', () => {
     for (const f of files) expect(readFileSync(f, 'utf8'), f).not.toMatch(/ANTHROPIC_API_KEY|sk-ant-/)
   })
 })
+
+describe('the ideal default state', () => {
+  const lowFloor = () => broken((r) => (r.bare.floor.level = -2))
+  it('a recipe that builds but misses a human-scale rule gets one polish, and the polished one is kept', async () => {
+    const m = scripted([lowFloor(), fixture('umbilic-torus')])
+    const r = await conceptToRecipe(input, { call: m.call, now })
+    expect(m.count()).toBe(2)
+    expect(r.ok && r.attempts).toBe(2)
+    expect(r.ok && r.issues.map((i) => i.rule)).toEqual([8])
+    expect(String(m.seen[1]!.at(-1)!.content)).toContain('not yet in its ideal default state')
+  })
+  it('a polish that does not help is dropped, and the first recipe stays', async () => {
+    const m = scripted([lowFloor(), lowFloor()])
+    const r = await conceptToRecipe(input, { call: m.call, now })
+    expect(m.count()).toBe(2)
+    expect(r.ok && r.attempts).toBe(1)
+  })
+  it('cusp burial alone (rule 8) is a design choice and is not polished', async () => {
+    const m = scripted([fixture('umbilic-torus')])
+    await conceptToRecipe(input, { call: m.call, now })
+    expect(m.count()).toBe(1)
+  })
+})

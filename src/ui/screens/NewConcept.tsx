@@ -1,3 +1,5 @@
+import { SUGGESTIONS } from '../../data/examples'
+import { EmailLogin } from '../panels/EmailLogin'
 /**
  * New concept (PRODUCT.md "מסכים" 2): concept, use and context; while Claude works, a skeleton of the model
  * and a line that says what is happening. Every failure explains itself and offers a way out.
@@ -5,7 +7,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { requestRecipe, type ConceptOutcome, type ConceptProgress } from '../../data/concept'
 import { ensureSession, type SessionState } from '../../data/supabase'
-import { EmailLogin } from '../panels/EmailLogin'
 import { validateRecipe } from '../../recipe/rules'
 import { num } from '../format'
 import { navigate } from '../router'
@@ -20,13 +21,6 @@ type Phase =
   | { name: 'failed'; failure: Failure }
   | { name: 'editing'; text: string; problems: string[] }
 
-const EXAMPLES = [
-  { concept: 'Umbilic torus', use: 'ביתן ציבורי', context: 'חוף ים' },
-  { concept: 'Möbius strip', use: 'גשר הולכי רגל', context: 'פארק עירוני' },
-  { concept: 'Logarithmic spiral', use: 'מגדל תצפית', context: 'גבעות לס' },
-  { concept: 'Hyperboloid', use: 'מגדל מים', context: 'כיכר עירונית' },
-  { concept: "Pascal's triangle", use: 'פביליון', context: 'חזית מים' },
-]
 
 function stageLine(p: ConceptProgress | null): string {
   if (!p || (p.stage === 'calling' && p.attempt === 1)) return 'Claude מזקק את המושג: מה התכונה שעושה אותו לעצמו, ואיזה מחולל מבטא אותה'
@@ -176,10 +170,18 @@ export function NewConcept() {
                 <input id="context" data-testid="context" maxLength={120} value={context} onChange={(e) => setContext(e.currentTarget.value)} placeholder="למשל: חוף ים" dir="auto" />
                 <span className="why">בוחר את הסביבה ברמה הריאליסטית. לא משנה את הצורה.</span>
               </div>
-              <div className="toolbar" role="group" aria-label="דוגמאות">
-                {EXAMPLES.map((ex) => (
-                  <button key={ex.concept} type="button" onClick={() => (setConcept(ex.concept), setUse(ex.use), setContext(ex.context))}>
-                    {ex.concept}
+              <h3>מושגים להצעה</h3>
+              <div className="suggestions" role="group" aria-label="מושגים להצעה">
+                {SUGGESTIONS.map((ex) => (
+                  <button
+                    key={ex.concept}
+                    type="button"
+                    className="suggestion"
+                    title={ex.why}
+                    onClick={() => (setConcept(ex.concept), setUse(ex.use), setContext(ex.context))}
+                  >
+                    <span>{ex.he}</span>
+                    <small>{ex.why}</small>
                   </button>
                 ))}
               </div>

@@ -21,6 +21,7 @@ import { useStudio, type CameraPreset } from '../store'
 import { TopNav } from '../TopNav'
 import { SavePanel } from '../panels/SavePanel'
 import { DevicePanel } from '../panels/DevicePanel'
+import { ReadingPanel } from '../panels/ReadingPanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
 import { navigate, useParam } from '../router'
 
@@ -31,10 +32,11 @@ const CAMERAS: { id: CameraPreset; label: string }[] = [
   { id: 'courtyard', label: 'מהחצר' },
 ]
 
-type SideTab = 'shape' | 'scene' | 'save' | 'library'
+type SideTab = 'shape' | 'scene' | 'reading' | 'save' | 'library'
 const SIDE_TABS: { id: SideTab; label: string }[] = [
   { id: 'shape', label: 'צורה' },
   { id: 'scene', label: 'סביבה' },
+  { id: 'reading', label: 'פרשנות' },
   { id: 'save', label: 'שמירה' },
   { id: 'library', label: 'ספרייה' },
 ]
@@ -131,7 +133,7 @@ export function Studio() {
       })
       return
     }
-    load(structuredClone(FIXTURES[0].recipe), FIXTURES[0].id)
+    load(structuredClone(FIXTURES[0]!.recipe), FIXTURES[0]!.id)
   }, [load, versionParam])
 
   // Every unsaved change is kept on the device, so closing the tab loses nothing.
@@ -179,6 +181,11 @@ export function Studio() {
   }
   const title = recipe?.narrative.name_he ?? 'יוצר: מתמטיקה'
 
+  const baseline = useStudio((s) => s.baseline)
+  const reset = useStudio((s) => s.reset)
+  const changed = (keys: string[]) => !!raw && !!baseline && keys.some((k) => JSON.stringify(raw[k]) !== JSON.stringify(baseline[k]))
+  const anyChange = changed(['generator', 'bare', 'realistic'])
+
   return (
     <div className="studio">
       <TopNav
@@ -194,66 +201,71 @@ export function Studio() {
           <span className="eyebrow">{recipe ? [recipe.concept.name_he, recipe.concept.name, recipe.concept.use].filter(Boolean).join(' · ') : 'טוען מתכון'}</span>
           <h1>{title}</h1>
         </div>
-        {recipe && (
-          <details className="about">
-            <summary>{recipe.narrative.maxim ?? 'על המושג'}</summary>
-            <p>{recipe.narrative.insight}</p>
-            {recipe.narrative.fit_note && <p className="fit">מה אבד בתרגום: {recipe.narrative.fit_note}</p>}
-          </details>
-        )}
+        {recipe?.narrative.maxim && <p className="titleband-maxim">{recipe.narrative.maxim}</p>}
+        <button
+          type="button"
+          className="reset"
+          disabled={!anyChange}
+          title={anyChange ? 'מחזיר את הצורה ואת הסביבה למצב שבו המושג הגיע: המאוזן, בקנה מידה אנושי' : 'אין שינויים מהמצב המקורי'}
+          onClick={() => reset('all')}
+          data-testid="reset-all"
+        >
+          איפוס למצב המקורי
+        </button>
       </section>
 
       <main className="work">
-        <div className="work-stage">
-          <Viewport recipe={recipe ?? shown} built={shown} />
+        <div className="work-left">
+          <div className="work-left-inner">
+            <div className="work-stage">
+              <Viewport recipe={recipe ?? shown} built={shown} />
+              <div className="viewbar" role="toolbar" aria-label="תצוגה">
+                <div className="seg level" role="tablist" aria-label="רמת המחשה">
+                  <button type="button" role="tab" aria-selected={bare} aria-pressed={bare} data-testid="level-bare" onClick={() => set('level', 'bare')}>
+                    ערום
+                  </button>
+                  <button type="button" role="tab" aria-selected={!bare} aria-pressed={!bare} data-testid="level-realistic" onClick={() => set('level', 'realistic')}>
+                    ריאליסטי
+                  </button>
+                </div>
+                <div className="seg cams" role="group" aria-label="נקודות מבט">
+                  {CAMERAS.map((c) => (
+                    <button key={c.id} type="button" aria-pressed={camera === c.id} onClick={() => setCamera(c.id)} data-testid={`camera-${c.id}`}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="viewbar-checks">
+                  {bare && (
+                    <button
+                      type="button"
+                      disabled={!edges}
+                      title={edges ? undefined : 'לחתך הזה אין קצוות חדים'}
+                      onClick={() => {
+                        set('showEdges', true)
+                        set('traceStatus', null)
+                        set('tracing', !tracing)
+                      }}
+                    >
+                      {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
+                    </button>
+                  )}
+                  {bare && (
+                    <label className="check">
+                      <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
+                      הקצה
+                    </label>
+                  )}
+                  <label className="check">
+                    <input type="checkbox" checked={showPeople} onChange={(e) => set('showPeople', e.currentTarget.checked)} />
+                    אנשים
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div className="work-metrics">{result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}</div>
+          </div>
         </div>
-
-        <div className="work-viewbar">
-          <div className="seg level" role="tablist" aria-label="רמת המחשה">
-            <button type="button" role="tab" aria-selected={bare} aria-pressed={bare} data-testid="level-bare" onClick={() => set('level', 'bare')}>
-              ערום
-            </button>
-            <button type="button" role="tab" aria-selected={!bare} aria-pressed={!bare} data-testid="level-realistic" onClick={() => set('level', 'realistic')}>
-              ריאליסטי
-            </button>
-          </div>
-          <div className="toolbar compact" role="group" aria-label="נקודות מבט">
-            {CAMERAS.map((c) => (
-              <button key={c.id} type="button" aria-pressed={camera === c.id} onClick={() => setCamera(c.id)} data-testid={`camera-${c.id}`}>
-                {c.label}
-              </button>
-            ))}
-          </div>
-          <div className="toolbar compact">
-            {bare && (
-              <button
-                type="button"
-                disabled={!edges}
-                title={edges ? undefined : 'לחתך הזה אין קצוות חדים'}
-                onClick={() => {
-                  set('showEdges', true)
-                  set('traceStatus', null)
-                  set('tracing', !tracing)
-                }}
-              >
-                {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
-              </button>
-            )}
-            {bare && (
-              <label className="check">
-                <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
-                הקצה
-              </label>
-            )}
-            <label className="check">
-              <input type="checkbox" checked={showPeople} onChange={(e) => set('showPeople', e.currentTarget.checked)} />
-              אנשים, 1.75 מ'
-            </label>
-          </div>
-          {shown && bare && <SectionControl recipe={shown} />}
-        </div>
-
-        <div className="work-metrics">{result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}</div>
 
         <aside className="work-side" aria-label="כלים">
           <div className="sidetabs" role="tablist" aria-label="כלים">
@@ -276,8 +288,28 @@ export function Studio() {
                 {opening}
               </p>
             )}
-            {tab === 'shape' && recipe && <ParamsPanel recipe={recipe} />}
-            {tab === 'scene' && recipe && shown && <RealisticPanel recipe={recipe} built={shown} />}
+            {tab === 'shape' && recipe && (
+              <>
+                <div className="tabhead">
+                  <button type="button" className="reset" disabled={!changed(['generator', 'bare'])} onClick={() => reset('shape')} data-testid="reset-shape">
+                    איפוס הצורה
+                  </button>
+                  {shown && bare && <SectionControl recipe={shown} />}
+                </div>
+                <ParamsPanel recipe={recipe} />
+              </>
+            )}
+            {tab === 'scene' && recipe && shown && (
+              <>
+                <div className="tabhead">
+                  <button type="button" className="reset" disabled={!changed(['realistic'])} onClick={() => reset('scene')} data-testid="reset-scene">
+                    איפוס הסביבה
+                  </button>
+                </div>
+                <RealisticPanel recipe={recipe} built={shown} />
+              </>
+            )}
+            {tab === 'reading' && recipe && <ReadingPanel recipe={recipe} />}
             {tab === 'save' && (
               <>
                 <SavePanel />

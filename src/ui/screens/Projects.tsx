@@ -9,6 +9,7 @@ import { ensureSession, type SessionState } from '../../data/supabase'
 import { EmailLogin } from '../panels/EmailLogin'
 import { navigate } from '../router'
 import { TopNav } from '../TopNav'
+import { ExamplesGallery } from '../panels/ExamplesGallery'
 
 type Load = { status: 'loading' } | { status: 'ready'; projects: ProjectSummary[] } | { status: 'error'; message: string }
 
@@ -176,6 +177,7 @@ export function Projects() {
           ))}
         </div>
       )}
+      <ExamplesGallery />
     </div>
   )
 }

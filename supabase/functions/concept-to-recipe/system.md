@@ -14,6 +14,11 @@ Path geometry (the engine's axes: y is up, the ground is the xz plane):
 - helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
 - line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
 
+The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
+- Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
+- Human scale: enterable shells have a continuous floor at least 1.2 m wide and at least 2.4 m to stand under; passages 3.2 m wide and 2.6 m high above the floor. Prefer satisfying every soft rule below.
+- Figure and ground: choose openings, mode and context so the built form and its surroundings meet: what the form closes (a courtyard, a void, a shadow) is as deliberate as what it builds. Say it in the insight.
+
 Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
 - Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.
