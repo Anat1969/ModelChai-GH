@@ -14,6 +14,7 @@ import { ParamsPanel } from '../panels/ParamsPanel'
 import { FIXTURES, RecipeLoader } from '../panels/RecipeLoader'
 import type { Sweep } from '../params'
 import { useStudio, type CameraPreset } from '../store'
+import { TopNav } from '../TopNav'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
   { id: 'eye_level_oblique', label: 'גובה עיניים' },
@@ -85,6 +86,7 @@ export function Studio() {
 
   return (
     <div className="wrap">
+      <TopNav />
       <nav className="crumbs" aria-label="מיקום">
         <ol>
           <li>פרויקטים</li>

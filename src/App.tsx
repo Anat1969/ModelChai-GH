@@ -1,5 +1,7 @@
+import { useRoute } from './ui/router'
+import { NewConcept } from './ui/screens/NewConcept'
 import { Studio } from './ui/screens/Studio'
 
 export function App() {
-  return <Studio />
+  return useRoute() === 'studio' ? <Studio /> : <NewConcept />
 }

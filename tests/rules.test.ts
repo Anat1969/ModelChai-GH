@@ -204,7 +204,7 @@ describe('repair message', () => {
     const r = validateRecipe(raw)
     expect(repairMessage(r.schemaErrors, r.issues)).toBe(
       [
-        'The recipe failed validation. Fix only these problems and call submit_recipe again:',
+        'The recipe failed validation. Fix only these problems and answer again with the full recipe:',
         '- 1: החתך לא נסגר על עצמו בסוף ההקפה (current value 0.75, required turns_per_lap × 3 is an integer)',
         'Keep every other field unchanged.',
       ].join('\n'),

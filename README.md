@@ -8,13 +8,17 @@
 
 - **שלב 2 הושלם:** מסך הסטודיו עם המודל הערום, מדדים, ארבע מצלמות, מעקב אחרי הקצה, חתך נע, וייצוא ל-glTF, OBJ, STL, JSON ו-PNG.
 
-השלב הבא הוא שלב 3: ממושג למתכון. ראו `docs/BUILD_PLAN.md`.
+- **שלב 3 נבנה:** מסך "מושג חדש", פונקציית השרת `concept-to-recipe` עם לולאת תיקון, וטבלאות `mathcreator_*` עם RLS בפרויקט Supabase ‏`cultura-GH`. בדיקת האינטגרציה מול Claude (`npm run integration`) ממתינה לגישת רשת.
+
+השלב הבא הוא שלב 4: המודל הריאליסטי. ראו `docs/BUILD_PLAN.md`.
 
 ## פקודות
 ```
 npm install
 npm test          # vitest: חוזה, כללים, מנוע, ייצוא
 npm run e2e       # Playwright: מבחני הקבלה של שלב 2 בדפדפן
+npm run integration    # שלב 3 מול השרת: חמישה מושגים ומושג עד מודל. עולה כסף, ודורש רשת
+npm run build:function # בונה את supabase/functions/concept-to-recipe/index.ts מ-src
 npm run typecheck
 npm run dev
 ```

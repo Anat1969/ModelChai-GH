@@ -214,7 +214,7 @@ export function repairMessage(schemaErrors: SchemaError[], issues: RuleIssue[]):
       .map((i) => `- ${i.rule}: ${i.message} (current value ${i.value}, required ${i.required})`),
   ]
   return [
-    'The recipe failed validation. Fix only these problems and call submit_recipe again:',
+    'The recipe failed validation. Fix only these problems and answer again with the full recipe:',
     ...lines,
     'Keep every other field unchanged.',
   ].join('\n')

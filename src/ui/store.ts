@@ -22,6 +22,16 @@ export interface Notice {
 // Raw recipe as loaded or edited (before schema defaults).
 export type RawRecipe = Record<string, unknown>
 
+/** Where the current recipe came from, when it came from a concept: for the time-to-model measure. */
+export interface ConceptOrigin {
+  concept: string
+  startedAt: number
+  attempts: number
+  warnings: string[]
+  /** Set once the first model of this recipe is on screen. */
+  totalMs?: number
+}
+
 interface StudioState {
   recipe: RawRecipe | null
   sourceName: string
@@ -39,10 +49,11 @@ interface StudioState {
   showPeople: boolean
   tracing: boolean
   traceStatus: string | null
+  origin: ConceptOrigin | null
   sectionOn: boolean
   sectionT: number
 
-  loadRecipe(raw: unknown, sourceName: string): void
+  loadRecipe(raw: unknown, sourceName: string, origin?: ConceptOrigin): void
   setParam(path: string, value: unknown): void
   /** Several fields in one step and one build, e.g. switching to shell together with a wall thickness. */
   setParams(entries: [path: string, value: unknown][]): void
@@ -71,6 +82,19 @@ export const useStudio = create<StudioState>((set, get) => {
         const latest = mine === seq
         if (r.ok) {
           set((s) => ({ result: r, validRecipe: recipe, modelVersion: s.modelVersion + 1 }))
+          const origin = get().origin
+          if (origin && origin.totalMs === undefined) {
+            const totalMs = performance.now() - origin.startedAt
+            set({
+              origin: { ...origin, totalMs },
+              notice: {
+                tone: 'info',
+                title: `המודל נבנה מהמושג "${origin.concept}" תוך ${Math.round(totalMs / 1000)} שניות${origin.attempts > 1 ? `, אחרי ${origin.attempts - 1} סבבי תיקון` : ''}`,
+                lines: origin.warnings.map((text) => ({ text })),
+                action: 'הבנתי',
+              },
+            })
+          }
         } else if (latest) {
           // The slider returns to the last valid value (PRODUCT.md, "גאומטריה לא תקפה").
           const errors = r.issues.filter((i) => i.severity === 'error')
@@ -115,17 +139,26 @@ export const useStudio = create<StudioState>((set, get) => {
     showPeople: true,
     tracing: false,
     traceStatus: null,
+    origin: null,
     sectionOn: false,
     sectionT: 0.05,
 
-    loadRecipe(raw, sourceName) {
+    loadRecipe(raw, sourceName, origin) {
       const p = parseRecipe(raw)
       if (!p.ok) {
         // The current model stays; the user sees which field failed and why.
         set({ notice: schemaNotice(p.errors, `הקובץ "${sourceName}" לא עומד בסכמה של המתכון`) })
         return
       }
-      set({ recipe: raw as RawRecipe, sourceName, notice: null, tracing: false, traceStatus: null, cameraNonce: get().cameraNonce + 1 })
+      set({
+        recipe: raw as RawRecipe,
+        sourceName,
+        notice: null,
+        tracing: false,
+        traceStatus: null,
+        origin: origin ?? null,
+        cameraNonce: get().cameraNonce + 1,
+      })
       requestBuild(raw as RawRecipe)
     },
 

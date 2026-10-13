@@ -14,7 +14,8 @@ const tmp = root + 'node_modules/.tmp/e2e/'
 mkdirSync(shots, { recursive: true })
 mkdirSync(tmp, { recursive: true })
 const PORT = 4174
-const URL_ = `http://localhost:${PORT}/`
+const URL_ = `http://localhost:${PORT}/#/studio`
+const NEW_URL = `http://localhost:${PORT}/#/new`
 
 const results = []
 let failed = 0
@@ -205,6 +206,25 @@ try {
   check('model window is 1:1 at 400 px', Math.abs(layout.stage[0] - layout.stage[1]) <= 1, `${layout.stage[0].toFixed(0)} × ${layout.stage[1].toFixed(0)}`)
   check('touch targets at least 44 px', layout.smallTargets === 0, `${layout.smallTargets} smaller`)
   await narrow.screenshot({ path: shots + 'stage2-400px.png', fullPage: true })
+
+  // ---------- Stage 3 screen: New concept (offline checks; the live path is in concepts.integration.mjs) ----------
+  await narrow.goto(NEW_URL)
+  await narrow.waitForSelector('[data-testid=concept]')
+  const form = await narrow.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+    icons: document.querySelectorAll('svg, img, [class*=icon]').length,
+    crumbs: document.querySelector('.crumbs')?.textContent,
+    title: document.querySelector('h1')?.textContent,
+    submitDisabled: document.querySelector('[data-testid=submit]').disabled,
+  }))
+  check('New concept: breadcrumbs and screen name', /מושג חדש/.test(form.crumbs) && form.title === 'מושג חדש', form.crumbs)
+  check('New concept: no horizontal scroll and no icons at 400 px', form.scrollWidth <= form.clientWidth && form.icons === 0, `${form.scrollWidth} ≤ ${form.clientWidth}, icons ${form.icons}`)
+  check('New concept: submit waits for a concept', form.submitDisabled === true)
+  await narrow.click('text=Hyperboloid')
+  const filled = await narrow.$eval('[data-testid=concept]', (el) => el.value)
+  check('New concept: an example fills the form', filled === 'Hyperboloid', filled)
+  await narrow.screenshot({ path: shots + 'stage3-new-concept-400px.png', fullPage: true })
   await narrow.close()
 } finally {
   await browser.close()

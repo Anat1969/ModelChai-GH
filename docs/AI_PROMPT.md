@@ -6,11 +6,12 @@ Claude מתרגם מושג מתמטי למתכון שעומד בסכמה. הקר
 | נושא | החלטה |
 |---|---|
 | מודל | משתנה סביבה `CLAUDE_MODEL`. ברירת מחדל: `claude-sonnet-5-5`, מהיר ומספיק למשימה מובנית. לבדוק שמות מודלים עדכניים ב-docs.claude.com לפני פריסה |
-| פלט מובנה | Tool use עם כלי יחיד, `submit_recipe`, שה-`input_schema` שלו הוא `recipe.schema.json` בלי השדות `$schema` ו-`$id`. `tool_choice` מכריח את הכלי |
+| פלט מובנה | Structured outputs (`output_config.format`) עם גרסה של `recipe.schema.json` שהמהדר של ה-API מקבל: בלי מגבלות טווח ואורך ובלי if/then, והמחולל מצומצם למחוללים הזמינים. הבדיקה המלאה מול הסכמה והכללים רצה אחרי כל תשובה. בגלל ש-Sonnet 5.5 דוחה `tool_choice` מכריח, אין כלי `submit_recipe` (`DECISIONS.md` 32) |
 | מחוללים זמינים | נשלחים בהודעת המשתמש לפי הגדרת האפליקציה. במוצר המינימלי: `["sweep"]` |
 | דוגמאות | שלושת הקבצים ב-`docs/fixtures/` מצורפים להנחיית המערכת בזמן ריצה, כך שאין שכפול בין המסמך לקוד |
-| טמפרטורה | 0.4: מספיק גיוון בשם ובתובנה, בלי לפגוע במבנה |
+| טמפרטורה | לא נשלחת. ב-Sonnet 5.5 ערך שאינו ברירת המחדל מחזיר שגיאה. במקומה `effort: medium` (`DECISIONS.md` 33) |
 | מטמון | הנחיית המערכת והדוגמאות מסומנות ל-prompt caching, כי הן זהות בכל קריאה |
+| סירוב | `fallbacks: "default"` עם הכותרת `server-side-fallback-2026-07-01`: סירוב בקטגוריות שמכוסות עובר למודל חלופי באותה קריאה |
 
 ## 2. הנחיית המערכת
 טקסט ההנחיה נשמר בקובץ `supabase/functions/concept-to-recipe/system.md`, באנגלית, כי הוא מיועד למודל. השדות שמוצגים למשתמשת נכתבים בעברית.
@@ -18,7 +19,7 @@ Claude מתרגם מושג מתמטי למתכון שעומד בסכמה. הקר
 ```
 You translate a mathematical concept into a buildable architectural recipe for a parametric 3D engine.
 
-Output: call the tool submit_recipe exactly once. No prose outside the tool call.
+Output: one JSON object that matches the given schema. No prose outside it.
 
 How to think, in order:
 1. Distill the concept's structural essence: the one geometric property that makes it itself (e.g. umbilic torus: a single edge that circles three times).
@@ -63,7 +64,7 @@ Timestamp: {ISO datetime, Asia/Jerusalem}
 אם המתכון נכשל בבדיקה מול הסכמה או בכלל סמנטי קשיח, נשלחת הודעה חוזרת באותה שיחה, עד פעמיים:
 
 ```
-The recipe failed validation. Fix only these problems and call submit_recipe again:
+The recipe failed validation. Fix only these problems and answer again with the full recipe:
 - {path}: {error message}
 - {rule number}: {rule message} (current value {x}, required {condition})
 Keep every other field unchanged.
