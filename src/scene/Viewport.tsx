@@ -36,6 +36,8 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
       {built && recipe && (
         <Canvas
           shadows="percentage"
+          // Frames are drawn only when something changes: the scene is still most of the time.
+          frameloop="demand"
           onCreated={({ gl }) => (viewport.canvas = gl.domElement)}
           dpr={[1, 2]}
           gl={{ antialias: true, preserveDrawingBuffer: true }}

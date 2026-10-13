@@ -12,7 +12,7 @@ import type { MeshData } from '../engine/types'
 import { outerRadius } from '../recipe/rules'
 import type { Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
-import { bounds, cameraPose, peopleSpots } from './cameras'
+import { bounds, cameraPose, peopleSpots, type Vec3 } from './cameras'
 
 export const BARE = {
   background: '#e4e1da',
@@ -78,10 +78,14 @@ function Tracer({ result, rows }: { result: BuildSuccess; rows: number }) {
   const edge = result.curves.edges[0]
   const count = result.metrics.edgeCount
   const laps = edge ? Math.max(1, Math.round(edge.length / 3 / rows)) : 1
+  const invalidate = useThree((s) => s.invalidate)
   useEffect(() => {
     started.current = tracing ? performance.now() : null
-  }, [tracing])
+    invalidate()
+  }, [tracing, invalidate])
   useFrame(() => {
+    // The canvas draws on demand; while the tracer runs, it asks for the next frame itself.
+    if (tracing) invalidate()
     if (!ref.current || !edge) return
     ref.current.visible = tracing
     if (!tracing || started.current === null) return
@@ -142,6 +146,12 @@ export function Person({ at, h, color = BARE.person, head = BARE.person }: { at:
   )
 }
 
+/** The live camera pose, read when a version is saved and written when one is opened. */
+export const cameraControl: {
+  get: (() => { position: Vec3; target: Vec3 }) | null
+  set: ((pose: { position: Vec3; target: Vec3 }) => void) | null
+} = { get: null, set: null }
+
 export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
   const { camera } = useThree()
@@ -150,21 +160,50 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
   const set = useStudio((s) => s.set)
   const recipeRef = useRef(recipe)
   recipeRef.current = recipe
+  const { gl, invalidate } = useThree()
+  // The pose, rounded to millimeters, on the stage element: tests read it to check that a version reopens as saved.
+  const mark = () => {
+    const stage = gl.domElement.closest<HTMLElement>('[data-testid=stage]')
+    if (stage) stage.dataset.camera = JSON.stringify([...camera.position.toArray(), ...(controls.current?.target.toArray() ?? [])].map((v) => Math.round(v * 1000) / 1000))
+  }
+  useEffect(() => {
+    const apply = (pose: { position: Vec3; target: Vec3 }) => {
+      camera.position.set(...pose.position)
+      controls.current?.target.set(...pose.target)
+      controls.current?.update()
+      mark()
+      invalidate()
+    }
+    cameraControl.get = () => ({
+      position: camera.position.toArray() as Vec3,
+      target: (controls.current?.target.toArray() ?? [0, 0, 0]) as Vec3,
+    })
+    cameraControl.set = apply
+    return () => {
+      cameraControl.get = cameraControl.set = null
+    }
+  }, [camera, invalidate])
   useEffect(() => {
     if (!ready) return
+    // A saved view wins over the preset once: the version reopens exactly as it was looked at.
+    const saved = useStudio.getState().pendingView
+    if (saved) {
+      cameraControl.set?.(saved.camera)
+      set('pendingView', null)
+      return
+    }
     const pose = cameraPose(recipeRef.current, preset)
     if ('unavailable' in pose) {
       set('notice', { tone: 'info', title: 'נקודת המבט הזאת לא זמינה כאן', lines: [{ text: pose.unavailable }], action: 'הבנתי' })
       return
     }
-    camera.position.set(...pose.position)
-    controls.current?.target.set(...pose.target)
-    controls.current?.update()
+    cameraControl.set?.(pose)
   }, [nonce, preset, ready, camera, set])
-  return <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={0.08} maxPolarAngle={Math.PI * 0.495} minDistance={0.5} maxDistance={600} />
+  return <OrbitControls ref={controls} makeDefault enableDamping={false} maxPolarAngle={Math.PI * 0.495} minDistance={0.5} maxDistance={600} onEnd={mark} />
 }
 
-export function BareScene({ result, recipe, rows }: { result: BuildSuccess | null; recipe: Sweep; rows: number }) {
+/** `still` drops the studio's live tools (edge tracer, moving section), for side-by-side comparison. */
+export function BareScene({ result, recipe, rows, still = false }: { result: BuildSuccess | null; recipe: Sweep; rows: number; still?: boolean }) {
   const showEdges = useStudio((s) => s.showEdges)
   const showPeople = useStudio((s) => s.showPeople)
   const sectionOn = useStudio((s) => s.sectionOn)
@@ -220,10 +259,10 @@ export function BareScene({ result, recipe, rows }: { result: BuildSuccess | nul
           <Part mesh={result.meshes.floor} color={BARE.floor} />
           <Part mesh={result.meshes.caps} color={BARE.outer} />
           {showEdges && <Edges result={result} />}
-          <Tracer result={result} rows={rows} />
+          {!still && <Tracer result={result} rows={rows} />}
         </>
       )}
-      {sectionOn && <SectionPlane recipe={recipe} />}
+      {sectionOn && !still && <SectionPlane recipe={recipe} />}
       {people.map((p, i) => (
         <Person key={i} at={p.at} h={p.h} />
       ))}

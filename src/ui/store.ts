@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand'
 import type { BuildSuccess } from '../engine/build'
+import type { View } from '../data/projects'
 import { parseRecipe, type SchemaError } from '../recipe/schema'
 import { engine } from './engine'
 import { changesGeometry, setAt } from './recipePath'
@@ -55,8 +56,16 @@ interface StudioState {
   origin: ConceptOrigin | null
   sectionOn: boolean
   sectionT: number
+  /** The project and the saved version the current recipe continues from. */
+  project: ProjectRef | null
+  versionId: string | null
+  /** The recipe changed since it was opened or saved. */
+  dirty: boolean
+  /** A saved camera, applied once when the model is on screen. */
+  pendingView: View | null
+  save: SaveState
 
-  loadRecipe(raw: unknown, sourceName: string, origin?: ConceptOrigin): void
+  loadRecipe(raw: unknown, sourceName: string, origin?: ConceptOrigin, from?: { project: ProjectRef | null; versionId: string | null; view: View | null; dirty?: boolean }): void
   setParam(path: string, value: unknown): void
   /** Several fields in one step and one build, e.g. switching to shell together with a wall thickness. */
   setParams(entries: [path: string, value: unknown][]): void
@@ -64,6 +73,19 @@ interface StudioState {
   setCamera(c: CameraPreset): void
   set<K extends keyof StudioState>(key: K, value: StudioState[K]): void
 }
+
+export interface ProjectRef {
+  id: string
+  concept: string
+  title_he: string
+}
+
+export type SaveState =
+  | { status: 'idle' }
+  | { status: 'saving' }
+  | { status: 'saved'; at: number }
+  | { status: 'queued'; at: number }
+  | { status: 'failed'; message: string }
 
 let seq = 0
 
@@ -148,8 +170,13 @@ export const useStudio = create<StudioState>((set, get) => {
     origin: null,
     sectionOn: false,
     sectionT: 0.05,
+    project: null,
+    versionId: null,
+    dirty: false,
+    pendingView: null,
+    save: { status: 'idle' },
 
-    loadRecipe(raw, sourceName, origin) {
+    loadRecipe(raw, sourceName, origin, from) {
       const p = parseRecipe(raw)
       if (!p.ok) {
         // The current model stays; the user sees which field failed and why.
@@ -164,6 +191,13 @@ export const useStudio = create<StudioState>((set, get) => {
         traceStatus: null,
         origin: origin ?? null,
         cameraNonce: get().cameraNonce + 1,
+        project: from?.project ?? null,
+        versionId: from?.versionId ?? null,
+        // A recipe that did not come from a saved version has not been saved yet.
+        dirty: from?.dirty ?? !from?.versionId,
+        pendingView: from?.view ?? null,
+        save: { status: 'idle' },
+        ...(from?.view ? { level: from.view.level, camera: from.view.camera.preset } : {}),
       })
       requestBuild(raw as RawRecipe)
     },
@@ -182,6 +216,7 @@ export const useStudio = create<StudioState>((set, get) => {
         recipe: next,
         // A realistic change is valid as soon as the schema accepts it, so the built recipe takes it too.
         validRecipe: !geometry && valid ? { ...valid, realistic: next.realistic } : valid,
+        dirty: true,
         notice: get().notice?.tone === 'error' ? null : get().notice,
       })
       if (geometry) requestBuild(next)

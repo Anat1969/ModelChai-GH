@@ -2,7 +2,10 @@
  * Studio (PRODUCT.md "מסכים" 3): the 1:1 model on the start side, the parameter panel with two tabs beside it,
  * metrics and the insight below the model.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { loadDraft, saveDraft } from '../../data/offline'
+import { getVersion } from '../../data/projects'
+import { cameraControl } from '../../scene/BareScene'
 import { sectionCut } from '../../engine/sectionCut'
 import { parseRecipe } from '../../recipe/schema'
 import { Viewport } from '../../scene/Viewport'
@@ -16,6 +19,8 @@ import { FIXTURES, RecipeLoader } from '../panels/RecipeLoader'
 import type { Sweep } from '../params'
 import { useStudio, type CameraPreset } from '../store'
 import { TopNav } from '../TopNav'
+import { SavePanel } from '../panels/SavePanel'
+import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
   { id: 'eye_level_oblique', label: 'גובה עיניים' },
@@ -74,12 +79,75 @@ export function Studio() {
   const set = useStudio((s) => s.set)
   const load = useStudio((s) => s.loadRecipe)
   const level = useStudio((s) => s.level)
+  const project = useStudio((s) => s.project)
   const bare = level === 'bare'
   const fileInput = useRef<HTMLDivElement>(null)
 
+  const versionParam = useParam('v')
+  const [opening, setOpening] = useState<string | null>(null)
+
+  // Opening order: a version named in the address, then what is already open, then a local draft, then the reference model.
   useEffect(() => {
-    if (!useStudio.getState().recipe) load(structuredClone(FIXTURES[0].recipe), FIXTURES[0].id)
-  }, [load])
+    const st = useStudio.getState()
+    if (versionParam && versionParam !== st.versionId) {
+      setOpening('פותח את הגרסה')
+      getVersion(versionParam).then(
+        (v) => {
+          setOpening(null)
+          load(v.recipe, v.project.title_he, undefined, { project: { id: v.project.id, concept: v.project.concept, title_he: v.project.title_he }, versionId: v.id, view: v.view, dirty: false })
+        },
+        (e: unknown) => {
+          setOpening(null)
+          st.set('notice', {
+            tone: 'error',
+            title: 'הגרסה לא נפתחה',
+            lines: [{ text: e instanceof Error ? e.message : String(e) }],
+            action: 'חזרה לפרויקטים',
+          })
+        },
+      )
+      return
+    }
+    if (st.recipe) return
+    const draft = loadDraft()
+    if (draft) {
+      load(draft.recipe, draft.sourceName, undefined, { project: draft.project, versionId: draft.versionId, view: draft.view, dirty: true })
+      st.set('notice', {
+        tone: 'info',
+        title: `שוחזרה טיוטה מקומית מ-${new Date(draft.at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}`,
+        lines: [{ text: 'השינויים האלה עוד לא נשמרו כגרסה. "שמירת גרסה" שומרת אותם בשרת.' }],
+        action: 'הבנתי',
+      })
+      return
+    }
+    load(structuredClone(FIXTURES[0].recipe), FIXTURES[0].id)
+  }, [load, versionParam])
+
+  // Every unsaved change is kept on the device, so closing the tab loses nothing.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const unsub = useStudio.subscribe((s, prev) => {
+      if (!s.dirty || !s.recipe || (s.recipe === prev.recipe && s.dirty === prev.dirty)) return
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        const cur = useStudio.getState()
+        if (!cur.dirty || !cur.recipe) return
+        const pose = cameraControl.get?.()
+        saveDraft({
+          recipe: cur.recipe,
+          sourceName: cur.sourceName,
+          project: cur.project,
+          versionId: cur.versionId,
+          view: pose ? { level: cur.level, camera: { preset: cur.camera, ...pose } } : null,
+          at: Date.now(),
+        })
+      }, 600)
+    })
+    return () => {
+      clearTimeout(timer)
+      unsub()
+    }
+  }, [])
 
   const recipe = useMemo(() => asSweep(raw), [raw])
   // The scene follows the last built recipe, so figures and the section plane always match the mesh on screen.
@@ -92,8 +160,12 @@ export function Studio() {
       <TopNav />
       <nav className="crumbs" aria-label="מיקום">
         <ol>
-          <li>פרויקטים</li>
-          <li>{recipe?.concept.name_he ?? 'מתכון'}</li>
+          <li>
+            <a href="#/projects" onClick={(e) => (e.preventDefault(), navigate('projects'))}>
+              פרויקטים
+            </a>
+          </li>
+          <li>{project?.title_he ?? recipe?.concept.name_he ?? 'מתכון'}</li>
           <li aria-current="page">סטודיו</li>
         </ol>
       </nav>
@@ -171,10 +243,22 @@ export function Studio() {
             <div ref={fileInput}>
               <RecipeLoader />
             </div>
-            <NoticeBox onAction={() => fileInput.current?.querySelector<HTMLInputElement>('input[type=file]')?.focus()} />
+            <NoticeBox
+              onAction={() =>
+                useStudio.getState().notice?.action === 'חזרה לפרויקטים'
+                  ? navigate('projects')
+                  : fileInput.current?.querySelector<HTMLInputElement>('input[type=file]')?.focus()
+              }
+            />
             {recipe && bare && <ParamsPanel recipe={recipe} />}
             {recipe && shown && !bare && <RealisticPanel recipe={recipe} built={shown} />}
           </div>
+          {opening && (
+            <p className="notice info" role="status">
+              {opening}
+            </p>
+          )}
+          <SavePanel />
           <ExportPanel />
         </aside>
       </div>

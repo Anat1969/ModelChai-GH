@@ -23,8 +23,8 @@ export function NoticeBox({ onAction }: { onAction?: () => void }) {
         <button
           type="button"
           onClick={() => {
-            dismiss()
             onAction?.()
+            dismiss()
           }}
         >
           {notice.action}

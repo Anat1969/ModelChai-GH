@@ -4,7 +4,7 @@ import type { RuleIssue } from '../../recipe/rules'
 import { meters, num, percent, range } from '../format'
 import type { Sweep } from '../params'
 
-interface Row {
+export interface MetricRow {
   key: string
   label: string
   value: string
@@ -16,10 +16,10 @@ interface Row {
   rules?: number[]
 }
 
-function rows(m: Metrics, r: Sweep): Row[] {
+export function metricRows(m: Metrics, r: Sweep): MetricRow[] {
   const shell = r.bare.mode === 'shell'
   const material = MATERIAL_LOOK[r.realistic.materials.outer].name_he
-  const out: Row[] = []
+  const out: MetricRow[] = []
   if (m.outerDiameter !== null) out.push({ key: 'outerDiameter', label: 'קוטר חיצוני', value: meters(m.outerDiameter), raw: m.outerDiameter })
   if (m.courtyardDiameter !== null) out.push({ key: 'courtyardDiameter', label: 'קוטר החצר', value: meters(m.courtyardDiameter), raw: m.courtyardDiameter })
   out.push({
@@ -66,7 +66,7 @@ export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; is
     <section className="panel" aria-labelledby="metrics-title">
       <h2 id="metrics-title">מדדים</h2>
       <dl className="metrics">
-        {rows(metrics, recipe).map((row) => {
+        {metricRows(metrics, recipe).map((row) => {
           const hit = issues.filter((i) => row.rules?.includes(i.rule))
           return (
             <div key={row.key} className={hit.length ? 'warn' : undefined}>

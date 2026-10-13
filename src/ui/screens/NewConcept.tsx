@@ -4,7 +4,8 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { requestRecipe, type ConceptOutcome, type ConceptProgress } from '../../data/concept'
-import { ensureSession, sendMagicLink, type SessionState } from '../../data/supabase'
+import { ensureSession, type SessionState } from '../../data/supabase'
+import { EmailLogin } from '../panels/EmailLogin'
 import { validateRecipe } from '../../recipe/rules'
 import { num } from '../format'
 import { navigate } from '../router'
@@ -47,8 +48,6 @@ export function NewConcept() {
   const [context, setContext] = useState('')
   const [phase, setPhase] = useState<Phase>({ name: 'form' })
   const [session, setSession] = useState<SessionState | null>(null)
-  const [email, setEmail] = useState('')
-  const [mailNote, setMailNote] = useState('')
   const [now, setNow] = useState(() => performance.now())
   const abort = useRef<AbortController | null>(null)
   const load = useStudio((s) => s.loadRecipe)
@@ -229,25 +228,7 @@ export function NewConcept() {
             </div>
           )}
 
-          {session?.status === 'needs-email' && !creating && (
-            <div className="panel" data-testid="email-login">
-              <h2>כניסה</h2>
-              <p className="hint">כדי ליצור מתכון צריך להיות מחוברים. נשלח קישור כניסה למייל, בלי סיסמה.</p>
-              <div className="field">
-                <label htmlFor="email">מייל</label>
-                <input id="email" type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.currentTarget.value)} />
-              </div>
-              <div>
-                <button type="button" className="primary" disabled={!email.includes('@')} onClick={async () => {
-                  const r = await sendMagicLink(email)
-                  setMailNote(r.ok ? `נשלח קישור ל-${email}. פותחים אותו באותו דפדפן.` : `השליחה נכשלה: ${r.message}`)
-                }}>
-                  שליחת קישור כניסה
-                </button>
-              </div>
-              <p className="hint" role="status">{mailNote}</p>
-            </div>
-          )}
+          {session?.status === 'needs-email' && !creating && <EmailLogin why="כדי ליצור מתכון צריך להיות מחוברים." />}
 
           {phase.name === 'failed' && (
             <div className="notice error" role="alert" data-testid="concept-error">
