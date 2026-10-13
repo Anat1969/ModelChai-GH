@@ -1,6 +1,6 @@
 /**
  * Saving a version (PRODUCT.md "מודל נתונים"): the full recipe, a short note, the view it was looked at from,
- * a 1:1 snapshot and the visual prompt. A version is never edited; the next save points back to it.
+ * a 3:2 snapshot and the visual prompt. A version is never edited; the next save points back to it.
  */
 import { useState } from 'react'
 import { clearDraft, saveOrQueue } from '../../data/offline'
@@ -14,7 +14,9 @@ import { navigate } from '../router'
 import { useStudio } from '../store'
 import { EmailLogin } from './EmailLogin'
 
-const SNAPSHOT_SIZE = 768
+/** The window's 3:2 frame, at a size that keeps a PNG well under the 2 MB bucket limit. */
+const SNAPSHOT_W = 1200
+const SNAPSHOT_H = 800
 
 /**
  * The model window as a square PNG data URL, scaled down for storage. Read asynchronously (toBlob, then an
@@ -27,11 +29,13 @@ async function snapshot(): Promise<string | null> {
   if (!blob) return null
   const bmp = await createImageBitmap(blob)
   const c = document.createElement('canvas')
-  c.width = c.height = SNAPSHOT_SIZE
+  c.width = SNAPSHOT_W
+  c.height = SNAPSHOT_H
   const g = c.getContext('2d')
   if (!g) return null
-  const side = Math.min(bmp.width, bmp.height)
-  g.drawImage(bmp, (bmp.width - side) / 2, (bmp.height - side) / 2, side, side, 0, 0, SNAPSHOT_SIZE, SNAPSHOT_SIZE)
+  // Crop to 3:2 from the center, in case the canvas is a pixel off.
+  const w = Math.min(bmp.width, (bmp.height * 3) / 2), h = (w * 2) / 3
+  g.drawImage(bmp, (bmp.width - w) / 2, (bmp.height - h) / 2, w, h, 0, 0, SNAPSHOT_W, SNAPSHOT_H)
   bmp.close()
   return c.toDataURL('image/png')
 }

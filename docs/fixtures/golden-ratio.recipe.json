@@ -60,7 +60,7 @@
       "preset": "eye_level_oblique",
       "height": 1.6,
       "fov_deg": 42,
-      "aspect": "1:1"
+      "aspect": "3:2"
     }
   },
   "narrative": {

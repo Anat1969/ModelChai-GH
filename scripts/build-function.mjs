@@ -1,4 +1,4 @@
-// Bundles supabase/functions/concept-to-recipe/src into the deployable index.ts, so the server runs the very
+// Bundles each function's src into its deployable index.ts, so the server runs the very
 // same recipe schema and rules as the browser. npm packages stay external as pinned Deno npm: specifiers.
 import { build } from 'esbuild'
 import { readFileSync } from 'node:fs'
@@ -17,9 +17,10 @@ const npmSpecifiers = {
   },
 }
 
+for (const fn of ['concept-to-recipe', 'concept-post']) {
 await build({
-  entryPoints: ['supabase/functions/concept-to-recipe/src/handler.ts'],
-  outfile: 'supabase/functions/concept-to-recipe/index.ts',
+  entryPoints: [`supabase/functions/${fn}/src/handler.ts`],
+  outfile: `supabase/functions/${fn}/index.ts`,
   bundle: true,
   format: 'esm',
   platform: 'neutral',
@@ -31,4 +32,5 @@ await build({
   charset: 'utf8',
   logLevel: 'warning',
 })
-console.log('built supabase/functions/concept-to-recipe/index.ts')
+console.log(`built supabase/functions/${fn}/index.ts`)
+}

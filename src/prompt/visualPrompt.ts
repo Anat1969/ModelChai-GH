@@ -28,7 +28,7 @@ export interface VisualPrompt {
 }
 
 /** Fixed tail of every prompt (LEVELS.md 2.6, and the user's standing rule for Midjourney). */
-export const PROMPT_TAIL = 'Documentary realism, Professional architecture photography, 1:1 --ar 1:1 --no text, words, writing, frame divisions'
+export const PROMPT_TAIL = 'Documentary realism, Professional architecture photography, 3:2 --ar 3:2 --no text, words, writing, frame divisions'
 
 const m = (v: number) => `${num(v, 1)} מ'`
 const P = 'generator.params'

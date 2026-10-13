@@ -18,7 +18,7 @@
     "weather": "clear",
     "materials": { "outer": "timber_oak" },
     "context": { "preset": "park_lawn", "vegetation": "lawn_and_trees", "people": 8 },
-    "camera": { "preset": "eye_level_oblique", "height": 1.6, "fov_deg": 42, "aspect": "1:1" }
+    "camera": { "preset": "eye_level_oblique", "height": 1.6, "fov_deg": 42, "aspect": "3:2" }
   },
   "narrative": {
     "name_he": "הגשר שאין לו צד",

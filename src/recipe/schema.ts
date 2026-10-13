@@ -166,7 +166,8 @@ export const Realistic = z.strictObject({
     preset: z.enum(['eye_level_oblique', 'aerial', 'inside', 'courtyard']),
     height: num(0.3, 300).default(1.6),
     fov_deg: num(20, 90).default(42),
-    aspect: z.literal('1:1').optional(),
+    // 3:2 is the window since the studio redesign; 1:1 stays valid so versions saved before it still open.
+    aspect: z.enum(['3:2', '1:1']).default('3:2'),
   }),
 })
 

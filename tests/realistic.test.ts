@@ -183,7 +183,7 @@ describe('visual prompt (LEVELS.md 2.6)', () => {
     const v = visualPrompt(umbilic() as never)
     expect(v.parts.map((p) => p.slot)).toEqual(['shape', 'material', 'context', 'light', 'season', 'weather', 'people', 'camera'])
     expect(v.prompt.endsWith(PROMPT_TAIL)).toBe(true)
-    expect(v.prompt).toContain('Documentary realism, Professional architecture photography, 1:1')
+    expect(v.prompt).toContain('Documentary realism, Professional architecture photography, 3:2')
     expect(v.prompt).toContain('--no text, words, writing, frame divisions')
     expect(v.distill.length).toBeGreaterThan(10)
   })

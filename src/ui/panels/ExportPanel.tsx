@@ -10,7 +10,7 @@ const FORMATS: { id: ExportFormat | 'png'; label: string; note: string }[] = [
   { id: 'obj', label: 'OBJ', note: 'רשתות וקו הקצה, ל-Rhino' },
   { id: 'stl', label: 'STL', note: 'גוף אחד, Z למעלה, להדפסה' },
   { id: 'json', label: 'JSON', note: 'המתכון, לשחזור ולשיתוף' },
-  { id: 'png', label: 'PNG', note: 'צילום 1:1 של חלון המודל' },
+  { id: 'png', label: 'PNG', note: 'צילום 3:2 של חלון המודל' },
 ]
 
 function download(bytes: BlobPart, mime: string, filename: string) {

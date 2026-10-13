@@ -125,7 +125,7 @@ try {
 
   // ---------- 3. The prompt follows the screen ----------
   check('the prompt shows the chosen material, context, weather and date', /אבן ירושלמית/.test(prompt) && /כיכר עירונית/.test(prompt) && /אובך/.test(prompt) && /21 בדצמבר/.test(prompt), prompt.slice(0, 120) + '…')
-  check('the prompt ends with the fixed parameters', prompt.endsWith('Documentary realism, Professional architecture photography, 1:1 --ar 1:1 --no text, words, writing, frame divisions'))
+  check('the prompt ends with the fixed parameters', prompt.endsWith('Documentary realism, Professional architecture photography, 3:2 --ar 3:2 --no text, words, writing, frame divisions'))
 
   // A geometry change still builds, so the counter is live.
   await page.$eval('[data-testid=param-R]', (el) => {
@@ -143,7 +143,7 @@ try {
   await page.close()
 
   // ---------- RTL, no icons, 400 px ----------
-  const narrow = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 1 })
+  const narrow = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true })
   await narrow.goto(`http://localhost:${PORT}/#/studio`)
   await narrow.waitForFunction(() => Number(document.querySelector('[data-testid=stage]')?.dataset.modelVersion) > 0, null, { timeout: 90000 })
   await narrow.click('[data-testid=level-realistic]')

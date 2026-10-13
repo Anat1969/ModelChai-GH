@@ -38,6 +38,9 @@ function ProjectCard({ p }: { p: ProjectSummary }) {
               פתיחה בסטודיו
             </button>
           )}
+          <button type="button" onClick={() => navigate('library', { p: p.id })} data-testid="open-library">
+            ספרייה
+          </button>
           <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} data-testid="toggle-versions">
             {open ? 'הסתרת הגרסאות' : 'גרסאות והשוואה'}
           </button>
@@ -109,12 +112,7 @@ export function Projects() {
 
   return (
     <div className="wrap">
-      <TopNav />
-      <nav className="crumbs" aria-label="מיקום">
-        <ol>
-          <li aria-current="page">פרויקטים</li>
-        </ol>
-      </nav>
+      <TopNav crumbs={[{ label: 'פרויקטים' }]} />
       <header className="screen">
         <span className="eyebrow">מתמטיקה הפוכה</span>
         <h1>פרויקטים</h1>

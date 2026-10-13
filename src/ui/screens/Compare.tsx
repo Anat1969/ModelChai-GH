@@ -81,12 +81,12 @@ function Stage({ side, id, level, shared }: { side: Side; id: string; level: Lev
   const el = useRef<HTMLDivElement>(null)
   const rows = side.result.curves.path.length / 3
   return (
-    <div ref={el} className="stage" data-testid="compare-stage" data-side={id} role="img" aria-label={`גרסה ${id === 'a' ? 'ראשונה' : 'שנייה'} בהשוואה, יחס 1:1`}>
+    <div ref={el} className="stage" data-testid="compare-stage" data-side={id} role="img" aria-label={`גרסה ${id === 'a' ? 'ראשונה' : 'שנייה'} בהשוואה, יחס 3:2`}>
       <Canvas shadows="percentage" frameloop="demand" dpr={[1, 2]} gl={{ antialias: true, preserveDrawingBuffer: true }} camera={{ fov: side.recipe.realistic.camera.fov_deg, near: 0.1, far: 3000 }}>
         {level === 'realistic' ? <RealisticScene result={side.result} built={side.recipe} recipe={side.recipe} /> : <BareScene result={side.result} recipe={side.recipe} rows={rows} still />}
         <SyncedCamera id={id} shared={shared} el={el} />
       </Canvas>
-      <span className="badge">1:1</span>
+      <span className="badge">3:2</span>
     </div>
   )
 }
@@ -166,18 +166,7 @@ export function Compare() {
 
   return (
     <div className="wrap">
-      <TopNav />
-      <nav className="crumbs" aria-label="מיקום">
-        <ol>
-          <li>
-            <a href="#/projects" onClick={(e) => (e.preventDefault(), navigate('projects'))}>
-              פרויקטים
-            </a>
-          </li>
-          <li>{title || 'פרויקט'}</li>
-          <li aria-current="page">השוואה</li>
-        </ol>
-      </nav>
+      <TopNav crumbs={[{ label: 'פרויקטים', to: 'projects' }, { label: title || 'פרויקט' }, { label: 'השוואה' }]} />
       <header className="screen">
         <span className="eyebrow">השוואה</span>
         <h1>שתי גרסאות, אותה מצלמה</h1>

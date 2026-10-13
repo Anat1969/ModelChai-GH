@@ -29,8 +29,8 @@ const rel = (a, b) => Math.abs(a - b) / Math.abs(b)
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: root, stdio: 'ignore' })
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
 
-async function open(viewport) {
-  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, acceptDownloads: true })
+async function open(viewport, extra = {}) {
+  const page = await browser.newPage({ viewport, deviceScaleFactor: 1, acceptDownloads: true, ...extra })
   page.on('pageerror', (e) => console.log('pageerror:', e.message))
   for (let i = 0; i < 60; i++) {
     try {
@@ -116,6 +116,8 @@ try {
   check('previous model stays on screen while building', timing.blank === 0, `blank samples ${timing.blank}; new model after median ${median(timing.rebuild).toFixed(0)} ms, p95 ${p95(timing.rebuild).toFixed(0)} ms`)
 
   // ---------- invalid input: the slider returns to the last valid value, the model stays ----------
+  // Files, saving and export live in the "שמירה" tab of the side panel.
+  await page.click('[data-testid=tab-save]')
   const fixture = JSON.parse(readFileSync(root + 'docs/fixtures/umbilic-torus.recipe.json', 'utf8'))
   const bad = structuredClone(fixture)
   bad.generator.params.twist.turns_per_lap = 0.25
@@ -156,7 +158,7 @@ try {
     }
     if (fmt === 'png') {
       const w = bytes.readUInt32BE(16), h = bytes.readUInt32BE(20)
-      ok = ok && w === h
+      ok = ok && Math.abs(w / h - 1.5) < 0.01
       detail += `, ${w} × ${h}`
     }
     if (fmt === 'json') ok = ok && JSON.parse(bytes.toString('utf8')).meta.id === 'umbilic-torus-pavilion'
@@ -186,7 +188,7 @@ try {
   await page.close()
 
   // ---------- 3. RTL, no icons, works at 400 px ----------
-  const narrow = await open({ width: 400, height: 900 })
+  const narrow = await open({ width: 400, height: 900 }, { hasTouch: true, isMobile: true })
   await narrow.waitForTimeout(1500)
   const layout = await narrow.evaluate(() => {
     const stage = document.querySelector('[data-testid=stage]').getBoundingClientRect()
@@ -203,7 +205,7 @@ try {
   check('RTL', layout.dir === 'rtl' && layout.htmlDir === 'rtl')
   check('no horizontal scroll at 400 px', layout.scrollWidth <= layout.clientWidth, `${layout.scrollWidth} ≤ ${layout.clientWidth}`)
   check('no icons', layout.icons === 0, `${layout.icons} icon elements`)
-  check('model window is 1:1 at 400 px', Math.abs(layout.stage[0] - layout.stage[1]) <= 1, `${layout.stage[0].toFixed(0)} × ${layout.stage[1].toFixed(0)}`)
+  check('model window is 3:2 at 400 px', Math.abs(layout.stage[0] / layout.stage[1] - 1.5) < 0.01, `${layout.stage[0].toFixed(0)} × ${layout.stage[1].toFixed(0)}`)
   check('touch targets at least 44 px', layout.smallTargets === 0, `${layout.smallTargets} smaller`)
   await narrow.screenshot({ path: shots + 'stage2-400px.png', fullPage: true })
 

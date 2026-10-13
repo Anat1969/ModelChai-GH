@@ -1,4 +1,4 @@
-/** The 1:1 model window. The previous model stays on screen until the new build is ready. */
+/** The 3:2 model window. The previous model stays on screen until the new build is ready. */
 import { Canvas } from '@react-three/fiber'
 import type { Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
@@ -30,7 +30,7 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
       data-build-count={engine.buildCount}
       data-level={level}
       data-building={building}
-      aria-label="חלון המודל, יחס 1:1. גרירה מסובבת, גלגלת או צביטה מקרבות."
+      aria-label="חלון המודל, יחס 3:2. גרירה מסובבת, גלגלת או צביטה מקרבות."
       role="img"
     >
       {built && recipe && (
@@ -47,7 +47,7 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
           <CameraRig recipe={built} ready={!!result} />
         </Canvas>
       )}
-      <span className="badge">1:1</span>
+      <span className="badge">3:2</span>
       {building && result && (
         <span className="badge end" role="status">
           מעדכן את המודל

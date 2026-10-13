@@ -41,7 +41,7 @@ Soft rules (allowed, but prefer to satisfy):
 Defaults when the user gives no detail:
 - realistic.site: Ashdod, lat 31.8, lon 34.65.
 - realistic.datetime: today at 17:00 local time.
-- realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "1:1".
+- realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "3:2".
 - realistic.context.preset: choose the one closest to the user's context hint; otherwise coastal_dunes.
 - meta.source: "claude". meta.created_at: the timestamp given in the user message.
 

@@ -121,13 +121,7 @@ export function NewConcept() {
 
   return (
     <div className="wrap">
-      <TopNav />
-      <nav className="crumbs" aria-label="מיקום">
-        <ol>
-          <li>פרויקטים</li>
-          <li aria-current="page">מושג חדש</li>
-        </ol>
-      </nav>
+      <TopNav crumbs={[{ label: 'פרויקטים', to: 'projects' }, { label: 'מושג חדש' }]} />
       <header className="screen">
         <span className="eyebrow">מתמטיקה הפוכה</span>
         <h1>מושג חדש</h1>
@@ -141,7 +135,7 @@ export function NewConcept() {
         <div className="col">
           {creating ? (
             <div className="stage skeleton" role="status" aria-live="polite" data-testid="creating">
-              <span className="badge">1:1</span>
+              <span className="badge">3:2</span>
               <div className="skeleton-ring" aria-hidden="true" />
               <div className="stage-empty">
                 <p>

@@ -34,12 +34,12 @@ Ranges the schema enforces after you answer (stay inside them):
 - passages.count 0-12, width 0.9-12, height 2.1-8. slots.count 0-96, width_fraction 0.05-0.8, duty 0.1-0.9.
 - meta.id: lowercase letters, digits and hyphens, 3-64 characters.
 - concept.name and name_he up to 80 characters; narrative.name_he up to 60; insight 10-400; maxim up to 140; fit_note up to 300.
-- realistic.camera.aspect is always "1:1".
+- realistic.camera.aspect is always "3:2".
 
 Defaults when the user gives no detail:
 - realistic.site: Ashdod, lat 31.8, lon 34.65.
 - realistic.datetime: the timestamp's date at 17:00 local time.
-- realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "1:1".
+- realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "3:2".
 - realistic.context.preset: choose the one closest to the user's context hint; otherwise coastal_dunes.
 - meta.source: "claude". meta.created_at: the timestamp given in the user message.
 

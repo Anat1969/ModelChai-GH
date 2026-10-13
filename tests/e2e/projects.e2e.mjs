@@ -25,7 +25,8 @@ function check(name, ok, detail) {
 
 // ---------- in-memory Supabase ----------
 const USER = '00000000-0000-4000-8000-0000000000aa'
-const db = { mathcreator_projects: [], mathcreator_recipe_versions: [], mathcreator_snapshots: [] }
+const db = { mathcreator_projects: [], mathcreator_recipe_versions: [], mathcreator_snapshots: [], mathcreator_library: [] }
+const postCalls = []
 const files = new Map()
 const log = []
 let offline = false
@@ -91,6 +92,10 @@ async function rest(route) {
       const t = now()
       rows.push({ created_at: t, ...(table === 'mathcreator_projects' ? { updated_at: t, owner: USER } : {}), ...item })
     }
+    if ((req.headers()['prefer'] ?? '').includes('return=representation')) {
+      const made = rows.filter((r) => (Array.isArray(body) ? body : [body]).some((b) => b.id === r.id))
+      return (req.headers()['accept'] ?? '').includes('vnd.pgrst.object') ? json(201, made[0]) : json(201, made)
+    }
     return route.fulfill({ status: 201, body: '' })
   }
   if (req.method() === 'PATCH') {
@@ -100,6 +105,13 @@ async function rest(route) {
     for (const r of filterRows(rows, url.searchParams)) Object.assign(rows.find((x) => x.id === r.id), body, { updated_at: now() })
     return route.fulfill({ status: 204, body: '' })
   }
+  if (req.method() === 'DELETE') {
+    const gone = filterRows(rows, url.searchParams).map((r) => r.id)
+    db[table] = rows.filter((r) => !gone.includes(r.id))
+    // The prompt's images go with it (on delete cascade).
+    if (table === 'mathcreator_library') db[table] = db[table].filter((r) => !gone.includes(r.prompt_id))
+    return route.fulfill({ status: 204, body: '' })
+  }
   return json(405, {})
 }
 
@@ -107,25 +119,35 @@ async function storage(route) {
   const req = route.request()
   const url = new URL(req.url())
   const path = decodeURIComponent(url.pathname.split('/storage/v1/')[1])
-  if (req.method() === 'POST' && path.startsWith('object/sign/')) {
+  const m = path.match(/^object\/(sign\/)?([a-z-]+)(?:\/(.*))?$/)
+  if (!m) return route.fulfill({ status: 404, body: '{}' })
+  const [, sign, bucket, key = ''] = m
+  const full = (k) => `${bucket}/${k}`
+  if (req.method() === 'POST' && sign && !key) {
     const { paths } = JSON.parse(req.postData())
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(paths.map((p) => ({ path: p, error: null, signedURL: `/object/sign/mathcreator-snapshots/${p}?token=t` }))) })
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(paths.map((p) => ({ path: p, error: null, signedURL: `/object/sign/${bucket}/${p}?token=t` }))) })
   }
-  if (req.method() === 'GET' && path.startsWith('object/sign/')) {
-    const key = path.replace('object/sign/mathcreator-snapshots/', '')
-    const png = files.get(key)
-    return png ? route.fulfill({ contentType: 'image/png', body: png }) : route.fulfill({ status: 404, body: '' })
+  if (req.method() === 'POST' && sign) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ signedURL: `/object/sign/${bucket}/${key}?token=t` }) })
+  if (req.method() === 'GET' && sign) {
+    const file = files.get(full(key))
+    return file ? route.fulfill({ contentType: key.endsWith('.png') ? 'image/png' : 'image/jpeg', body: file }) : route.fulfill({ status: 404, body: '' })
   }
-  if (req.method() === 'POST' && path.startsWith('object/mathcreator-snapshots/')) {
-    const key = path.replace('object/mathcreator-snapshots/', '')
+  if (req.method() === 'DELETE' && !sign) {
+    const { prefixes } = JSON.parse(req.postData())
+    for (const p of prefixes) files.delete(full(p))
+    log.push(`REMOVE ${bucket} ${prefixes.length}`)
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(prefixes.map((name) => ({ name }))) })
+  }
+  if (req.method() === 'POST') {
     log.push(`UPLOAD ${key}`)
     if (!key.startsWith(USER + '/')) return route.fulfill({ status: 403, body: '{"message":"not your folder"}' })
-    if (files.has(key)) return route.fulfill({ status: 409, contentType: 'application/json', body: '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}' })
+    if (files.has(full(key))) return route.fulfill({ status: 409, contentType: 'application/json', body: '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}' })
     const buf = req.postDataBuffer()
-    const start = buf.indexOf(Buffer.from([0x89, 0x50, 0x4e, 0x47]))
+    const sig = [Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.from([0xff, 0xd8, 0xff])].map((b) => buf.indexOf(b)).filter((i) => i >= 0)
+    const start = Math.min(...sig)
     const end = buf.lastIndexOf(Buffer.from('\r\n--'))
-    files.set(key, buf.subarray(start, end > start ? end : buf.length))
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ Key: `mathcreator-snapshots/${key}`, Id: key }) })
+    files.set(full(key), buf.subarray(start, end > start ? end : buf.length))
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ Key: full(key), Id: key }) })
   }
   return route.fulfill({ status: 404, body: '{}' })
 }
@@ -134,6 +156,15 @@ async function mock(page) {
   await page.route('**/auth/v1/**', (r) => (offline ? r.abort('internetdisconnected') : r.fulfill({ contentType: 'application/json', body: JSON.stringify(session()) })))
   await page.route('**/rest/v1/**', (r) => (offline ? r.abort('internetdisconnected') : rest(r)))
   await page.route('**/storage/v1/**', (r) => (offline ? r.abort('internetdisconnected') : storage(r)))
+  // The post function: answers like Claude would, and records what it was sent.
+  await page.route('**/functions/v1/concept-post', async (r) => {
+    const body = JSON.parse(r.request().postData())
+    postCalls.push({ auth: r.request().headers()['authorization'], body })
+    await r.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ ok: true, short: 'טבעת אחת שנראית כשלוש.', post: 'פסקה ראשונה.\n\nפסקה שנייה.', model: 'mock', durationMs: 4200 }),
+    })
+  })
 }
 
 // ---------- helpers ----------
@@ -155,6 +186,7 @@ const modelReady = (page, after = 0) =>
   page.waitForFunction((v) => Number(document.querySelector('[data-testid=stage]')?.dataset.modelVersion) > v, after, { timeout: 90000 })
 const version = (page) => page.$eval('[data-testid=stage]', (el) => Number(el.dataset.modelVersion))
 async function nudgeR(page, delta) {
+  await page.click('[data-testid=tab-shape]')
   const before = await version(page)
   await page.$eval(
     '[data-testid=param-R]',
@@ -198,19 +230,21 @@ try {
   await page.click('[data-testid=camera-aerial]')
   await page.waitForTimeout(1500)
   await orbit(page, '[data-testid=stage] canvas', 140, -40)
+  await page.click('[data-testid=tab-save]')
   await page.fill('[data-testid=version-note]', 'רדיוס גדול יותר')
   await page.click('[data-testid=save-version]')
   await page.waitForSelector('[data-testid=save-status][data-status=saved]', { timeout: 60000 })
   const v1 = db.mathcreator_recipe_versions[0]
   check('save writes a project, a version, a snapshot file and its row', db.mathcreator_projects.length === 1 && db.mathcreator_recipe_versions.length === 1 && files.size === 1 && db.mathcreator_snapshots.length === 1, log.filter((l) => !l.startsWith('GET')).join(', '))
   const png = [...files.values()][0]
-  check('snapshot is a 1:1 PNG', png.readUInt32BE(16) === png.readUInt32BE(20) && png.readUInt32BE(16) === 768, `${png.readUInt32BE(16)} × ${png.readUInt32BE(20)}`)
+  check('snapshot is a 3:2 PNG', png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 800, `${png.readUInt32BE(16)} × ${png.readUInt32BE(20)}`)
   check('the first version has no parent, and keeps level and camera', v1.parent_id === null && v1.view.level === 'realistic' && v1.view.camera.position.length === 3, JSON.stringify(v1.view.camera.position))
   check('the snapshot row carries the visual prompt', /Documentary realism/.test(db.mathcreator_snapshots[0].visual_prompt ?? ''))
 
   // ---------- version 2: derived from version 1 ----------
   await page.click('[data-testid=level-bare]')
   const r2 = await nudgeR(page, 2)
+  await page.click('[data-testid=tab-save]')
   await page.fill('[data-testid=version-note]', 'חצר רחבה')
   await page.click('[data-testid=save-version]')
   await page.waitForFunction(() => document.querySelector('[data-testid=save-status]')?.dataset.status === 'saved' && document.querySelector('[data-testid=save-version]').disabled, null, { timeout: 60000 })
@@ -226,7 +260,7 @@ try {
   await open(fresh, '#/projects')
   await fresh.waitForSelector('[data-testid=project]', { timeout: 30000 })
   const thumb = await fresh.waitForFunction(() => document.querySelector('img.snapshot')?.naturalWidth || 0, null, { timeout: 30000 })
-  check('the project shows its latest snapshot', (await thumb.jsonValue()) === 768)
+  check('the project shows its latest snapshot', (await thumb.jsonValue()) === 1200)
   await fresh.click('[data-testid=toggle-versions]')
   const listed = await fresh.$$eval('[data-testid=version]', (els) => els.map((e) => e.textContent))
   check('both versions are listed, newest first, with their lineage', listed.length === 2 && /חצר רחבה/.test(listed[0]) && /נגזרה מגרסה 1/.test(listed[0]) && /הגרסה הראשונה/.test(listed[1]), listed.map((t) => t.slice(0, 40)).join(' | '))
@@ -249,6 +283,7 @@ try {
   const rShown = Number(await fresh.$eval('[data-testid=param-R]', (el) => el.value))
   check('acceptance 1: reopens with the saved recipe', rShown === r1, `R ${rShown} / ${r1}`)
   check('the address names the version', reopened.url.includes(`v=${v1.id}`))
+  await fresh.click('[data-testid=tab-save]')
   const saveDisabled = await fresh.$eval('[data-testid=save-version]', (el) => el.disabled)
   check('an unchanged version cannot be saved again', saveDisabled)
 
@@ -281,6 +316,7 @@ try {
   await fresh.click('[data-testid=level-bare]')
   await nudgeR(fresh, -1)
   offline = true
+  await fresh.click('[data-testid=tab-save]')
   await fresh.click('[data-testid=save-version]')
   await fresh.waitForSelector('[data-testid=save-status][data-status=queued]', { timeout: 30000 })
   const queued = await fresh.evaluate(() => JSON.parse(localStorage.getItem('mathcreator-pending') ?? '[]').length)
@@ -305,11 +341,53 @@ try {
   const notice = await fresh.textContent('[data-testid=notice]')
   check('an unsaved change survives a reload as a local draft', restored === rDraft && /טיוטה מקומית/.test(notice), `R ${restored} / ${rDraft}`)
 
+  // ---------- library: prompts, uploaded images, a post ----------
+  await open(fresh, `#/studio?v=${v1.id}`)
+  await modelReady(fresh)
+  await fresh.click('[data-testid=tab-library]')
+  await fresh.waitForSelector('[data-testid=save-prompt]', { timeout: 30000 })
+  await fresh.click('[data-testid=save-prompt]')
+  await fresh.waitForSelector('[data-testid=library-prompt]', { timeout: 30000 })
+  const promptRow = db.mathcreator_library.find((r) => r.kind === 'prompt')
+  check('a prompt is saved to the concept\'s library, tied to its version', promptRow && promptRow.project_id === v1.project_id && /Documentary realism, Professional architecture photography, 3:2 --ar 3:2/.test(promptRow.body) && promptRow.distill.length > 10, promptRow?.distill?.slice(0, 50))
+
+  const sample = [...files.entries()].find(([k]) => k.startsWith('mathcreator-snapshots/'))[1]
+  await fresh.setInputFiles('[data-testid=upload-image]', { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('x') })
+  const refused = await fresh.textContent('[data-testid=library-status]')
+  check('a file that is not an image is refused, with the reason', /אינו PNG/.test(refused) && !db.mathcreator_library.some((r) => r.kind === 'image'), refused)
+  await fresh.setInputFiles('[data-testid=upload-image]', [
+    { name: 'mj-1.png', mimeType: 'image/png', buffer: sample },
+    { name: 'mj-2.png', mimeType: 'image/png', buffer: sample },
+  ])
+  await fresh.waitForFunction(() => [...document.querySelectorAll('[data-testid=library-image]')].filter((i) => i.naturalWidth > 0).length === 2, null, { timeout: 30000 })
+  const imgs = db.mathcreator_library.filter((r) => r.kind === 'image')
+  check('uploaded images join the prompt they came from, in the owner\'s folder', imgs.length === 2 && imgs.every((i) => i.prompt_id === promptRow.id && i.image_path.startsWith(`${USER}/${v1.project_id}/`)), imgs.map((i) => i.image_path.split('/').pop()).join(', '))
+
+  await fresh.click('[data-testid=write-post]')
+  await fresh.waitForSelector('[data-testid=post]', { timeout: 30000 })
+  const sent = postCalls[0]
+  check('the post is asked from the server function with the session and the recipe', sent?.auth === 'Bearer mock-token' && sent.body.recipe?.meta?.id && /3:2/.test(sent.body.prompt) && Object.keys(sent.body.metrics ?? {}).length > 3, `${Object.keys(sent?.body.metrics ?? {}).length} metrics`)
+  const postRow = db.mathcreator_library.find((r) => r.kind === 'post')
+  check('the post is saved in the library and shown', postRow?.distill === 'טבעת אחת שנראית כשלוש.' && (await fresh.textContent('[data-testid=post]')).includes('פסקה שנייה'))
+  await fresh.screenshot({ path: shots + 'stage5-library-tab.png', timeout: 120000 })
+
+  await fresh.click('[data-testid=open-library]')
+  await fresh.waitForFunction(() => document.querySelectorAll('[data-testid=library-image]').length === 2 && document.querySelector('[data-testid=post]'), null, { timeout: 30000 })
+  await fresh.waitForFunction(() => document.querySelector('h1')?.textContent !== 'ספרייה', null, { timeout: 30000 }).catch(() => {})
+  const screenTitle = await fresh.textContent('h1')
+  check('the library has its own screen, with the concept as the title', screenTitle === v1.recipe.narrative.name_he && fresh.url().includes(`library?p=${v1.project_id}`), screenTitle)
+  await fresh.screenshot({ path: shots + 'stage5-library.png', fullPage: true, timeout: 120000 })
+
+  fresh.once('dialog', (d) => d.accept())
+  await fresh.click('[data-testid=library-prompt] .gallery-item button')
+  await fresh.waitForFunction(() => document.querySelectorAll('[data-testid=library-image]').length === 1, null, { timeout: 30000 })
+  check('deleting an image removes its row and its file', db.mathcreator_library.filter((r) => r.kind === 'image').length === 1 && log.some((l) => l.startsWith('REMOVE mathcreator-library 1')))
+
   // ---------- 400 px ----------
-  const narrow = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 1 })
+  const narrow = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true })
   await mock(narrow)
   await narrow.addInitScript((s) => localStorage.setItem('mathcreator-auth', JSON.stringify(s)), session())
-  for (const [hash, sel] of [['#/projects', '[data-testid=project]'], [`#/compare?a=${v1.id}&b=${v2.id}`, '[data-testid=metric-diff]']]) {
+  for (const [hash, sel] of [['#/projects', '[data-testid=project]'], [`#/compare?a=${v1.id}&b=${v2.id}`, '[data-testid=metric-diff]'], [`#/library?p=${v1.project_id}`, '[data-testid=post]']]) {
     await open(narrow, hash)
     await narrow.waitForSelector(sel, { timeout: 120000 })
     if (hash.startsWith('#/projects')) await narrow.click('[data-testid=toggle-versions]')
@@ -320,7 +398,7 @@ try {
       small: [...document.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().height < 44).length,
       dir: document.documentElement.dir,
     }))
-    const name = hash.startsWith('#/projects') ? 'projects' : 'compare'
+    const name = hash.split(/[/?]/)[1]
     check(`${name}: RTL, no horizontal scroll and no icons at 400 px`, layout.dir === 'rtl' && layout.scrollWidth <= layout.clientWidth && layout.icons === 0, `${layout.scrollWidth} ≤ ${layout.clientWidth}, icons ${layout.icons}`)
     check(`${name}: touch targets at least 44 px`, layout.small === 0, `${layout.small} smaller`)
   }

@@ -163,7 +163,7 @@ var recipe_schema_default = {
             preset: { enum: ["eye_level_oblique", "aerial", "inside", "courtyard"] },
             height: { type: "number", minimum: 0.3, maximum: 300, default: 1.6 },
             fov_deg: { type: "number", minimum: 20, maximum: 90, default: 42 },
-            aspect: { const: "1:1" }
+            aspect: { enum: ["3:2", "1:1"], default: "3:2" }
           }
         }
       }
@@ -321,7 +321,7 @@ var golden_ratio_recipe_default = {
       preset: "eye_level_oblique",
       height: 1.6,
       fov_deg: 42,
-      aspect: "1:1"
+      aspect: "3:2"
     }
   },
   narrative: {
@@ -353,7 +353,7 @@ var mobius_strip_recipe_default = {
     weather: "clear",
     materials: { outer: "timber_oak" },
     context: { preset: "park_lawn", vegetation: "lawn_and_trees", people: 8 },
-    camera: { preset: "eye_level_oblique", height: 1.6, fov_deg: 42, aspect: "1:1" }
+    camera: { preset: "eye_level_oblique", height: 1.6, fov_deg: 42, aspect: "3:2" }
   },
   narrative: {
     name_he: "הגשר שאין לו צד",
@@ -409,7 +409,7 @@ var umbilic_torus_recipe_default = {
       floor: "polished_concrete_grey"
     },
     context: { preset: "coastal_dunes", vegetation: "dune_shrubs_low", people: 9 },
-    camera: { preset: "eye_level_oblique", height: 1.6, fov_deg: 42, aspect: "1:1" }
+    camera: { preset: "eye_level_oblique", height: 1.6, fov_deg: 42, aspect: "3:2" }
   },
   narrative: {
     name_he: "הטבעת המשולשת",
@@ -456,12 +456,12 @@ Ranges the schema enforces after you answer (stay inside them):
 - passages.count 0-12, width 0.9-12, height 2.1-8. slots.count 0-96, width_fraction 0.05-0.8, duty 0.1-0.9.
 - meta.id: lowercase letters, digits and hyphens, 3-64 characters.
 - concept.name and name_he up to 80 characters; narrative.name_he up to 60; insight 10-400; maxim up to 140; fit_note up to 300.
-- realistic.camera.aspect is always "1:1".
+- realistic.camera.aspect is always "3:2".
 
 Defaults when the user gives no detail:
 - realistic.site: Ashdod, lat 31.8, lon 34.65.
 - realistic.datetime: the timestamp's date at 17:00 local time.
-- realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "1:1".
+- realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "3:2".
 - realistic.context.preset: choose the one closest to the user's context hint; otherwise coastal_dunes.
 - meta.source: "claude". meta.created_at: the timestamp given in the user message.
 
@@ -598,7 +598,8 @@ var Realistic = z.strictObject({
     preset: z.enum(["eye_level_oblique", "aerial", "inside", "courtyard"]),
     height: num(0.3, 300).default(1.6),
     fov_deg: num(20, 90).default(42),
-    aspect: z.literal("1:1").optional()
+    // 3:2 is the window since the studio redesign; 1:1 stays valid so versions saved before it still open.
+    aspect: z.enum(["3:2", "1:1"]).default("3:2")
   })
 });
 var Recipe = z.strictObject({

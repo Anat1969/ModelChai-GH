@@ -137,7 +137,7 @@ export interface SaveInput {
   recipe: Record<string, unknown>
   view: View
   note: string | null
-  /** PNG of the 1:1 view, as a data URL so it survives in the offline queue. */
+  /** PNG of the 3:2 view, as a data URL so it survives in the offline queue. */
   snapshot: string | null
   visualPrompt: string | null
 }

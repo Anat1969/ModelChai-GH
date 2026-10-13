@@ -1,5 +1,5 @@
 /**
- * Studio (PRODUCT.md "מסכים" 3): the 1:1 model on the start side, the parameter panel with two tabs beside it,
+ * Studio (PRODUCT.md "מסכים" 3): a workspace that fits the screen. The 3:2 model on the start side, the tools beside it,
  * metrics and the insight below the model.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -20,6 +20,7 @@ import type { Sweep } from '../params'
 import { useStudio, type CameraPreset } from '../store'
 import { TopNav } from '../TopNav'
 import { SavePanel } from '../panels/SavePanel'
+import { LibraryPanel } from '../panels/LibraryPanel'
 import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
@@ -27,6 +28,14 @@ const CAMERAS: { id: CameraPreset; label: string }[] = [
   { id: 'aerial', label: 'מבט על' },
   { id: 'inside', label: 'בפנים' },
   { id: 'courtyard', label: 'מהחצר' },
+]
+
+type SideTab = 'shape' | 'scene' | 'save' | 'library'
+const SIDE_TABS: { id: SideTab; label: string }[] = [
+  { id: 'shape', label: 'צורה' },
+  { id: 'scene', label: 'סביבה' },
+  { id: 'save', label: 'שמירה' },
+  { id: 'library', label: 'ספרייה' },
 ]
 
 function asSweep(raw: unknown): Sweep | null {
@@ -42,7 +51,7 @@ function SectionControl({ recipe }: { recipe: Sweep }) {
   const ring = recipe.generator.params.path.type === 'circle' || recipe.generator.params.path.type === 'ellipse'
   const cut = useMemo(() => (on ? sectionCut(recipe, recipe.generator.params, t) : null), [on, recipe, t])
   return (
-    <div className="panel">
+    <div className={on ? 'sectionctl on' : 'sectionctl'}>
       <label className="check">
         <input type="checkbox" checked={on} onChange={(e) => set('sectionOn', e.currentTarget.checked)} data-testid="section-toggle" />
         חתך נע
@@ -79,6 +88,7 @@ export function Studio() {
   const set = useStudio((s) => s.set)
   const load = useStudio((s) => s.loadRecipe)
   const level = useStudio((s) => s.level)
+  const [tab, setTab] = useState<SideTab>(() => (useStudio.getState().level === 'realistic' ? 'scene' : 'shape'))
   const project = useStudio((s) => s.project)
   const bare = level === 'bare'
   const fileInput = useRef<HTMLDivElement>(null)
@@ -155,113 +165,133 @@ export function Studio() {
   const shown = built ?? recipe
   const edges = result?.metrics.edgeCount ?? 0
 
+  // The level and the side panel follow each other: the realistic level brings its tools, the bare one the shape.
+  useEffect(() => {
+    setTab((t) => (level === 'realistic' && t === 'shape' ? 'scene' : level === 'bare' && t === 'scene' ? 'shape' : t))
+  }, [level])
+
+  // Each side tab shows one task. "סביבה" dresses the model, so it also shows the realistic level.
+  const openTab = (t: SideTab) => {
+    setTab(t)
+    if (t === 'scene') set('level', 'realistic')
+  }
+  const title = recipe?.narrative.name_he ?? 'יוצר: מתמטיקה'
+
   return (
-    <div className="wrap">
-      <TopNav />
-      <nav className="crumbs" aria-label="מיקום">
-        <ol>
-          <li>
-            <a href="#/projects" onClick={(e) => (e.preventDefault(), navigate('projects'))}>
-              פרויקטים
-            </a>
-          </li>
-          <li>{project?.title_he ?? recipe?.concept.name_he ?? 'מתכון'}</li>
-          <li aria-current="page">סטודיו</li>
-        </ol>
-      </nav>
+    <div className="studio">
+      <TopNav
+        crumbs={[
+          { label: 'פרויקטים', to: 'projects' },
+          { label: project?.title_he ?? recipe?.concept.name_he ?? 'מתכון' },
+          { label: 'סטודיו' },
+        ]}
+      />
 
-      <header className="screen">
-        <span className="eyebrow">
-          סטודיו · {recipe ? [recipe.concept.name_he, recipe.concept.use].filter(Boolean).join(' · ') : 'טוען מתכון'}
-        </span>
-        <h1>{recipe?.narrative.name_he ?? 'יוצר: מתמטיקה'}</h1>
-        {recipe && <p className="lead">{recipe.narrative.insight}</p>}
-      </header>
+      <section className="titleband" aria-label="המושג">
+        <div className="titleband-main">
+          <span className="eyebrow">{recipe ? [recipe.concept.name_he, recipe.concept.name, recipe.concept.use].filter(Boolean).join(' · ') : 'טוען מתכון'}</span>
+          <h1>{title}</h1>
+        </div>
+        {recipe && (
+          <details className="about">
+            <summary>{recipe.narrative.maxim ?? 'על המושג'}</summary>
+            <p>{recipe.narrative.insight}</p>
+            {recipe.narrative.fit_note && <p className="fit">מה אבד בתרגום: {recipe.narrative.fit_note}</p>}
+          </details>
+        )}
+      </section>
 
-      <div className="grid">
-        <div className="col">
+      <main className="work">
+        <div className="work-stage">
           <Viewport recipe={recipe ?? shown} built={shown} />
-          <div className="toolbar" role="group" aria-label="נקודות מבט">
+        </div>
+
+        <div className="work-viewbar">
+          <div className="seg level" role="tablist" aria-label="רמת המחשה">
+            <button type="button" role="tab" aria-selected={bare} aria-pressed={bare} data-testid="level-bare" onClick={() => set('level', 'bare')}>
+              ערום
+            </button>
+            <button type="button" role="tab" aria-selected={!bare} aria-pressed={!bare} data-testid="level-realistic" onClick={() => set('level', 'realistic')}>
+              ריאליסטי
+            </button>
+          </div>
+          <div className="toolbar compact" role="group" aria-label="נקודות מבט">
             {CAMERAS.map((c) => (
               <button key={c.id} type="button" aria-pressed={camera === c.id} onClick={() => setCamera(c.id)} data-testid={`camera-${c.id}`}>
                 {c.label}
               </button>
             ))}
-            {bare && (
-            <button
-              type="button"
-              className="primary"
-              disabled={!edges}
-              title={edges ? undefined : 'לחתך הזה אין קצוות חדים'}
-              onClick={() => {
-                set('showEdges', true)
-                set('traceStatus', null)
-                set('tracing', !tracing)
-              }}
-            >
-              {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
-            </button>
-            )}
           </div>
-          <div className="toolbar">
+          <div className="toolbar compact">
             {bare && (
-            <label className="check">
-              <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
-              הדגשת הקצה הרציף
-            </label>
+              <button
+                type="button"
+                disabled={!edges}
+                title={edges ? undefined : 'לחתך הזה אין קצוות חדים'}
+                onClick={() => {
+                  set('showEdges', true)
+                  set('traceStatus', null)
+                  set('tracing', !tracing)
+                }}
+              >
+                {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
+              </button>
+            )}
+            {bare && (
+              <label className="check">
+                <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
+                הקצה
+              </label>
             )}
             <label className="check">
               <input type="checkbox" checked={showPeople} onChange={(e) => set('showPeople', e.currentTarget.checked)} />
-              אנשים לקנה מידה, 1.75 מ'
+              אנשים, 1.75 מ'
             </label>
           </div>
           {shown && bare && <SectionControl recipe={shown} />}
-          {result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}
-          {recipe && (
-            <section className="insight" aria-label="תובנה">
-              {recipe.narrative.maxim && <p className="maxim">{recipe.narrative.maxim}</p>}
-              {recipe.narrative.fit_note && <p className="fit">מה אבד בתרגום: {recipe.narrative.fit_note}</p>}
-            </section>
-          )}
         </div>
 
-        <aside className="col" aria-label="פרמטרים">
-          <div className="panel">
-            <div className="tabs" role="tablist" aria-label="רמת המחשה">
-              <button type="button" role="tab" aria-selected={bare} data-testid="level-bare" onClick={() => set('level', 'bare')}>
-                ערום
+        <div className="work-metrics">{result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}</div>
+
+        <aside className="work-side" aria-label="כלים">
+          <div className="sidetabs" role="tablist" aria-label="כלים">
+            {SIDE_TABS.map((t) => (
+              <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => openTab(t.id)} data-testid={`tab-${t.id}`}>
+                {t.label}
               </button>
-              <button type="button" role="tab" aria-selected={!bare} data-testid="level-realistic" onClick={() => set('level', 'realistic')}>
-                ריאליסטי
-              </button>
-            </div>
-            <p className="hint">
-              {bare
-                ? 'ברמה הערומה קובעים את הצורה. הרמה הריאליסטית מלבישה אותה בחומר, שמש, עונה וסביבה, בלי לשנות אותה.'
-                : 'אותה רשת בדיוק, עם חומר, שמש, עונה וסביבה. שום שינוי כאן לא בונה את המודל מחדש.'}
-            </p>
-            <div ref={fileInput}>
-              <RecipeLoader />
-            </div>
+            ))}
+          </div>
+          <div className="side-scroll">
             <NoticeBox
               onAction={() =>
                 useStudio.getState().notice?.action === 'חזרה לפרויקטים'
                   ? navigate('projects')
-                  : fileInput.current?.querySelector<HTMLInputElement>('input[type=file]')?.focus()
+                  : (setTab('save'), setTimeout(() => fileInput.current?.querySelector<HTMLInputElement>('input[type=file]')?.focus()))
               }
             />
-            {recipe && bare && <ParamsPanel recipe={recipe} />}
-            {recipe && shown && !bare && <RealisticPanel recipe={recipe} built={shown} />}
+            {opening && (
+              <p className="notice info" role="status">
+                {opening}
+              </p>
+            )}
+            {tab === 'shape' && recipe && <ParamsPanel recipe={recipe} />}
+            {tab === 'scene' && recipe && shown && <RealisticPanel recipe={recipe} built={shown} />}
+            {tab === 'save' && (
+              <>
+                <SavePanel />
+                <ExportPanel />
+                <section className="panel" aria-label="מתכון מקובץ">
+                  <h2>מתכון מקובץ</h2>
+                  <div ref={fileInput}>
+                    <RecipeLoader />
+                  </div>
+                </section>
+              </>
+            )}
+            {tab === 'library' && <LibraryPanel onNeedSave={() => setTab('save')} />}
           </div>
-          {opening && (
-            <p className="notice info" role="status">
-              {opening}
-            </p>
-          )}
-          <SavePanel />
-          <ExportPanel />
         </aside>
-      </div>
+      </main>
     </div>
   )
 }
