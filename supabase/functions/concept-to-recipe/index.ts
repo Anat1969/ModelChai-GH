@@ -431,6 +431,11 @@ How to think, in order:
 4. Write the narrative in Hebrew: name_he (2-4 words), insight (one or two plain sentences about what the form does in space, not what it looks like), maxim (one short line).
 5. Be honest about fit: if the generator cannot fully express the concept, set narrative.fit_note to one Hebrew sentence saying what was lost. If the fit is complete, set it to null.
 
+Path geometry (the engine's axes: y is up, the ground is the xz plane):
+- circle and ellipse are horizontal rings on the ground plane.
+- helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
+- line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
+
 Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
 - Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.
@@ -889,6 +894,13 @@ var DROP = /* @__PURE__ */ new Set([
   "then",
   "else"
 ]);
+function inferType(values) {
+  if (values.every((v) => typeof v === "string")) return "string";
+  if (values.every((v) => Number.isInteger(v))) return "integer";
+  if (values.every((v) => typeof v === "number")) return "number";
+  if (values.every((v) => typeof v === "boolean")) return "boolean";
+  throw new Error(`mixed enum types: ${JSON.stringify(values)}`);
+}
 function clean(node) {
   if (Array.isArray(node)) return node.map(clean);
   if (!node || typeof node !== "object") return node;
@@ -905,14 +917,45 @@ function clean(node) {
     out[k] = clean(v);
   }
   if (out.type === "object" && out.properties && out.additionalProperties === void 0) out.additionalProperties = false;
+  if (out.type === void 0 && !out.anyOf && !out.allOf && !out.$ref) {
+    const values = Array.isArray(out.enum) ? out.enum : "const" in out ? [out.const] : [];
+    if (values.length) out.type = inferType(values);
+  }
   return out;
 }
+var ALWAYS_FILL = [
+  [["properties", "concept"], ["use", "context_hint"]],
+  [["properties", "narrative"], ["maxim", "fit_note"]],
+  [["properties", "realistic", "properties", "site"], ["name"]],
+  [["properties", "realistic", "properties", "context"], ["vegetation", "people"]],
+  [["properties", "realistic", "properties", "camera"], ["height", "fov_deg", "aspect"]],
+  [["$defs", "sweep"], ["scale_along_path"]],
+  [["$defs", "sweep", "properties", "twist"], ["initial_angle_deg"]],
+  [["$defs", "sweep", "properties", "section"], ["aspect"]],
+  [["properties", "meta"], ["notes"]],
+  [["properties", "bare"], ["highlight"]],
+  [["properties", "bare", "properties", "shell"], ["inner_method"]],
+  [["properties", "bare", "properties", "floor"], ["level", "type"]],
+  [["properties", "bare", "properties", "openings", "properties", "passages"], ["width", "height", "start_angle_deg"]],
+  [["properties", "bare", "properties", "openings", "properties", "slots"], ["width_fraction", "duty", "position"]]
+];
+var NOT_FOR_MODEL = [
+  [["$defs", "sweep"], "resolution"],
+  [["properties", "meta"], "parent_id"]
+];
 function modelSchema(recipeSchema, generators) {
   const s = clean(recipeSchema);
+  for (const [path, field] of NOT_FOR_MODEL) {
+    delete path.reduce((o, k) => o[k], s).properties[field];
+  }
+  for (const [path, fields] of ALWAYS_FILL) {
+    const node = path.reduce((o, k) => o[k], s);
+    node.required = [.../* @__PURE__ */ new Set([...node.required ?? [], ...fields])];
+  }
   const props = s.properties;
   const gen = props.generator;
   const genProps = gen.properties;
-  genProps.type = { enum: generators };
+  genProps.type = { type: "string", enum: generators };
   genProps.params = { $ref: "#/$defs/sweep" };
   delete gen.allOf;
   return s;
@@ -968,7 +1011,8 @@ Deno.serve(async (req) => {
     return json({ error: `הגעת למגבלה של ${RATE_LIMIT_PER_HOUR} מושגים בשעה. אפשר לנסות שוב בעוד שעה.` }, 429);
   }
   const client = new Anthropic({ apiKey, timeout: 12e4, maxRetries: 1 });
-  let structured = true;
+  let structured = Deno.env.get("MATHCREATOR_STRUCTURED") === "1";
+  let structuredError;
   const call = async (turns) => {
     const request = {
       model,
@@ -985,6 +1029,8 @@ Deno.serve(async (req) => {
     } catch (e) {
       if (structured && e instanceof Anthropic.BadRequestError && /schema|format/i.test(e.message)) {
         structured = false;
+        structuredError = e.message.slice(0, 300);
+        console.warn("structured outputs rejected, falling back to plain JSON:", structuredError);
         const { format: _drop, ...rest } = request.output_config;
         res = await client.beta.messages.create({ ...request, output_config: rest });
       } else throw e;
@@ -1013,7 +1059,7 @@ Deno.serve(async (req) => {
           issues: result.issues,
           recipe: result.ok ? result.recipe : result.lastRecipe
         });
-        send({ type: "result", ...result, durationMs: Date.now() - started, structured });
+        send({ type: "result", ...result, durationMs: Date.now() - started, structured, structuredError });
       } catch (e) {
         const status = e instanceof Anthropic.APIError ? e.status : void 0;
         const message = status === 429 ? "שירות Claude עמוס כרגע. אפשר לנסות שוב בעוד דקה." : status === 401 ? "מפתח ה-API של Claude בשרת לא תקין." : "לא הצלחנו להגיע ל-Claude. אפשר לנסות שוב.";

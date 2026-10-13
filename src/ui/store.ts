@@ -23,6 +23,9 @@ export interface Notice {
 export type RawRecipe = Record<string, unknown>
 
 /** Where the current recipe came from, when it came from a concept: for the time-to-model measure. */
+/** Hebrew counts the singular differently: "סבב תיקון אחד", "2 סבבי תיקון". */
+const repairLabel = (n: number) => (n <= 0 ? '' : n === 1 ? ', אחרי סבב תיקון אחד' : `, אחרי ${n} סבבי תיקון`)
+
 export interface ConceptOrigin {
   concept: string
   startedAt: number
@@ -89,7 +92,7 @@ export const useStudio = create<StudioState>((set, get) => {
               origin: { ...origin, totalMs },
               notice: {
                 tone: 'info',
-                title: `המודל נבנה מהמושג "${origin.concept}" תוך ${Math.round(totalMs / 1000)} שניות${origin.attempts > 1 ? `, אחרי ${origin.attempts - 1} סבבי תיקון` : ''}`,
+                title: `המודל נבנה מהמושג "${origin.concept}" תוך ${Math.round(totalMs / 1000)} שניות${repairLabel(origin.attempts - 1)}`,
                 lines: origin.warnings.map((text) => ({ text })),
                 action: 'הבנתי',
               },

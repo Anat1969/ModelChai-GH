@@ -82,9 +82,11 @@ Deno.serve(async (req) => {
   }
 
   const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 1 })
-  // Structured outputs first. If the API refuses to compile the schema, fall back to plain JSON in text:
-  // the full validation below catches whatever the looser mode lets through.
-  let structured = true
+  // Structured outputs are off by default: the API rejects the recipe schema ("too many optional parameters",
+  // then "compiled grammar is too large"; DECISIONS.md 32). Plain JSON plus full validation and the repair loop
+  // passed the acceptance run. MATHCREATOR_STRUCTURED=1 tries it again, and still falls back on a rejection.
+  let structured = Deno.env.get('MATHCREATOR_STRUCTURED') === '1'
+  let structuredError: string | undefined
   const call = async (turns: Turn[]): Promise<ModelReply> => {
     const request = {
       model,
@@ -101,6 +103,8 @@ Deno.serve(async (req) => {
     } catch (e) {
       if (structured && e instanceof Anthropic.BadRequestError && /schema|format/i.test(e.message)) {
         structured = false
+        structuredError = e.message.slice(0, 300)
+        console.warn('structured outputs rejected, falling back to plain JSON:', structuredError)
         const { format: _drop, ...rest } = request.output_config as Record<string, unknown>
         res = await client.beta.messages.create({ ...request, output_config: rest })
       } else throw e
@@ -135,7 +139,7 @@ Deno.serve(async (req) => {
           issues: result.issues,
           recipe: result.ok ? result.recipe : result.lastRecipe,
         })
-        send({ type: 'result', ...result, durationMs: Date.now() - started, structured })
+        send({ type: 'result', ...result, durationMs: Date.now() - started, structured, structuredError })
       } catch (e) {
         const status = e instanceof Anthropic.APIError ? e.status : undefined
         const message =

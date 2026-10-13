@@ -9,6 +9,11 @@ How to think, in order:
 4. Write the narrative in Hebrew: name_he (2-4 words), insight (one or two plain sentences about what the form does in space, not what it looks like), maxim (one short line).
 5. Be honest about fit: if the generator cannot fully express the concept, set narrative.fit_note to one Hebrew sentence saying what was lost. If the fit is complete, set it to null.
 
+Path geometry (the engine's axes: y is up, the ground is the xz plane):
+- circle and ellipse are horizontal rings on the ground plane.
+- helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
+- line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
+
 Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
 - Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.

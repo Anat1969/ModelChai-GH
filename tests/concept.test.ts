@@ -8,6 +8,7 @@ import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
 import { describe, expect, it } from 'vitest'
 import recipeSchema from '../docs/schema/recipe.schema.json'
+import { parseRecipe } from '../src/recipe/schema'
 import {
   conceptToRecipe,
   jerusalemTimestamp,
@@ -17,7 +18,7 @@ import {
   type Progress,
   type Turn,
 } from '../supabase/functions/concept-to-recipe/src/core'
-import { modelSchema } from '../supabase/functions/concept-to-recipe/src/modelSchema'
+import { MAX_OPTIONAL, countOptional, modelSchema } from '../supabase/functions/concept-to-recipe/src/modelSchema'
 import { FIXTURE_NAMES, fixture } from './helpers'
 
 const input = { concept: 'Umbilic torus', use: 'ביתן ציבורי', context: 'חוף ים', generators: ['sweep'] }
@@ -149,14 +150,35 @@ describe('structured-output schema', () => {
       for (const k of banned) expect(Object.keys(o)).not.toContain(k)
       if (Array.isArray(o.type)) throw new Error('type arrays must become anyOf')
       if (o.type === 'object' && o.properties) expect(o.additionalProperties).toBe(false)
+      // Every schema node needs a type unless it is a combinator or a reference.
+      const isSchemaNode = 'enum' in o || 'const' in o || 'properties' in o || 'items' in o
+      if (isSchemaNode && !o.anyOf && !o.allOf && !o.$ref) expect(o.type, JSON.stringify(o)).toBeDefined()
     })
   })
 
-  it('narrows the generator to the sweep and still accepts every fixture', () => {
+  it('stays within the API limit of optional fields (it rejected 29 against a limit of 24)', () => {
+    expect(countOptional(recipeSchema)).toBeGreaterThan(MAX_OPTIONAL)
+    expect(countOptional(s)).toBeLessThanOrEqual(MAX_OPTIONAL)
+  })
+
+  it('narrows the generator to the sweep and accepts complete recipes', () => {
     const ajv = new Ajv2020({ strict: false })
     addFormats(ajv)
     const v = ajv.compile(s)
-    for (const name of FIXTURE_NAMES) expect(v(fixture(name)), JSON.stringify(v.errors)).toBe(true)
+    // The model writes every field it can know; fixtures that lean on defaults get those filled in here.
+    const complete = (name: (typeof FIXTURE_NAMES)[number]) => {
+      const r = fixture(name)
+      delete r.generator.params.resolution
+      r.meta.notes ??= 'note'
+      r.bare.highlight ??= ['edges']
+      r.generator.params.section.aspect ??= 1
+      r.generator.params.twist.initial_angle_deg ??= 0
+      if (r.bare.floor) r.bare.floor.level ??= 0
+      return r
+    }
+    for (const name of FIXTURE_NAMES) expect(v(complete(name)), `${name}: ${JSON.stringify(v.errors)}`).toBe(true)
+    // Whatever the model writes against this schema still passes the app's own contract.
+    for (const name of FIXTURE_NAMES) expect(parseRecipe(complete(name)).ok).toBe(true)
     const bad = fixture('umbilic-torus')
     bad.generator.type = 'tiling'
     expect(v(bad)).toBe(false)
