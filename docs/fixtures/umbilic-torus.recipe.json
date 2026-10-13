@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "umbilic-torus-pavilion",
+    "created_at": "2026-10-13T03:10:00+03:00",
+    "source": "claude",
+    "notes": "Shell version: enterable pavilion on coastal dunes"
+  },
+  "concept": {
+    "name": "Umbilic torus",
+    "name_he": "טורוס טבורי",
+    "use": "ביתן ציבורי",
+    "context_hint": "חולות חוף ים תיכוני"
+  },
+  "generator": {
+    "type": "sweep",
+    "params": {
+      "section": { "curve": "deltoid", "a": 2.4 },
+      "path": { "type": "circle", "R": 18 },
+      "twist": { "turns_per_lap": 0.3333, "initial_angle_deg": -90 },
+      "scale_along_path": 1.0,
+      "resolution": { "path_segments": 360, "section_segments": 144 }
+    }
+  },
+  "bare": {
+    "mode": "shell",
+    "section_center_height": 1.5,
+    "shell": { "thickness": 0.3, "inner_method": "scaled_section" },
+    "openings": {
+      "passages": { "count": 3, "width": 3.2, "height": 2.6, "start_angle_deg": 51.6 },
+      "slots": { "count": 24, "width_fraction": 0.28, "duty": 0.42, "position": "face_center" }
+    },
+    "floor": { "level": 0, "type": "chord" },
+    "highlight": ["edges"]
+  },
+  "realistic": {
+    "site": { "lat": 31.8, "lon": 34.65, "name": "Ashdod" },
+    "datetime": "2026-10-13T17:00:00+03:00",
+    "weather": "clear",
+    "materials": {
+      "outer": "polished_concrete_light",
+      "inner": "concrete_matte",
+      "floor": "polished_concrete_grey"
+    },
+    "context": { "preset": "coastal_dunes", "vegetation": "dune_shrubs_low", "people": 9 },
+    "camera": { "preset": "eye_level_oblique", "height": 1.6, "fov_deg": 42, "aspect": "1:1" }
+  },
+  "narrative": {
+    "name_he": "הטבעת המשולשת",
+    "insight": "הצורה עצמה היא מסלול: קצה אחד שמקיף את הטבעת שלוש פעמים לפני שהוא חוזר להתחלה.",
+    "maxim": "מה שנראה כשלושה הוא אחד שעוד לא הסתיים.",
+    "fit_note": null
+  }
+}

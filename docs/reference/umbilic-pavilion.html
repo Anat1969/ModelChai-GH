@@ -1,0 +1,659 @@
+<title>הטבעת המשולשת</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: square 1:1 model stage on the right (RTL start), parameter panel beside it, prompt-to-parameter tables below */
+:root{
+  --bg:#e5e8e6; --panel:#f4f5f3; --ink:#1b2223; --muted:#566162; --line:#c3cac8; --accent:#1d6c75; --accent-ink:#ffffff; --chip:#dfe5e3; --warn:#9a5a12;
+  --f-display:"Frank Ruhl Libre","David Libre",Georgia,serif;
+  --f-body:"Assistant","Segoe UI",Arial,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#141a1b; --panel:#1c2324; --ink:#e3e8e6; --muted:#9aa6a5; --line:#2f393a; --accent:#5db0b8; --accent-ink:#0d1516; --chip:#253031; --warn:#e2a35a; color-scheme:dark }
+}
+:root[data-theme="dark"]{ --bg:#141a1b; --panel:#1c2324; --ink:#e3e8e6; --muted:#9aa6a5; --line:#2f393a; --accent:#5db0b8; --accent-ink:#0d1516; --chip:#253031; --warn:#e2a35a; color-scheme:dark }
+
+body{ background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:17px; line-height:1.55; direction:rtl; padding-inline:16px; padding-block:28px 48px }
+.wrap{ max-width:1240px; margin-inline:auto; display:flex; flex-direction:column; gap:28px }
+header{ display:flex; flex-direction:column; gap:6px; max-width:70ch }
+.eyebrow{ font-size:14px; letter-spacing:.06em; color:var(--muted); font-weight:600 }
+h1{ font-family:var(--f-display); font-weight:700; font-size:clamp(34px,5vw,54px); line-height:1.05; margin:0; text-wrap:balance }
+.lead{ margin:0; color:var(--muted); font-size:18px }
+h2{ font-family:var(--f-display); font-weight:700; font-size:26px; margin:0; text-wrap:balance }
+h3{ font-size:15px; font-weight:700; margin:0; letter-spacing:.03em; color:var(--muted) }
+
+.grid{ display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:24px; align-items:start }
+@media (max-width:880px){ .grid{ grid-template-columns:minmax(0,1fr) } }
+
+.stagebox{ display:flex; flex-direction:column; gap:10px; min-width:0 }
+.stage{ position:relative; width:100%; max-width:100%; aspect-ratio:1/1; background:#c9b9a0; overflow:hidden; border-radius:4px }
+.stage canvas{ display:block; width:100%; height:100%; touch-action:none }
+.ratio{ position:absolute; inset-block-start:10px; inset-inline-start:10px; font-family:var(--f-data); font-size:12px; color:#fff; background:rgba(20,26,27,.55); padding:3px 8px; border-radius:3px; pointer-events:none }
+.trace-status{ position:absolute; inset-block-end:10px; inset-inline-start:10px; font-size:15px; font-weight:600; color:#fff; background:rgba(20,26,27,.62); padding:5px 10px; border-radius:3px; pointer-events:none }
+.toolbar{ display:flex; flex-wrap:wrap; gap:8px }
+button{ font-family:var(--f-body); font-size:15px; font-weight:600; color:var(--ink); background:var(--chip); border:1px solid var(--line); border-radius:3px; padding:8px 14px; cursor:pointer }
+button:hover{ border-color:var(--accent) }
+button:focus-visible, input:focus-visible, select:focus-visible{ outline:2px solid var(--accent); outline-offset:2px }
+button.primary{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent) }
+button[aria-pressed="true"]{ border-color:var(--accent); box-shadow:inset 0 -3px 0 var(--accent) }
+.hint{ font-size:14px; color:var(--muted); margin:0 }
+
+.panel{ background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:20px; display:flex; flex-direction:column; gap:20px; min-width:0 }
+.seg{ display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--line); border-radius:3px; overflow:hidden }
+.seg button{ border:0; border-radius:0; background:transparent; padding:10px 8px }
+.seg button[aria-pressed="true"]{ background:var(--accent); color:var(--accent-ink); box-shadow:none }
+fieldset{ border:0; margin:0; padding:0; display:flex; flex-direction:column; gap:12px }
+legend{ padding:0; margin-block-end:4px }
+.ctl{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 12px; align-items:center }
+.ctl label{ font-size:15px; font-weight:600 }
+.ctl output{ font-family:var(--f-data); font-size:14px; font-variant-numeric:tabular-nums; color:var(--accent) }
+.ctl input[type=range]{ grid-column:1 / -1; width:100%; accent-color:var(--accent) }
+.ctl .why{ grid-column:1 / -1; font-size:13px; color:var(--muted) }
+select{ font-family:var(--f-body); font-size:15px; padding:6px 8px; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:3px; grid-column:1 / -1 }
+.check{ display:flex; gap:8px; align-items:center; font-size:15px; font-weight:600 }
+.check input{ accent-color:var(--accent); width:18px; height:18px }
+
+.metrics{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 16px; margin:0 }
+.metrics div{ display:flex; flex-direction:column; border-block-start:1px solid var(--line); padding-block-start:6px; min-width:0 }
+.metrics dt{ font-size:13px; color:var(--muted) }
+.metrics dd{ margin:0; font-family:var(--f-data); font-size:16px; font-variant-numeric:tabular-nums }
+.metrics dd.warn{ color:var(--warn) }
+.note{ font-size:13px; color:var(--muted); margin:0 }
+
+.tablewrap{ overflow-x:auto; border:1px solid var(--line); border-radius:4px; background:var(--panel) }
+table{ border-collapse:collapse; width:100%; min-width:620px; font-size:15px }
+th,td{ text-align:start; padding:10px 14px; border-block-end:1px solid var(--line); vertical-align:top }
+th{ font-size:13px; letter-spacing:.04em; color:var(--muted); font-weight:700; background:var(--chip) }
+td.v{ font-family:var(--f-data); font-size:14px; font-variant-numeric:tabular-nums; white-space:nowrap; direction:ltr; text-align:end }
+tr:last-child td{ border-block-end:0 }
+.sec{ display:flex; flex-direction:column; gap:12px }
+.copyrow{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+#jsonOut{ position:absolute; inset-inline-start:-9999px; width:1px; height:1px }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">טורוס טבורי · ביתן ציבורי · מודל פרמטרי</span>
+    <h1>הטבעת המשולשת</h1>
+    <p class="lead">המודל נפתח בגרסת הקליפה: דופן בטון חלולה, שלושה מעברים מהחוף לחצר, ופסי אור לאורך הפאות. הפסים מסתובבים יחד עם החתך, ולכן אותו פתח הוא חלון גג במקום אחד וחלון צד במקום אחר.</p>
+  </header>
+
+  <div class="grid">
+    <div class="stagebox">
+      <div class="stage" id="stage">
+        <span class="ratio">1:1</span>
+        <span class="trace-status" id="traceStatus" hidden></span>
+      </div>
+      <div class="toolbar" role="group" aria-label="נקודות מבט">
+        <button type="button" data-view="eye" aria-pressed="true">גובה עיניים</button>
+        <button type="button" data-view="air" aria-pressed="false">מבט על</button>
+        <button type="button" data-view="inside" aria-pressed="false">בתוך הקליפה</button>
+        <button type="button" data-view="yard" aria-pressed="false">מתוך החצר</button>
+        <button type="button" class="primary" id="traceBtn">עקבי אחרי הקצה</button>
+      </div>
+      <p class="hint">גרירה מסובבת, גלגלת או צביטה מקרבות. "בתוך הקליפה" מציב את המצלמה על הרצפה הפנימית ומבט לאורך הטבעת.</p>
+    </div>
+
+    <aside class="panel" aria-label="פרמטרים">
+      <div class="seg" role="group" aria-label="סוג המבנה">
+        <button type="button" data-mode="shell" aria-pressed="true">קליפה חלולה</button>
+        <button type="button" data-mode="solid" aria-pressed="false">גוש מלא</button>
+      </div>
+
+      <fieldset id="shellSet">
+        <legend><h3>קליפה ופתחים</h3></legend>
+        <div class="ctl">
+          <label for="thk">עובי דופן בפאות</label><output id="othk" for="thk"></output>
+          <input type="range" id="thk" min="0.15" max="0.6" step="0.05" value="0.3">
+          <span class="why">הדופן הפנימית היא הדלתואיד בקנה מידה קטן יותר, לכן בחודים העובי משולש ונוצרת צלע.</span>
+        </div>
+        <div class="ctl">
+          <label for="doors">מעברים מהחוף לחצר</label><output id="odoors" for="doors"></output>
+          <input type="range" id="doors" min="0" max="4" step="1" value="3">
+          <span class="why">כל מעבר חוצה את שתי הדפנות ברוחב 3.2 מ' ובגובה 2.6 מ'.</span>
+        </div>
+        <div class="ctl">
+          <label for="slots">פסי אור לאורך ההקפה</label><output id="oslots" for="slots"></output>
+          <input type="range" id="slots" min="0" max="48" step="1" value="24">
+          <span class="why">הפסים נחתכים במרכז כל פאה. הם מסתובבים עם החתך, וכך האור נכנס פעם מלמעלה ופעם מהצד.</span>
+        </div>
+        <div class="ctl">
+          <label for="slotW">רוחב פס האור</label><output id="oslotW" for="slotW"></output>
+          <input type="range" id="slotW" min="0.08" max="0.6" step="0.02" value="0.28">
+          <span class="why">חלק מרוחב הפאה. רחב יותר: יותר אור ופחות בטון.</span>
+        </div>
+        <button type="button" id="presetShell">איפוס לביתן הפתוח</button>
+      </fieldset>
+
+      <fieldset>
+        <legend><h3>גאומטריה</h3></legend>
+        <div class="ctl">
+          <label for="R">רדיוס הטבעת R</label><output id="oR" for="R"></output>
+          <input type="range" id="R" min="6" max="26" step="0.5" value="18">
+          <span class="why">מרכז הטבעת עד מרכז החתך. קובע את גודל החצר הפנימית.</span>
+        </div>
+        <div class="ctl">
+          <label for="a">מקדם החתך a</label><output id="oa" for="a"></output>
+          <input type="range" id="a" min="0.6" max="3.2" step="0.05" value="2.4">
+          <span class="why">החודים נמצאים במרחק 3a ממרכז החתך, והפאה הקעורה במרחק a.</span>
+        </div>
+        <div class="ctl">
+          <label for="turns">סיבוב החתך לאורך ההקפה</label>
+          <select id="turns">
+            <option value="1" selected>שליש סיבוב, 120° (טורוס טבורי)</option>
+            <option value="2">שני שלישים, 240°</option>
+            <option value="0">ללא סיבוב, להשוואה</option>
+          </select>
+          <span class="why">בלי סיבוב יש שלושה קצוות נפרדים. שליש סיבוב מחבר אותם לקצה אחד.</span>
+        </div>
+        <div class="ctl">
+          <label for="h0">גובה מרכז החתך מעל החול</label><output id="oh0" for="h0"></output>
+          <input type="range" id="h0" min="0.4" max="9.6" step="0.1" value="1.5">
+          <span class="why">בקליפה זה גם גובה הרצפה: הרצפה הפנימית היא מפלס החול. כדי שתהיה רציפה, צריך גובה קטן מהרדיוס הפנימי של הפאה.</span>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend><h3>אור ואתר</h3></legend>
+        <div class="ctl">
+          <label for="sunEl">גובה השמש</label><output id="osunEl" for="sunEl"></output>
+          <input type="range" id="sunEl" min="2" max="70" step="1" value="12">
+          <span class="why">שמש נמוכה מותחת את הצל הספירלי. שמש גבוהה מכניסה רצועות אור לרצפה דרך הפסים.</span>
+        </div>
+        <div class="ctl">
+          <label for="sunAz">כיוון השמש</label><output id="osunAz" for="sunAz"></output>
+          <input type="range" id="sunAz" min="0" max="359" step="1" value="262">
+          <span class="why">270° הוא מערב, צד הים.</span>
+        </div>
+        <label class="check"><input type="checkbox" id="people" checked> אנשים לקנה מידה</label>
+        <label class="check"><input type="checkbox" id="edge" checked> הדגשת הקצה הרציף</label>
+      </fieldset>
+
+      <section class="sec" aria-label="נתונים נגזרים">
+        <h3>נתונים נגזרים</h3>
+        <dl class="metrics">
+          <div><dt>קוטר חיצוני</dt><dd id="mDia"></dd></div>
+          <div><dt>קוטר החצר</dt><dd id="mYard"></dd></div>
+          <div><dt>אורך הקצה</dt><dd id="mEdge"></dd></div>
+          <div><dt>מספר קצוות</dt><dd id="mEdges"></dd></div>
+          <div data-only="shell"><dt>רוחב רצפה פנימית</dt><dd id="mFloor"></dd></div>
+          <div data-only="shell"><dt>גובה פנימי חופשי</dt><dd id="mClear"></dd></div>
+          <div data-only="shell"><dt>הרצפה לאורך ההקפה</dt><dd id="mCont"></dd></div>
+          <div data-only="shell"><dt>עובי בחודים (צלע)</dt><dd id="mRib"></dd></div>
+          <div data-only="shell"><dt>פתחים מתוך המעטפת</dt><dd id="mOpen"></dd></div>
+          <div><dt id="mVolLabel">בטון</dt><dd id="mVol"></dd></div>
+          <div data-only="solid"><dt>שטח חתך</dt><dd id="mArea"></dd></div>
+          <div><dt>עומק החוד בחול</dt><dd id="mBury"></dd></div>
+          <div data-only="solid"><dt>מרווח מתחת לפאה</dt><dd id="mGap"></dd></div>
+          <div data-only="shell"><dt>שוואה לגוש מלא</dt><dd id="mSave"></dd></div>
+        </dl>
+        <p class="note">נפח לפי פאפוס: שטח החתך כפול היקף מסלול המרכז. בקליפה: שטח הטבעת שבין שני הדלתואידים, פחות שטח הפתחים. משקל לפי 2.4 טון למ"ק.</p>
+        <div class="copyrow">
+          <button type="button" id="copyBtn">העתקת הפרמטרים כ-JSON</button>
+          <span class="note" id="copyMsg" role="status"></span>
+        </div>
+        <textarea id="jsonOut" aria-hidden="true" tabindex="-1"></textarea>
+      </section>
+    </aside>
+  </div>
+
+  <section class="sec">
+    <h2>מגוש לקליפה</h2>
+    <p class="hint">מה השתנה כדי שאפשר יהיה להיכנס לביתן. ערכי ברירת המחדל של גרסת הקליפה, ביחידות מטר.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>החלטה</th><th>מה היא עושה במודל</th><th>ערך</th></tr></thead>
+        <tbody>
+          <tr><td>חתך גדול יותר</td><td>a עולה מ-1.2 ל-2.4 כדי שאדם יעמוד בפנים. הגובה הפנימי החופשי נע בין 4.7 ל-7.8 מ'</td><td class="v">a = 2.40 m</td></tr>
+          <tr><td>טבעת רחבה יותר</td><td>R עולה ל-18 כדי שהחצר תישאר פתוחה, כי החודים מגיעים למרחק 3a = 7.2 מ'</td><td class="v">R = 18.0 m</td></tr>
+          <tr><td>דופן חלולה</td><td>דלתואיד פנימי בקנה מידה (a − t) / a. בפאות העובי t, בחודים 3t, כך שהחוד הופך לצלע מבנית רציפה</td><td class="v">t = 0.30 / 0.90 m</td></tr>
+          <tr><td>רצפה במפלס החול</td><td>מרכז החתך נמוך מהרדיוס הפנימי של הפאה, ולכן קו הרצפה חוצה את החלל בכל נקודה בהקפה</td><td class="v">h0 = 1.50 m</td></tr>
+          <tr><td>מעברים</td><td>שלושה פתחים במרווחים של 120°, מהחוף דרך הטבעת אל החצר</td><td class="v">3 × 3.2 × 2.6 m</td></tr>
+          <tr><td>פסי אור</td><td>24 פתחים במרכז כל פאה. הם מסתובבים עם החתך, ולכן משנים כיוון לאורך ההקפה</td><td class="v">24 × 28%</td></tr>
+          <tr><td>הקצה הרציף</td><td>נשמר במעטפת החיצונית. הפתחים לא חוצים את החודים</td><td class="v">1 edge</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec">
+    <h2>מהפרומפט לפרמטרים</h2>
+    <p class="hint">התרגום המקורי של הפרומפט, בגרסת הגוש המלא. כפתור "גוש מלא" לא משנה את המידות, רק את סוג המבנה.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>ביטוי בפרומפט</th><th>פרמטר במודל</th><th>ערך</th></tr></thead>
+        <tbody>
+          <tr><td>ביתן ציבורי</td><td>קנה מידה: טבעת שאפשר להקיף ברגל ולשבת לאורכה, עם חצר פנימית</td><td class="v">Ø ≈ 31.2 m</td></tr>
+          <tr><td>טבעת</td><td>רדיוס מסלול מרכז החתך R</td><td class="v">R = 12.0 m</td></tr>
+          <tr><td>חתך משולש קעור עם שלושה חודים</td><td>דלתואיד: x = a(2cos t + cos 2t), y = a(2sin t − sin 2t)</td><td class="v">a = 1.20 m</td></tr>
+          <tr><td>חודים חדים</td><td>חודים במרחק 3a, פאה במרחק a, ללא עיגול בקצוות</td><td class="v">3.60 / 1.20 m</td></tr>
+          <tr><td>החתך מסתובב בשליש סיבוב</td><td>זווית החתך θ(u) = −90° + u/3, לאורך ההקפה u</td><td class="v">120° / 360°</td></tr>
+          <tr><td>קצה אחד שמקיף שלוש פעמים</td><td>נגזר מהסיבוב: אורך הקצה ≈ 3 הקפות</td><td class="v">≈ 227 m</td></tr>
+          <tr><td>בטון בהיר מלוטש</td><td>חומר: גוון בהיר, חספוס נמוך, גרעין עדין</td><td class="v">#D8D2C6 · r 0.38</td></tr>
+          <tr><td>חולות חוף ים תיכוני</td><td>קרקע חול עם דיונות, שטוחה סביב הביתן</td><td class="v">±0.9 m</td></tr>
+          <tr><td>צמחיית דיונות נמוכה</td><td>שיחים נמוכים מפוזרים מחוץ לטביעת הרגל</td><td class="v">0.25–0.6 m</td></tr>
+          <tr><td>אור שקיעה נמוך ומשופע</td><td>גובה שמש וכיוון ממערב, אור חם</td><td class="v">8° · 262°</td></tr>
+          <tr><td>קו צל ספירלי חד</td><td>צללים פעילים, מפת צל ברזולוציה גבוהה</td><td class="v">2048 px</td></tr>
+          <tr><td>אנשים בודדים</td><td>דמויות בגובה אדם, לקנה מידה</td><td class="v">1.75 m</td></tr>
+          <tr><td>גובה עיניים, אלכסוני, שני חודים</td><td>גובה מצלמה וזווית שבה שני חודים נראים יחד</td><td class="v">h = 1.6 m · FOV 42°</td></tr>
+          <tr><td>יחס 1:1</td><td>חלון המודל מרובע</td><td class="v">1:1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+  const TAU = Math.PI * 2;
+  const SHELL = { R:18, a:2.4, h0:1.5, thk:0.3, doors:3, slots:24, slotW:0.28 };
+  const SOLID = { R:12, a:1.2, h0:2.4 };
+  const S = Object.assign({ mode:'shell', turnsK:1, sunEl:12, sunAz:262, people:true, edge:true }, SHELL);
+  const turns = () => S.turnsK / 3;
+  const DOOR_W = 3.2, DOOR_H = 2.6;
+
+  // ---------- math ----------
+  function local(t, k){ const A=S.a*k; return [A*(2*Math.cos(t)+Math.cos(2*t)), A*(2*Math.sin(t)-Math.sin(2*t))]; }
+  function rot(u, x, y){ const th=-Math.PI/2+turns()*u; return [x*Math.cos(th)-y*Math.sin(th), x*Math.sin(th)+y*Math.cos(th)]; }
+  function P(u, t, k){ const l=local(t,k===undefined?1:k), r=rot(u,l[0],l[1]); const rr=S.R+r[0]; return [rr*Math.cos(u), S.h0+r[1], rr*Math.sin(u)]; }
+  const innerK = ()=> Math.max(0.05, (S.a - S.thk)/S.a);
+  const smooth = (e0,e1,x)=>{ const t=Math.min(1,Math.max(0,(x-e0)/(e1-e0))); return t*t*(3-2*t); };
+  const wrapPi = d => ((d+Math.PI)%TAU+TAU)%TAU - Math.PI;
+  function groundH(x,z){
+    const d = Math.abs(Math.hypot(x,z) - S.R);
+    const m = smooth(S.a*3+3, S.a*3+16, d);
+    return m*(0.9*Math.sin(x*0.055+1.3)*Math.cos(z*0.047) + 0.45*Math.sin((x*0.6+z)*0.11) + 0.12*Math.sin(x*0.9+z*0.4));
+  }
+  function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  const doorAngles = ()=> Array.from({length:S.doors}, (_,i)=> 0.9 + i*TAU/Math.max(1,S.doors));
+
+  // inner floor chord at ring angle u: the longest stretch of the line y=0 inside the inner deltoid
+  function chord(u){
+    const k=innerK(), n=360, xs=[];
+    let prev=null;
+    for (let i=0;i<=n;i++){
+      const l=local(TAU*i/n,k), r=rot(u,l[0],l[1]), y=S.h0+r[1];
+      if (prev && ((prev[1]<=0)!==(y<=0))){ const f=-prev[1]/(y-prev[1]); xs.push(prev[0]+(r[0]-prev[0])*f); }
+      prev=[r[0],y];
+    }
+    xs.sort((p,q)=>p-q);
+    let best=null;
+    for (let i=0;i+1<xs.length;i+=2){ const w=xs[i+1]-xs[i]; if (!best || w>best[1]-best[0]) best=[xs[i],xs[i+1]]; }
+    return best;
+  }
+  function innerTop(u){ const k=innerK(); let m=-1e9; for (let i=0;i<120;i++){ const l=local(TAU*i/120,k), r=rot(u,l[0],l[1]); m=Math.max(m,S.h0+r[1]); } return m; }
+
+  // ---------- renderer / scene ----------
+  const stage = document.getElementById('stage');
+  const renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1200);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.maxPolarAngle = Math.PI*0.495; controls.minDistance = 0.5; controls.maxDistance = 300;
+
+  const hemi = new THREE.HemisphereLight(0xbfd2e6, 0xd9c29a, 0.55); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffb27a, 2.4);
+  sun.castShadow = true; sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+  scene.add(sun); scene.add(sun.target);
+
+  const skyCanvas = document.createElement('canvas'); skyCanvas.width = 2; skyCanvas.height = 256;
+  const skyTex = new THREE.CanvasTexture(skyCanvas); skyTex.encoding = THREE.sRGBEncoding;
+  scene.background = skyTex;
+  scene.fog = new THREE.Fog(0xf0b07c, 110, 480);
+  const lerpC = (c1,c2,k)=> new THREE.Color(c1).lerp(new THREE.Color(c2), k);
+
+  function updateSun(){
+    const el = S.sunEl*Math.PI/180, az = S.sunAz*Math.PI/180;
+    const d = new THREE.Vector3(Math.cos(el)*Math.sin(az), Math.sin(el), -Math.cos(el)*Math.cos(az));
+    sun.position.copy(d.multiplyScalar(150));
+    const ext = S.R + S.a*3 + 12;
+    const cam = sun.shadow.camera; cam.left=-ext; cam.right=ext; cam.top=ext; cam.bottom=-ext; cam.near=1; cam.far=400; cam.updateProjectionMatrix();
+    const k = Math.min(1, Math.max(0, (S.sunEl-2)/38));
+    sun.color.copy(lerpC(0xffa165, 0xfff3e2, k));
+    sun.intensity = 1.6 + k*0.9;
+    const top = lerpC(0x55688a, 0x3f7fb5, k), hor = lerpC(0xf2a46c, 0xd3e3ec, k);
+    const g = skyCanvas.getContext('2d'); const gr = g.createLinearGradient(0,0,0,256);
+    gr.addColorStop(0, '#'+top.getHexString()); gr.addColorStop(0.62, '#'+lerpC(top.getHex(), hor.getHex(), 0.7).getHexString()); gr.addColorStop(1, '#'+hor.getHexString());
+    g.fillStyle = gr; g.fillRect(0,0,2,256); skyTex.needsUpdate = true;
+    scene.fog.color.copy(hor);
+    hemi.color.copy(lerpC(0xe7b892, 0xbfd6ea, k));
+  }
+
+  const nc = document.createElement('canvas'); nc.width = nc.height = 256;
+  { const g = nc.getContext('2d'); const img = g.createImageData(256,256); const r = rng(7);
+    for (let i=0;i<img.data.length;i+=4){ const v = 228 + Math.floor(r()*27); img.data[i]=v; img.data[i+1]=v; img.data[i+2]=v; img.data[i+3]=255; }
+    g.putImageData(img,0,0); }
+  const grain = new THREE.CanvasTexture(nc); grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.encoding = THREE.sRGBEncoding;
+  const concrete = new THREE.MeshStandardMaterial({ color:0xd8d2c6, roughness:0.38, metalness:0, map:grain, side:THREE.DoubleSide });
+  const innerConcrete = new THREE.MeshStandardMaterial({ color:0xcfc8bb, roughness:0.5, metalness:0, map:grain, side:THREE.DoubleSide });
+  const floorMat = new THREE.MeshStandardMaterial({ color:0xb9b2a5, roughness:0.3, metalness:0, map:grain });
+  const accentMat = new THREE.MeshStandardMaterial({ color:0x1d6c75, roughness:0.4, emissive:0x0c3a40, emissiveIntensity:0.6 });
+  const tracerMat = new THREE.MeshBasicMaterial({ color:0x7fe3ec });
+  const sandMat = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.97 });
+  const shrubMat = new THREE.MeshStandardMaterial({ color:0x8a8f6a, roughness:1, flatShading:true });
+  const personMat = new THREE.MeshStandardMaterial({ color:0x3b3631, roughness:0.85 });
+
+  let body=null, ground=null, shrubs=null, people=null, edgeGroup=null, curves=[];
+  let openFrac = 0;
+
+  // one skin of the ring; k scales the deltoid, inward flips normals; quads in openings are skipped
+  function skin(k, inward, cut){
+    const N=360, M=48, rows=N+1, cols=M+1, e=1e-3;
+    const pos=new Float32Array(3*rows*cols*3), nor=new Float32Array(pos.length), uv=new Float32Array(2*rows*cols*3);
+    const idx=[]; let p=0, q=0, total=0, removed=0;
+    const doors = doorAngles();
+    const triArea=(A,B,C)=>{ const ux=pos[B]-pos[A],uy=pos[B+1]-pos[A+1],uz=pos[B+2]-pos[A+2],vx=pos[C]-pos[A],vy=pos[C+1]-pos[A+1],vz=pos[C+2]-pos[A+2];
+      return 0.5*Math.hypot(uy*vz-uz*vy, uz*vx-ux*vz, ux*vy-uy*vx); };
+    for (let j=0;j<3;j++){
+      const t0 = j*TAU/3, t1 = t0 + TAU/3;
+      for (let kk=0;kk<rows;kk++){
+        const u = TAU*kk/N;
+        for (let s=0;s<cols;s++){
+          const t = t0 + (t1-t0)*s/M;
+          const v = P(u,t,k); pos[p]=v[0]; pos[p+1]=v[1]; pos[p+2]=v[2];
+          const tt = Math.min(t1-e, Math.max(t0+e, t));
+          const a1=P(u+e,tt,k), a2=P(u-e,tt,k), b1=P(u,tt+e,k), b2=P(u,tt-e,k);
+          const pu=[a1[0]-a2[0],a1[1]-a2[1],a1[2]-a2[2]], pt=[b1[0]-b2[0],b1[1]-b2[1],b1[2]-b2[2]];
+          let n=[pu[1]*pt[2]-pu[2]*pt[1], pu[2]*pt[0]-pu[0]*pt[2], pu[0]*pt[1]-pu[1]*pt[0]];
+          const c=[S.R*Math.cos(u), S.h0, S.R*Math.sin(u)];
+          let dot = n[0]*(v[0]-c[0])+n[1]*(v[1]-c[1])+n[2]*(v[2]-c[2]);
+          if ((dot<0) !== inward) n=[-n[0],-n[1],-n[2]];
+          const L=Math.hypot(n[0],n[1],n[2])||1; nor[p]=n[0]/L; nor[p+1]=n[1]/L; nor[p+2]=n[2]/L;
+          uv[q]=u/TAU*72; uv[q+1]=t/TAU*9;
+          p+=3; q+=2;
+        }
+      }
+      const base = j*rows*cols;
+      for (let kk=0;kk<N;kk++) for (let s=0;s<M;s++){
+        const A=base+kk*cols+s, B=base+(kk+1)*cols+s, C=B+1, D=A+1;
+        const ar = triArea(A*3,B*3,D*3)+triArea(B*3,C*3,D*3);
+        total += ar;
+        if (cut){
+          const uc = TAU*(kk+0.5)/N, sm=(s+0.5)/M, tc = t0+(t1-t0)*sm;
+          let hole = false;
+          if (S.slots>0 && Math.abs(sm-0.5) < S.slotW/2){ const f=((uc*S.slots/TAU)%1+1)%1; if (f<0.42) hole=true; }
+          if (!hole && doors.length){
+            const y = P(uc,tc,k)[1];
+            if (y>-0.8 && y<DOOR_H){ for (const da of doors){ if (Math.abs(wrapPi(uc-da))*S.R < DOOR_W/2){ hole=true; break; } } }
+          }
+          if (hole){ removed += ar; continue; }
+        }
+        idx.push(A,B,D, B,C,D);
+      }
+    }
+    // winding to agree with normals, tested on the first quad
+    const ia=0, ib=(cols)*3, id=3;
+    const e1=[pos[ib]-pos[ia],pos[ib+1]-pos[ia+1],pos[ib+2]-pos[ia+2]], e2=[pos[id]-pos[ia],pos[id+1]-pos[ia+1],pos[id+2]-pos[ia+2]];
+    const fn=[e1[1]*e2[2]-e1[2]*e2[1], e1[2]*e2[0]-e1[0]*e2[2], e1[0]*e2[1]-e1[1]*e2[0]];
+    if (fn[0]*nor[ia]+fn[1]*nor[ia+1]+fn[2]*nor[ia+2] < 0) for (let i=0;i<idx.length;i+=3){ const t=idx[i+1]; idx[i+1]=idx[i+2]; idx[i+2]=t; }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+    g.setAttribute('normal', new THREE.BufferAttribute(nor,3));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv,2));
+    g.setIndex(idx);
+    return { g, frac: total? removed/total : 0 };
+  }
+
+  function buildFloor(){
+    const N=360, pts=[];
+    for (let i=0;i<=N;i++){ const u=TAU*i/N; pts.push([u, chord(u)]); }
+    const pos=[], idx=[], uv=[];
+    pts.forEach(([u,c])=>{ const cu=Math.cos(u), su=Math.sin(u); const x0=c?c[0]+0.02:0, x1=c?c[1]-0.02:0;
+      pos.push((S.R+x0)*cu, 0.03, (S.R+x0)*su, (S.R+x1)*cu, 0.03, (S.R+x1)*su); uv.push(u*S.R/3, 0, u*S.R/3, (x1-x0)/3); });
+    for (let i=0;i<N;i++){ if (!pts[i][1] || !pts[i+1][1]) continue; const a=i*2, b=a+1, c=a+2, d=a+3; idx.push(a,c,b, b,c,d); }
+    const g=new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx); g.computeVertexNormals();
+    const nrm=g.attributes.normal; for (let i=0;i<nrm.count;i++){ if (nrm.getY(i)<0){ nrm.setXYZ(i,-nrm.getX(i),-nrm.getY(i),-nrm.getZ(i)); } }
+    if (nrm.count && nrm.getY(0) && idx.length){ /* ensure upward winding */ const ax=pos[3]-pos[0], az=pos[5]-pos[2], bx=pos[6]-pos[0], bz=pos[8]-pos[2]; if (az*bx-ax*bz < 0) { for (let i=0;i<idx.length;i+=3){ const t=idx[i+1]; idx[i+1]=idx[i+2]; idx[i+2]=t; } g.setIndex(idx); } }
+    const m=new THREE.Mesh(g, floorMat); m.receiveShadow=true; return m;
+  }
+
+  function buildBody(){
+    if (body){ scene.remove(body); body.traverse(o=>{ if (o.geometry) o.geometry.dispose(); }); }
+    body = new THREE.Group();
+    if (S.mode==='solid'){
+      const o = skin(1,false,false);
+      const m = new THREE.Mesh(o.g, concrete); m.castShadow = m.receiveShadow = true; body.add(m); openFrac = 0;
+    } else {
+      const o = skin(1,false,true), i = skin(innerK(),true,true);
+      const mo = new THREE.Mesh(o.g, concrete), mi = new THREE.Mesh(i.g, innerConcrete);
+      mo.castShadow = mo.receiveShadow = mi.castShadow = mi.receiveShadow = true;
+      body.add(mo, mi, buildFloor()); openFrac = o.frac;
+    }
+    scene.add(body);
+  }
+
+  function buildGround(){
+    if (ground){ scene.remove(ground); ground.geometry.dispose(); }
+    const g = new THREE.PlaneGeometry(620,620,280,280); g.rotateX(-Math.PI/2);
+    const pa = g.attributes.position, col = new Float32Array(pa.count*3);
+    const base = new THREE.Color(0xe0c99c), dark = new THREE.Color(0xc9ae7f), tmp = new THREE.Color();
+    for (let i=0;i<pa.count;i++){
+      const x=pa.getX(i), z=pa.getZ(i), h=groundH(x,z); pa.setY(i,h);
+      const n = 0.5+0.5*Math.sin(x*1.7+z*0.9)*Math.sin(z*1.3-x*0.4);
+      tmp.copy(base).lerp(dark, Math.min(1, Math.max(0, 0.35 - h*0.25 + n*0.25)));
+      col[i*3]=tmp.r; col[i*3+1]=tmp.g; col[i*3+2]=tmp.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col,3)); g.computeVertexNormals();
+    ground = new THREE.Mesh(g, sandMat); ground.receiveShadow = true; scene.add(ground);
+  }
+
+  function buildShrubs(){
+    if (shrubs){ scene.remove(shrubs); shrubs.geometry.dispose(); }
+    const geo = new THREE.IcosahedronGeometry(1,0); const count = 380;
+    shrubs = new THREE.InstancedMesh(geo, shrubMat, count); shrubs.castShadow = true; shrubs.receiveShadow = true;
+    const r = rng(42), m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), up = new THREE.Vector3(0,1,0);
+    let n=0, guard=0;
+    while (n<count && guard<8000){
+      guard++;
+      const ang = r()*TAU, rad = 4 + Math.pow(r(),0.8)*(S.R+70);
+      const x = Math.cos(ang)*rad, z = Math.sin(ang)*rad;
+      if (Math.abs(rad - S.R) < S.a*3 + 1.6) continue;
+      const s = 0.25 + r()*0.35;
+      ps.set(x, groundH(x,z) + s*0.25, z); q.setFromAxisAngle(up, r()*TAU);
+      sc.set(s*(1+r()*0.8), s*0.6, s*(1+r()*0.8)); m.compose(ps,q,sc); shrubs.setMatrixAt(n++, m);
+    }
+    shrubs.count = n; scene.add(shrubs);
+  }
+
+  function figure(h){
+    const fig = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.19,h-0.24,10), personMat); b.position.y=(h-0.24)/2;
+    const hd = new THREE.Mesh(new THREE.SphereGeometry(0.115,12,10), personMat); hd.position.y=h-0.11;
+    b.castShadow = hd.castShadow = true; fig.add(b, hd); return fig;
+  }
+  function buildPeople(){
+    if (people){ scene.remove(people); people.traverse(o=>{ if (o.geometry) o.geometry.dispose(); }); }
+    people = new THREE.Group();
+    [[0.32,1,1.75],[0.46,1,1.68],[2.4,1,1.72],[4.3,1,1.7],[5.5,-1,1.74]].forEach(([ang,side,h])=>{
+      const f=figure(h), rad=S.R+side*(S.a*3+0.7); f.position.set(Math.cos(ang)*rad,0,Math.sin(ang)*rad); people.add(f);
+    });
+    if (S.mode==='shell'){
+      [[0.62,1.72],[0.7,1.66],[1.5,1.78],[3.1,1.7]].forEach(([ang,h])=>{
+        const c=chord(ang); if (!c || c[1]-c[0]<1.2) return;
+        const x=(c[0]+c[1])/2, rad=S.R+x, f=figure(h); f.position.set(Math.cos(ang)*rad,0.03,Math.sin(ang)*rad); people.add(f);
+      });
+      doorAngles().forEach(da=>{ const f=figure(1.74), rad=S.R+S.a*3+2.2, ang=da+0.04; f.position.set(Math.cos(ang)*rad,0,Math.sin(ang)*rad); people.add(f); });
+    }
+    people.visible = S.people; scene.add(people);
+  }
+
+  function buildEdge(){
+    if (edgeGroup){ scene.remove(edgeGroup); edgeGroup.traverse(o=>{ if (o.geometry) o.geometry.dispose(); }); }
+    edgeGroup = new THREE.Group(); curves = [];
+    const lift = (u,t)=>{ const v=P(u,t), c=[S.R*Math.cos(u), S.h0, S.R*Math.sin(u)];
+      const d=[v[0]-c[0],v[1]-c[1],v[2]-c[2]], L=Math.hypot(d[0],d[1],d[2])||1;
+      return new THREE.Vector3(v[0]+d[0]/L*0.06, v[1]+d[1]/L*0.06, v[2]+d[2]/L*0.06); };
+    if (S.turnsK === 0){
+      for (let c=0;c<3;c++){ const pts=[]; for (let i=0;i<360;i++){ pts.push(lift(TAU*i/360, c*TAU/3)); } curves.push(new THREE.CatmullRomCurve3(pts,true)); }
+    } else {
+      const pts=[]; const n=1080;
+      for (let i=0;i<n;i++){ const U=3*TAU*i/n, lap=Math.floor(U/TAU), u=U-lap*TAU; pts.push(lift(u, lap*turns()*TAU)); }
+      curves.push(new THREE.CatmullRomCurve3(pts,true));
+    }
+    const rad = Math.max(0.075, S.a*0.04);
+    curves.forEach(cv=>{ edgeGroup.add(new THREE.Mesh(new THREE.TubeGeometry(cv, S.turnsK===0?500:1400, rad, 6, true), accentMat)); });
+    edgeGroup.visible = S.edge; scene.add(edgeGroup);
+  }
+
+  const tracer = new THREE.Mesh(new THREE.SphereGeometry(0.4,20,14), tracerMat); tracer.visible=false; scene.add(tracer);
+
+  // ---------- metrics ----------
+  const fmt = (v,d=1)=> v.toLocaleString('he-IL',{minimumFractionDigits:d, maximumFractionDigits:d});
+  const $ = id => document.getElementById(id);
+  function metrics(){
+    const a=S.a, R=S.R, path=TAU*R, k=innerK(), ai=a*k;
+    const solidVol = TAU*a*a*path;
+    const edgeLen = curves.reduce((s,c)=>s+c.getLength(),0);
+    document.querySelectorAll('[data-only]').forEach(el=> el.hidden = el.dataset.only!==S.mode);
+    $('mDia').textContent = fmt(2*(R+3*a))+' מ\'';
+    const yard = 2*(R-3*a); $('mYard').textContent = yard>0 ? fmt(yard)+' מ\'' : 'אין, החודים נוגעים';
+    $('mYard').classList.toggle('warn', yard<=0);
+    $('mEdge').textContent = fmt(edgeLen,0)+' מ\'' + (S.turnsK===0 ? ' (3 × '+fmt(edgeLen/3,0)+')' : '');
+    $('mEdges').textContent = S.turnsK===0 ? '3 נפרדים' : '1 רציף';
+    $('mBury').textContent = fmt(Math.max(0,3*a-S.h0),2)+' מ\'';
+    let vol, info = {};
+    if (S.mode==='solid'){
+      vol = solidVol;
+      $('mVolLabel').textContent = 'בטון, גוש מלא';
+      $('mArea').textContent = fmt(TAU*a*a,2)+' מ"ר';
+      $('mGap').textContent = (S.h0-a>0? fmt(S.h0-a,2)+' מ\'' : 'אין, הפאה בחול');
+    } else {
+      const ringArea = TAU*(a*a - ai*ai);
+      vol = ringArea*path*(1-openFrac);
+      $('mVolLabel').textContent = 'בטון, קליפה';
+      let wMin=1e9, wMax=0, hMin=1e9, hMax=0, missing=0;
+      for (let i=0;i<180;i++){ const u=TAU*i/180, c=chord(u);
+        if (!c){ missing++; continue; } const w=c[1]-c[0]; wMin=Math.min(wMin,w); wMax=Math.max(wMax,w);
+        const top=innerTop(u); hMin=Math.min(hMin,top); hMax=Math.max(hMax,top); }
+      const cont = missing===0;
+      $('mFloor').textContent = cont||wMax>0 ? fmt(wMin)+'–'+fmt(wMax)+' מ\'' : 'אין';
+      $('mClear').textContent = hMax>0 ? fmt(hMin)+'–'+fmt(hMax)+' מ\'' : 'אין';
+      $('mCont').textContent = cont ? 'רציפה, סגורה במעגל' : 'נקטעת ב-'+Math.round(missing/180*100)+'% מההקפה';
+      $('mCont').classList.toggle('warn', !cont);
+      $('mClear').classList.toggle('warn', hMin<2.4);
+      $('mRib').textContent = fmt(3*S.thk,2)+' מ\'';
+      $('mOpen').textContent = Math.round(openFrac*100)+'%';
+      $('mSave').textContent = 'חיסכון של '+Math.round((1-vol/solidVol)*100)+'%';
+      info = { wall_thickness_faces:S.thk, wall_thickness_cusps:+(3*S.thk).toFixed(2), inner_scale:+k.toFixed(4),
+        floor_level:'sand level (y=0)', floor_width_range:[+wMin.toFixed(2), +wMax.toFixed(2)], clear_height_range:[+hMin.toFixed(2), +hMax.toFixed(2)],
+        floor_continuous:cont, passages:{count:S.doors, width:DOOR_W, height:DOOR_H}, light_slots:{count:S.slots, width_fraction_of_face:S.slotW},
+        opening_fraction:+openFrac.toFixed(3) };
+    }
+    $('mVol').textContent = fmt(vol,0)+' מ"ק · '+fmt(vol*2.4,0)+' ט\'';
+    $('jsonOut').value = JSON.stringify(Object.assign({
+      concept:'umbilic torus pavilion', mode:S.mode, units:'m',
+      ring_radius_R:R, section_a:a, cusp_radius:+(3*a).toFixed(3), face_radius:a,
+      section_curve:'deltoid x=a(2cos t+cos 2t), y=a(2sin t-sin 2t)',
+      twist_turns_per_lap:+(turns()).toFixed(4), twist_deg:S.turnsK*120, initial_section_angle_deg:-90,
+      section_center_height:S.h0, edges:S.turnsK===0?3:1, edge_length:+edgeLen.toFixed(1),
+      outer_diameter:+(2*(R+3*a)).toFixed(2), concrete_volume_m3:+vol.toFixed(1), concrete_tonnes:+(vol*2.4).toFixed(0),
+      material:{name:'light polished concrete', color:'#D8D2C6', roughness:0.38},
+      sun:{elevation_deg:S.sunEl, azimuth_deg:S.sunAz}, camera:{height:1.6, fov_deg:42, aspect:'1:1'}
+    }, info), null, 2);
+  }
+
+  // ---------- views ----------
+  let currentView = 'eye';
+  function setView(v){
+    const R=S.R, a=S.a; currentView = v;
+    if (v==='eye'){ const ang=0.18, D=R+3*a+16; camera.position.set(Math.cos(ang)*D, 1.6, Math.sin(ang)*D); controls.target.set(Math.cos(0.75)*R*0.6, 2.4, Math.sin(0.75)*R*0.6); }
+    if (v==='air'){ camera.position.set(R*1.35, R*2.1, R*1.9); controls.target.set(0,0.5,0); }
+    if (v==='yard'){ camera.position.set(-R*0.35, 1.6, -R*0.2); controls.target.set(R, 2.4, R*0.25); }
+    if (v==='inside'){
+      if (S.mode!=='shell'){ setMode('shell'); return setView('inside'); }
+      const u=0.2, c=chord(u)||[0,0], x=(c[0]+c[1])/2, rad=R+x;
+      camera.position.set(Math.cos(u)*rad, 1.6, Math.sin(u)*rad);
+      const u2=u+0.42, c2=chord(u2)||[0,0], r2=R+(c2[0]+c2[1])/2;
+      controls.target.set(Math.cos(u2)*r2, 2.4, Math.sin(u2)*r2);
+    }
+    controls.update();
+    document.querySelectorAll('[data-view]').forEach(b=> b.setAttribute('aria-pressed', String(b.dataset.view===v)));
+  }
+  document.querySelectorAll('[data-view]').forEach(b=> b.addEventListener('click', ()=> setView(b.dataset.view)));
+
+  // ---------- tracer ----------
+  const traceStatus = $('traceStatus');
+  let traceT0 = null; const traceDur = 12000;
+  $('traceBtn').addEventListener('click', ()=>{
+    if (!S.edge){ S.edge = true; $('edge').checked = true; edgeGroup.visible = true; }
+    traceT0 = performance.now(); tracer.visible = true; traceStatus.hidden = false;
+  });
+  function stepTracer(now){
+    if (traceT0===null || !curves.length) return;
+    const f = (now - traceT0)/traceDur;
+    if (f >= 1){
+      tracer.position.copy(curves[0].getPointAt(0));
+      traceStatus.textContent = S.turnsK===0 ? 'חזרה להתחלה אחרי הקפה אחת. יש עוד שני קצוות נפרדים.' : 'חזרה להתחלה: קצה אחד, שלוש הקפות.';
+      traceT0 = null; setTimeout(()=>{ if (traceT0===null){ tracer.visible=false; traceStatus.hidden=true; } }, 3500); return;
+    }
+    tracer.position.copy(curves[0].getPointAt(f));
+    traceStatus.textContent = S.turnsK===0 ? 'הקצה סוגר מעגל בהקפה אחת' : 'הקפה '+(Math.floor(f*3)+1)+' מתוך 3';
+  }
+
+  // ---------- inputs ----------
+  let dirtyShape=false, dirtySite=false;
+  const outs = { R:v=>fmt(v)+' מ\'', a:v=>fmt(v,2)+' מ\'', h0:v=>fmt(v)+' מ\'', sunEl:v=>v+'°', sunAz:v=>v+'°',
+    thk:v=>fmt(v,2)+' מ\'', doors:v=>String(v), slots:v=>String(v), slotW:v=>Math.round(v*100)+'%' };
+  const ids = ['R','a','h0','sunEl','sunAz','thk','doors','slots','slotW'];
+  function syncInputs(){ ids.forEach(id=>{ $(id).value = S[id]; $('o'+id).textContent = outs[id](S[id]); }); }
+  ids.forEach(id=>{
+    $(id).addEventListener('input', ()=>{
+      S[id] = parseFloat($(id).value); $('o'+id).textContent = outs[id](S[id]);
+      if (id==='sunEl'||id==='sunAz') updateSun();
+      else { dirtyShape = true; if (id==='R'||id==='a') dirtySite = true; }
+    });
+  });
+  $('turns').addEventListener('change', e=>{ S.turnsK = parseInt(e.target.value,10); dirtyShape = true; });
+  $('people').addEventListener('change', e=>{ S.people = e.target.checked; people.visible = S.people; });
+  $('edge').addEventListener('change', e=>{ S.edge = e.target.checked; edgeGroup.visible = S.edge; });
+
+  function setMode(m){
+    S.mode = m;
+    Object.assign(S, m==='shell' ? SHELL : SOLID);
+    if (m==='solid'){ S.sunEl = 8; }
+    $('shellSet').hidden = m!=='shell';
+    document.querySelectorAll('[data-mode]').forEach(b=> b.setAttribute('aria-pressed', String(b.dataset.mode===m)));
+    syncInputs(); updateSun(); dirtyShape = true; dirtySite = true;
+    rebuild(); setView(m==='solid' && currentView==='inside' ? 'eye' : currentView);
+  }
+  document.querySelectorAll('[data-mode]').forEach(b=> b.addEventListener('click', ()=> setMode(b.dataset.mode)));
+  $('presetShell').addEventListener('click', ()=> setMode('shell'));
+
+  $('copyBtn').addEventListener('click', ()=>{
+    const ta = $('jsonOut'), msg = $('copyMsg');
+    const fallback = ()=>{ ta.style.position='static'; ta.style.width='100%'; ta.style.height='160px'; ta.removeAttribute('aria-hidden'); ta.select(); msg.textContent='הטקסט מסומן. אפשר להעתיק ידנית.'; };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(ta.value).then(()=>{ msg.textContent='הועתק.'; }).catch(fallback);
+    } else fallback();
+  });
+
+  // ---------- size ----------
+  function resize(){ const w = stage.clientWidth; renderer.setSize(w, w, false); camera.aspect = 1; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(stage);
+
+  // ---------- boot ----------
+  function rebuild(){
+    if (!dirtyShape) return;
+    dirtyShape=false; buildBody(); buildEdge();
+    if (dirtySite){ dirtySite=false; buildGround(); buildShrubs(); updateSun(); }
+    buildPeople(); metrics();
+  }
+  syncInputs(); updateSun(); dirtyShape = dirtySite = true; rebuild(); setView('eye'); resize();
+  function loop(now){ rebuild(); stepTracer(now); controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+})();
+</script>

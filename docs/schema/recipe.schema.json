@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://math-creator.local/recipe.schema.json",
+  "title": "Math Creator Recipe",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "meta", "concept", "generator", "bare", "realistic", "narrative"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "created_at", "source"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]{3,64}$" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "source": { "enum": ["claude", "manual", "fork"] },
+        "parent_id": { "type": ["string", "null"] },
+        "notes": { "type": "string", "maxLength": 280 }
+      }
+    },
+
+    "concept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "name_he"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "name_he": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "use": { "type": "string", "maxLength": 80 },
+        "context_hint": { "type": "string", "maxLength": 120 }
+      }
+    },
+
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "params"],
+      "properties": {
+        "type": { "enum": ["sweep", "parametric_surface", "sdf", "tiling"] },
+        "params": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "sweep" } } },
+          "then": { "properties": { "params": { "$ref": "#/$defs/sweep" } } }
+        }
+      ]
+    },
+
+    "bare": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "section_center_height"],
+      "properties": {
+        "mode": { "enum": ["solid", "shell"] },
+        "section_center_height": { "type": "number", "minimum": -20, "maximum": 60 },
+        "shell": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["thickness"],
+          "properties": {
+            "thickness": { "type": "number", "minimum": 0.08, "maximum": 1.5 },
+            "inner_method": { "enum": ["scaled_section", "normal_offset"], "default": "scaled_section" }
+          }
+        },
+        "openings": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "passages": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 0, "maximum": 12 },
+                "width": { "type": "number", "minimum": 0.9, "maximum": 12, "default": 3.2 },
+                "height": { "type": "number", "minimum": 2.1, "maximum": 8, "default": 2.6 },
+                "start_angle_deg": { "type": "number", "minimum": 0, "maximum": 360, "default": 0 }
+              }
+            },
+            "slots": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 0, "maximum": 96 },
+                "width_fraction": { "type": "number", "minimum": 0.05, "maximum": 0.8, "default": 0.28 },
+                "duty": { "type": "number", "minimum": 0.1, "maximum": 0.9, "default": 0.42 },
+                "position": { "enum": ["face_center", "near_edge"], "default": "face_center" }
+              }
+            }
+          }
+        },
+        "floor": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "level": { "type": "number", "minimum": -10, "maximum": 30, "default": 0 },
+            "type": { "enum": ["chord", "none"], "default": "chord" }
+          }
+        },
+        "highlight": {
+          "type": "array",
+          "items": { "enum": ["edges", "section", "path"] },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mode": { "const": "shell" } } },
+          "then": { "required": ["shell"] }
+        }
+      ]
+    },
+
+    "realistic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["site", "datetime", "weather", "materials", "context", "camera"],
+      "properties": {
+        "site": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lat", "lon"],
+          "properties": {
+            "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+            "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+            "name": { "type": "string", "maxLength": 80 }
+          }
+        },
+        "datetime": { "type": "string", "format": "date-time" },
+        "weather": { "enum": ["clear", "haze", "overcast"] },
+        "materials": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["outer"],
+          "properties": {
+            "outer": { "$ref": "#/$defs/material" },
+            "inner": { "$ref": "#/$defs/material" },
+            "floor": { "$ref": "#/$defs/material" }
+          }
+        },
+        "context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preset"],
+          "properties": {
+            "preset": { "enum": ["coastal_dunes", "urban_plaza", "desert_loess", "park_lawn", "waterfront"] },
+            "vegetation": { "enum": ["none", "dune_shrubs_low", "olive_trees", "lawn_and_trees", "desert_acacia"] },
+            "people": { "type": "integer", "minimum": 0, "maximum": 40 }
+          }
+        },
+        "camera": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preset"],
+          "properties": {
+            "preset": { "enum": ["eye_level_oblique", "aerial", "inside", "courtyard"] },
+            "height": { "type": "number", "minimum": 0.3, "maximum": 300, "default": 1.6 },
+            "fov_deg": { "type": "number", "minimum": 20, "maximum": 90, "default": 42 },
+            "aspect": { "const": "1:1" }
+          }
+        }
+      }
+    },
+
+    "narrative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name_he", "insight"],
+      "properties": {
+        "name_he": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "insight": { "type": "string", "minLength": 10, "maxLength": 400 },
+        "maxim": { "type": "string", "maxLength": 140 },
+        "fit_note": { "type": ["string", "null"], "maxLength": 300 }
+      }
+    }
+  },
+
+  "$defs": {
+    "material": {
+      "enum": [
+        "polished_concrete_light", "concrete_matte", "polished_concrete_grey",
+        "jerusalem_stone", "corten_steel", "timber_oak", "rammed_earth", "glass_clear"
+      ]
+    },
+    "sweep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "path", "twist"],
+      "properties": {
+        "section": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["curve", "a"],
+          "properties": {
+            "curve": { "enum": ["deltoid", "hypocycloid", "circle", "polygon", "superellipse"] },
+            "a": { "type": "number", "minimum": 0.1, "maximum": 20 },
+            "cusps": { "type": "integer", "minimum": 3, "maximum": 8 },
+            "sides": { "type": "integer", "minimum": 3, "maximum": 12 },
+            "exponent": { "type": "number", "minimum": 0.3, "maximum": 8 },
+            "aspect": { "type": "number", "minimum": 0.03, "maximum": 1, "default": 1 }
+          },
+          "allOf": [
+            { "if": { "properties": { "curve": { "const": "hypocycloid" } } }, "then": { "required": ["cusps"] } },
+            { "if": { "properties": { "curve": { "const": "polygon" } } }, "then": { "required": ["sides"] } },
+            { "if": { "properties": { "curve": { "const": "superellipse" } } }, "then": { "required": ["exponent"] } }
+          ]
+        },
+        "path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "enum": ["circle", "ellipse", "helix", "line"] },
+            "R": { "type": "number", "minimum": 0.5, "maximum": 300 },
+            "R2": { "type": "number", "minimum": 0.5, "maximum": 300 },
+            "pitch": { "type": "number", "minimum": 0.5, "maximum": 100 },
+            "turns": { "type": "number", "minimum": 0.25, "maximum": 20 },
+            "length": { "type": "number", "minimum": 1, "maximum": 1000 }
+          },
+          "allOf": [
+            { "if": { "properties": { "type": { "const": "circle" } } }, "then": { "required": ["R"] } },
+            { "if": { "properties": { "type": { "const": "ellipse" } } }, "then": { "required": ["R", "R2"] } },
+            { "if": { "properties": { "type": { "const": "helix" } } }, "then": { "required": ["R", "pitch", "turns"] } },
+            { "if": { "properties": { "type": { "const": "line" } } }, "then": { "required": ["length"] } }
+          ]
+        },
+        "twist": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["turns_per_lap"],
+          "properties": {
+            "turns_per_lap": { "type": "number", "minimum": -4, "maximum": 4 },
+            "initial_angle_deg": { "type": "number", "minimum": -360, "maximum": 360, "default": 0 }
+          }
+        },
+        "scale_along_path": { "type": "number", "minimum": 0.1, "maximum": 5, "default": 1 },
+        "resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path_segments": { "type": "integer", "minimum": 24, "maximum": 2048, "default": 360 },
+            "section_segments": { "type": "integer", "minimum": 12, "maximum": 512, "default": 144 }
+          }
+        }
+      }
+    }
+  }
+}

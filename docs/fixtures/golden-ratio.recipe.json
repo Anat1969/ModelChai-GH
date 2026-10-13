@@ -1,0 +1,72 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "golden-ratio-helix-tower",
+    "created_at": "2026-10-13T03:22:00+03:00",
+    "source": "claude"
+  },
+  "concept": {
+    "name": "Golden ratio",
+    "name_he": "יחס הזהב",
+    "use": "מגדל תצפית",
+    "context_hint": "גבעות לס"
+  },
+  "generator": {
+    "type": "sweep",
+    "params": {
+      "section": {
+        "curve": "circle",
+        "a": 1.6
+      },
+      "path": {
+        "type": "helix",
+        "R": 6,
+        "pitch": 9.708,
+        "turns": 3
+      },
+      "twist": {
+        "turns_per_lap": 0
+      },
+      "scale_along_path": 0.236
+    }
+  },
+  "bare": {
+    "mode": "solid",
+    "section_center_height": 1.6,
+    "floor": {
+      "type": "none"
+    },
+    "highlight": [
+      "path"
+    ]
+  },
+  "realistic": {
+    "site": {
+      "lat": 31.25,
+      "lon": 34.79,
+      "name": "Northern Negev"
+    },
+    "datetime": "2026-12-21T16:15:00+02:00",
+    "weather": "haze",
+    "materials": {
+      "outer": "rammed_earth"
+    },
+    "context": {
+      "preset": "desert_loess",
+      "vegetation": "desert_acacia",
+      "people": 4
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "1:1"
+    }
+  },
+  "narrative": {
+    "name_he": "המגדל המתכנס",
+    "insight": "כל קומת סליל קטנה מקודמתה ביחס קבוע, ולכן המגדל נראה זהה מכל גובה: העין לא מוצאת בו נקודת עצירה.",
+    "maxim": "מה שמתכנס בקצב קבוע לא נגמר, הוא רק מתרחק.",
+    "fit_note": "יחס הזהב מבוטא כאן כיחס בין פסיעת הסליל לרדיוס וכקצב ההתכנסות, ולא כספירלה לוגריתמית אמיתית, שתתאפשר במחולל ריצוף בשלב 6."
+  }
+}

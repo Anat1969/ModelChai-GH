@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "meta": { "id": "mobius-ribbon-bridge", "created_at": "2026-10-13T03:20:00+03:00", "source": "claude" },
+  "concept": { "name": "Möbius strip", "name_he": "רצועת מביוס", "use": "גשר הולכי רגל מעגלי", "context_hint": "פארק עירוני" },
+  "generator": {
+    "type": "sweep",
+    "params": {
+      "section": { "curve": "polygon", "sides": 4, "a": 3.2, "aspect": 0.08 },
+      "path": { "type": "circle", "R": 14 },
+      "twist": { "turns_per_lap": 0.5, "initial_angle_deg": 0 },
+      "scale_along_path": 1.0
+    }
+  },
+  "bare": { "mode": "solid", "section_center_height": 3.6, "highlight": ["edges"] },
+  "realistic": {
+    "site": { "lat": 31.8, "lon": 34.65, "name": "Ashdod" },
+    "datetime": "2026-04-02T10:00:00+03:00",
+    "weather": "clear",
+    "materials": { "outer": "timber_oak" },
+    "context": { "preset": "park_lawn", "vegetation": "lawn_and_trees", "people": 8 },
+    "camera": { "preset": "eye_level_oblique", "height": 1.6, "fov_deg": 42, "aspect": "1:1" }
+  },
+  "narrative": {
+    "name_he": "הגשר שאין לו צד",
+    "insight": "מי שהולך על הגשר מגיע לצד השני של אותו משטח בלי לעבור שפה: ההליכה הופכת את הפנים והחוץ לאותו דבר.",
+    "maxim": "הצד השני הוא רק עוד צעד באותו כיוון.",
+    "fit_note": "רצועת מביוס היא משטח בלי עובי. כאן היא רצועה בעובי של כחצי מטר, ולכן יש לה שני קצוות חדים צמודים שמתנהגים כשפה אחת."
+  }
+}
