@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ExportFormat } from '../../engine/export'
-import { viewport } from '../../scene/BareScene'
+import { viewport } from '../../scene/Viewport'
 import { engine } from '../engine'
 import { useStudio } from '../store'
 

@@ -26,7 +26,7 @@ export const BARE = {
   person: '#3b3631',
 }
 
-function useGeometry(mesh: MeshData | null) {
+export function useGeometry(mesh: MeshData | null) {
   const geo = useMemo(() => {
     if (!mesh || !mesh.indices.length) return null
     const g = new BufferGeometry()
@@ -50,7 +50,7 @@ function Part({ mesh, color, roughness = 0.8 }: { mesh: MeshData | null; color: 
   )
 }
 
-const toPoints = (a: Float32Array, close: boolean): [number, number, number][] => {
+export const toPoints = (a: Float32Array, close: boolean): [number, number, number][] => {
   const pts: [number, number, number][] = []
   for (let i = 0; i < a.length; i += 3) pts.push([a[i]!, a[i + 1]!, a[i + 2]!])
   if (close && pts.length) pts.push(pts[0]!)
@@ -127,22 +127,22 @@ function SectionPlane({ recipe }: { recipe: Sweep }) {
   )
 }
 
-function Person({ at, h }: { at: [number, number, number]; h: number }) {
+export function Person({ at, h, color = BARE.person, head = BARE.person }: { at: [number, number, number]; h: number; color?: string; head?: string }) {
   return (
     <group position={at}>
       <mesh position={[0, (h - 0.24) / 2, 0]} castShadow>
         <cylinderGeometry args={[0.16, 0.19, h - 0.24, 10]} />
-        <meshStandardMaterial color={BARE.person} roughness={0.85} />
+        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
       <mesh position={[0, h - 0.11, 0]} castShadow>
         <sphereGeometry args={[0.115, 12, 10]} />
-        <meshStandardMaterial color={BARE.person} roughness={0.85} />
+        <meshStandardMaterial color={head} roughness={0.85} />
       </mesh>
     </group>
   )
 }
 
-function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
+export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
   const { camera } = useThree()
   const nonce = useStudio((s) => s.cameraNonce)
@@ -164,16 +164,10 @@ function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
   return <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={0.08} maxPolarAngle={Math.PI * 0.495} minDistance={0.5} maxDistance={600} />
 }
 
-/** The renderer, kept for the PNG snapshot. */
-export const viewport: { canvas: HTMLCanvasElement | null } = { canvas: null }
-
 export function BareScene({ result, recipe, rows }: { result: BuildSuccess | null; recipe: Sweep; rows: number }) {
   const showEdges = useStudio((s) => s.showEdges)
   const showPeople = useStudio((s) => s.showPeople)
   const sectionOn = useStudio((s) => s.sectionOn)
-  const { gl } = useThree()
-  viewport.canvas = gl.domElement
-
   // Size-dependent scene pieces follow the last built recipe, not the one being edited.
   const b = bounds(recipe)
   const ext = b.extent + 12
@@ -233,7 +227,6 @@ export function BareScene({ result, recipe, rows }: { result: BuildSuccess | nul
       {people.map((p, i) => (
         <Person key={i} at={p.at} h={p.h} />
       ))}
-      <CameraRig recipe={recipe} ready={!!result} />
     </>
   )
 }

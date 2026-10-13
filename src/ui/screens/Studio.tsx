@@ -11,6 +11,7 @@ import { ExportPanel } from '../panels/ExportPanel'
 import { MetricsPanel } from '../panels/MetricsPanel'
 import { NoticeBox } from '../panels/NoticeBox'
 import { ParamsPanel } from '../panels/ParamsPanel'
+import { RealisticPanel } from '../panels/RealisticPanel'
 import { FIXTURES, RecipeLoader } from '../panels/RecipeLoader'
 import type { Sweep } from '../params'
 import { useStudio, type CameraPreset } from '../store'
@@ -72,6 +73,8 @@ export function Studio() {
   const tracing = useStudio((s) => s.tracing)
   const set = useStudio((s) => s.set)
   const load = useStudio((s) => s.loadRecipe)
+  const level = useStudio((s) => s.level)
+  const bare = level === 'bare'
   const fileInput = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -105,13 +108,14 @@ export function Studio() {
 
       <div className="grid">
         <div className="col">
-          <Viewport recipe={shown} />
+          <Viewport recipe={recipe ?? shown} built={shown} />
           <div className="toolbar" role="group" aria-label="נקודות מבט">
             {CAMERAS.map((c) => (
               <button key={c.id} type="button" aria-pressed={camera === c.id} onClick={() => setCamera(c.id)} data-testid={`camera-${c.id}`}>
                 {c.label}
               </button>
             ))}
+            {bare && (
             <button
               type="button"
               className="primary"
@@ -125,18 +129,21 @@ export function Studio() {
             >
               {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
             </button>
+            )}
           </div>
           <div className="toolbar">
+            {bare && (
             <label className="check">
               <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
               הדגשת הקצה הרציף
             </label>
+            )}
             <label className="check">
               <input type="checkbox" checked={showPeople} onChange={(e) => set('showPeople', e.currentTarget.checked)} />
               אנשים לקנה מידה, 1.75 מ'
             </label>
           </div>
-          {shown && <SectionControl recipe={shown} />}
+          {shown && bare && <SectionControl recipe={shown} />}
           {result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}
           {recipe && (
             <section className="insight" aria-label="תובנה">
@@ -149,19 +156,24 @@ export function Studio() {
         <aside className="col" aria-label="פרמטרים">
           <div className="panel">
             <div className="tabs" role="tablist" aria-label="רמת המחשה">
-              <button type="button" role="tab" aria-selected="true">
+              <button type="button" role="tab" aria-selected={bare} data-testid="level-bare" onClick={() => set('level', 'bare')}>
                 ערום
               </button>
-              <button type="button" role="tab" aria-selected="false" disabled title="הרמה הריאליסטית נבנית בשלב 4">
+              <button type="button" role="tab" aria-selected={!bare} data-testid="level-realistic" onClick={() => set('level', 'realistic')}>
                 ריאליסטי
               </button>
             </div>
-            <p className="hint">ברמה הערומה קובעים את הצורה. הרמה הריאליסטית, שתיבנה בשלב 4, תלביש אותה בחומר, שמש ועונה בלי לשנות אותה.</p>
+            <p className="hint">
+              {bare
+                ? 'ברמה הערומה קובעים את הצורה. הרמה הריאליסטית מלבישה אותה בחומר, שמש, עונה וסביבה, בלי לשנות אותה.'
+                : 'אותה רשת בדיוק, עם חומר, שמש, עונה וסביבה. שום שינוי כאן לא בונה את המודל מחדש.'}
+            </p>
             <div ref={fileInput}>
               <RecipeLoader />
             </div>
             <NoticeBox onAction={() => fileInput.current?.querySelector<HTMLInputElement>('input[type=file]')?.focus()} />
-            {recipe && <ParamsPanel recipe={recipe} />}
+            {recipe && bare && <ParamsPanel recipe={recipe} />}
+            {recipe && shown && !bare && <RealisticPanel recipe={recipe} built={shown} />}
           </div>
           <ExportPanel />
         </aside>

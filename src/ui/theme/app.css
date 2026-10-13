@@ -563,3 +563,27 @@ textarea.code {
     animation: none;
   }
 }
+
+/* ---------- realistic panel ---------- */
+.readout {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.distill {
+  margin: 0;
+  font-family: var(--f-display);
+  font-size: 19px;
+  line-height: 1.4;
+}
+.prompt {
+  margin: 0;
+  padding: 12px;
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow-wrap: anywhere;
+  user-select: all;
+}

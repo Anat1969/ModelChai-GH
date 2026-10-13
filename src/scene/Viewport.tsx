@@ -2,9 +2,19 @@
 import { Canvas } from '@react-three/fiber'
 import type { Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
-import { BareScene } from './BareScene'
+import { BareScene, CameraRig } from './BareScene'
+import { RealisticScene } from './RealisticScene'
+import { engine } from '../ui/engine'
 
-export function Viewport({ recipe }: { recipe: Sweep | null }) {
+/** The renderer, kept for the PNG snapshot. */
+export const viewport: { canvas: HTMLCanvasElement | null } = { canvas: null }
+
+/**
+ * `built` is the recipe of the mesh on screen; `recipe` is the one being edited. The realistic level dresses
+ * the built mesh with the edited recipe's `realistic` fields, which never need a new build.
+ */
+export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep | null }) {
+  const level = useStudio((s) => s.level)
   const result = useStudio((s) => s.result)
   const building = useStudio((s) => s.building)
   const modelVersion = useStudio((s) => s.modelVersion)
@@ -17,18 +27,22 @@ export function Viewport({ recipe }: { recipe: Sweep | null }) {
       className="stage"
       data-testid="stage"
       data-model-version={modelVersion}
+      data-build-count={engine.buildCount}
+      data-level={level}
       data-building={building}
       aria-label="חלון המודל, יחס 1:1. גרירה מסובבת, גלגלת או צביטה מקרבות."
       role="img"
     >
-      {recipe && (
+      {built && recipe && (
         <Canvas
-          shadows
+          shadows="percentage"
+          onCreated={({ gl }) => (viewport.canvas = gl.domElement)}
           dpr={[1, 2]}
           gl={{ antialias: true, preserveDrawingBuffer: true }}
           camera={{ fov: recipe.realistic.camera.fov_deg, near: 0.1, far: 3000, position: [60, 20, 60] }}
         >
-          <BareScene result={result} recipe={recipe} rows={rows} />
+          {level === 'realistic' ? <RealisticScene result={result} built={built} recipe={recipe} /> : <BareScene result={result} recipe={built} rows={rows} />}
+          <CameraRig recipe={built} ready={!!result} />
         </Canvas>
       )}
       <span className="badge">1:1</span>

@@ -101,8 +101,11 @@ export const useStudio = create<StudioState>((set, get) => {
         } else if (latest) {
           // The slider returns to the last valid value (PRODUCT.md, "גאומטריה לא תקפה").
           const errors = r.issues.filter((i) => i.severity === 'error')
+          // Realistic fields edited meanwhile are kept: only geometry goes back.
+          const current = get().recipe
+          const valid = get().validRecipe
           set({
-            recipe: get().validRecipe,
+            recipe: valid && current ? { ...valid, realistic: current.realistic } : valid,
             notice:
               r.stage === 'schema'
                 ? schemaNotice(r.schemaErrors, 'המתכון לא עומד בסכמה')
@@ -173,8 +176,15 @@ export const useStudio = create<StudioState>((set, get) => {
       const r = get().recipe
       if (!r) return
       const next = entries.reduce((acc, [path, value]) => setAt(acc, path, value), r)
-      set({ recipe: next, notice: get().notice?.tone === 'error' ? null : get().notice })
-      if (entries.some(([path]) => changesGeometry(path))) requestBuild(next)
+      const geometry = entries.some(([path]) => changesGeometry(path))
+      const valid = get().validRecipe
+      set({
+        recipe: next,
+        // A realistic change is valid as soon as the schema accepts it, so the built recipe takes it too.
+        validRecipe: !geometry && valid ? { ...valid, realistic: next.realistic } : valid,
+        notice: get().notice?.tone === 'error' ? null : get().notice,
+      })
+      if (geometry) requestBuild(next)
     },
 
     dismissNotice() {

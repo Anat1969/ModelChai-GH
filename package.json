@@ -10,7 +10,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "vite build && node tests/e2e/studio.e2e.mjs && node tests/e2e/concept-replay.e2e.mjs",
+    "e2e": "vite build && node tests/e2e/studio.e2e.mjs && node tests/e2e/concept-replay.e2e.mjs && node tests/e2e/realistic.e2e.mjs",
     "e2e:reference": "node tests/e2e/reference-metrics.mjs",
     "build:function": "node scripts/build-function.mjs",
     "integration": "vite build && node tests/e2e/concepts.integration.mjs"
@@ -25,6 +25,7 @@
     "comlink": "4.4.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "suncalc": "2.1.1",
     "three": "0.186.1",
     "zod": "4.6.7",
     "zustand": "5.0.15"
