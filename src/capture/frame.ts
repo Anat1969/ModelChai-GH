@@ -21,8 +21,19 @@ export interface Frame {
   height: number
 }
 
+export interface Pose {
+  position: [number, number, number]
+  target: [number, number, number]
+}
+
+/**
+ * A run of frames at one size: `draw` moves the camera to a pose, draws, and returns the canvas holding the
+ * frame. The renderer goes back to the window's size and camera when `work` ends.
+ */
+export type Session = <T>(size: { width: number; height: number }, work: (draw: (pose: Pose) => HTMLCanvasElement) => Promise<T>) => Promise<T>
+
 /** Set by the canvas while it is mounted. */
-export const capture: { render: ((r: FrameRequest) => Promise<Frame>) | null } = { render: null }
+export const capture: { render: ((r: FrameRequest) => Promise<Frame>) | null; session: Session | null } = { render: null, session: null }
 
 /**
  * The largest size, at the requested aspect, that the GPU can draw in one pass. Rounded down to whole pixels,

@@ -3,6 +3,7 @@
  * and Auth are answered here, so every request the app sends is checked.
  * 1. A project reopens exactly in the state it was saved, camera included.
  * 2. Comparison shows two versions with the same camera, and the metrics that changed are marked.
+ * Stage 7b: a print file in millimeters that passes its checks, and a 4-second MP4 clip.
  * Stage 7a: a frozen view is a 3600 × 2400 image on its step of the collection, and opens again as it was.
  * Also: versions are immutable and point to their parent, a save without a connection waits and syncs,
  * and an unsaved change survives a reload as a local draft.
@@ -131,7 +132,8 @@ async function storage(route) {
   if (req.method() === 'POST' && sign) return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ signedURL: `/object/sign/${bucket}/${key}?token=t` }) })
   if (req.method() === 'GET' && sign) {
     const file = files.get(full(key))
-    return file ? route.fulfill({ contentType: key.endsWith('.png') ? 'image/png' : 'image/jpeg', body: file }) : route.fulfill({ status: 404, body: '' })
+    const type = key.endsWith('.png') ? 'image/png' : key.endsWith('.mp4') ? 'video/mp4' : key.endsWith('.3mf') ? 'model/3mf' : 'image/jpeg'
+    return file ? route.fulfill({ contentType: type, body: file }) : route.fulfill({ status: 404, body: '' })
   }
   if (req.method() === 'DELETE' && !sign) {
     const { prefixes } = JSON.parse(req.postData())
@@ -144,8 +146,11 @@ async function storage(route) {
     if (!key.startsWith(USER + '/')) return route.fulfill({ status: 403, body: '{"message":"not your folder"}' })
     if (files.has(full(key))) return route.fulfill({ status: 409, contentType: 'application/json', body: '{"statusCode":"409","error":"Duplicate","message":"The resource already exists"}' })
     const buf = req.postDataBuffer()
-    const sig = [Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.from([0xff, 0xd8, 0xff])].map((b) => buf.indexOf(b)).filter((i) => i >= 0)
-    const start = Math.min(...sig)
+    // Where the file starts inside the multipart body: PNG, JPEG, a zip (3MF), or an MP4's first box.
+    const sig = [Buffer.from([0x89, 0x50, 0x4e, 0x47]), Buffer.from([0xff, 0xd8, 0xff]), Buffer.from('PK\x03\x04', 'latin1')].map((b) => buf.indexOf(b)).filter((i) => i >= 0)
+    const ftyp = buf.indexOf(Buffer.from('ftyp'))
+    if (key.endsWith('.mp4') && ftyp >= 4) sig.push(ftyp - 4)
+    const start = key.endsWith('.mp4') ? ftyp - 4 : Math.min(...sig)
     const end = buf.lastIndexOf(Buffer.from('\r\n--'))
     files.set(full(key), buf.subarray(start, end > start ? end : buf.length))
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ Key: full(key), Id: key }) })
@@ -180,7 +185,7 @@ async function mock(page) {
 // ---------- helpers ----------
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: root, stdio: 'ignore' })
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
-const context = await browser.newContext({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 1 })
+const context = await browser.newContext({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 1, acceptDownloads: true })
 
 async function open(page, hash) {
   for (let i = 0; i < 60; i++) {
@@ -220,6 +225,28 @@ async function orbit(page, sel, dx, dy) {
   await page.waitForTimeout(1500)
 }
 const recipeR = (v) => v.recipe.generator.params.path.R
+/** Duration in seconds and sample count, from an MP4's mvhd and stsz boxes. */
+function mp4Info(buf) {
+  const mvhd = buf.indexOf(Buffer.from('mvhd'))
+  const v1 = buf[mvhd + 4] === 1
+  const timescale = v1 ? buf.readUInt32BE(mvhd + 24) : buf.readUInt32BE(mvhd + 16)
+  const duration = v1 ? Number(buf.readBigUInt64BE(mvhd + 28)) : buf.readUInt32BE(mvhd + 20)
+  const stsz = buf.indexOf(Buffer.from('stsz'))
+  return { seconds: duration / timescale, samples: buf.readUInt32BE(stsz + 12) }
+}
+/** Size of a binary STL: longest side and lowest Z, in file units. */
+function stlInfo(buf) {
+  const n = buf.readUInt32LE(80)
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity]
+  for (let t = 0; t < n; t++)
+    for (let v = 0; v < 3; v++)
+      for (let k = 0; k < 3; k++) {
+        const x = buf.readFloatLE(84 + 50 * t + 12 + 12 * v + 4 * k)
+        if (x < min[k]) min[k] = x
+        if (x > max[k]) max[k] = x
+      }
+  return { triangles: n, longest: Math.max(...max.map((m, k) => m - min[k])), minZ: min[2] }
+}
 /** Width and height from a JPEG's start-of-frame marker. */
 function jpegSize(buf) {
   for (let i = 2; i + 9 < buf.length; ) {
@@ -486,6 +513,54 @@ try {
   }
   check('a frozen view opens again exactly as it was looked at', reopenedView.level === 'realistic' && near(reopenedView.camera, frozenCam), `${reopenedView.level}, ${reopenedView.camera.slice(0, 3).join(', ')}`)
   await fresh.screenshot({ path: shots + 'stage7a-freeze.png', timeout: 120000 })
+
+  // ---------- stage 7b: a print file and a 4-second clip ----------
+  await open(fresh, `#/studio?v=${v1.id}`)
+  await fresh.reload()
+  await modelReady(fresh)
+  await fresh.click('[data-testid=tab-save]')
+  await fresh.click('[data-testid=print-prepare]')
+  await fresh.waitForSelector('[data-testid=print-report]', { timeout: 180000 })
+  const printChecks = await fresh.$$eval('[data-testid=print-report] li[data-check]', (els) => els.map((e) => [e.dataset.check, e.dataset.ok]))
+  check('the print file passes its three checks at 150 mm: closed, wall, bed', printChecks.length === 3 && printChecks.every(([, ok]) => ok === 'true'), JSON.stringify(printChecks))
+  const printLine = (await fresh.textContent('.print-scale')).replace(/\s+/g, ' ')
+  const [stlDl] = await Promise.all([fresh.waitForEvent('download'), fresh.click('[data-testid=print-stl]')])
+  const { readFileSync } = await import('node:fs')
+  const stl = stlInfo(readFileSync(await stlDl.path()))
+  check('the STL is in millimeters: its longest side is 150 mm, and it rests on Z = 0', Math.abs(stl.longest - 150) / 150 < 0.005 && Math.abs(stl.minZ) < 1e-3 && /150mm-1to\d+\.stl$/.test(stlDl.suggestedFilename()), `${stl.longest.toFixed(2)} mm, ${stl.triangles} triangles, ${stlDl.suggestedFilename()}, ${printLine}`)
+  const versionsBeforePrint = db.mathcreator_recipe_versions.length
+  await fresh.click('[data-testid=print-keep]')
+  await fresh.waitForSelector('[data-testid=print-status]', { timeout: 60000 })
+  const printRow = db.mathcreator_library.find((r) => r.kind === 'print')
+  const threeMf = printRow && files.get(`mathcreator-library/${printRow.image_path}`)
+  check('the 3MF is kept on the print step of the collection', printRow?.stage === 'print' && printRow.version_id === v1.id && threeMf?.subarray(0, 4).toString('latin1') === 'PK\x03\x04' && db.mathcreator_recipe_versions.length === versionsBeforePrint, `${printRow?.distill}, ${((threeMf?.length ?? 0) / 1e6).toFixed(1)} MB`)
+
+  const buildsBefore = await fresh.$eval('[data-testid=stage]', (el) => el.dataset.buildCount)
+  const levelBefore = await fresh.$eval('[data-testid=stage]', (el) => el.dataset.level)
+  const clipStarted = Date.now()
+  await fresh.click('[data-testid=make-clip]')
+  await fresh.waitForSelector('[data-testid=recording-status]', { timeout: 30000 })
+  await fresh.waitForFunction(() => ['done', 'failed'].includes(document.querySelector('[data-testid=clip]')?.dataset.status), null, { timeout: 1500000 })
+  const clipStatus = await fresh.textContent('[data-testid=clip-status]')
+  const clipRow = db.mathcreator_library.find((r) => r.kind === 'clip')
+  const mp4 = clipRow && files.get(`mathcreator-library/${clipRow.image_path}`)
+  const info = mp4 ? mp4Info(mp4) : null
+  check('the clip is an MP4 of 4.0 seconds and 120 frames', info && Math.abs(info.seconds - 4) < 0.05 && info.samples === 120, `${info?.seconds} s, ${info?.samples} frames, ${((mp4?.length ?? 0) / 1e6).toFixed(1)} MB in ${Math.round((Date.now() - clipStarted) / 1000)} s; ${clipStatus}`)
+  check('the clip hangs on the realistic step, with its start view', clipRow?.stage === 'realistic' && clipRow.view?.level === 'realistic' && clipRow.version_id === v1.id)
+  const afterClip = await fresh.$eval('[data-testid=stage]', (el) => [el.dataset.buildCount, el.dataset.level, el.dataset.recording])
+  check('making the clip builds nothing and leaves the window as it was', afterClip[0] === buildsBefore && afterClip[1] === levelBefore && afterClip[2] === 'false', `builds ${buildsBefore} → ${afterClip[0]}, level ${levelBefore} → ${afterClip[1]}`)
+  const [clipDl] = await Promise.all([fresh.waitForEvent('download'), fresh.click('[data-testid=clip-download]')])
+  check('the clip downloads as MP4', /\.mp4$/.test(clipDl.suggestedFilename()), clipDl.suggestedFilename())
+  await fresh.screenshot({ path: shots + 'stage7b-print.png', timeout: 120000 })
+
+  await open(fresh, `#/collection?p=${v1.project_id}`)
+  await fresh.waitForSelector('[data-testid=collection] [data-testid=print]', { timeout: 60000 })
+  await fresh.waitForFunction(() => document.querySelector('[data-testid=clip-video]')?.readyState >= 1, null, { timeout: 60000 })
+  const videoSeconds = await fresh.$eval('[data-testid=clip-video]', (v) => v.duration)
+  check('the collection plays the clip and lists the print file', Math.abs(videoSeconds - 4) < 0.1, `${videoSeconds} s`)
+  await fresh.screenshot({ path: shots + 'stage7b-collection.png', fullPage: true, timeout: 120000 })
+  // CLIP_OUT=<file> keeps the clip, to look at its frames.
+  if (process.env.CLIP_OUT && mp4) (await import('node:fs')).writeFileSync(process.env.CLIP_OUT, mp4)
 
   // ---------- 400 px ----------
   const narrow = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true })

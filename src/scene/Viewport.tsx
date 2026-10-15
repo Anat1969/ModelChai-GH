@@ -21,6 +21,7 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
   const modelVersion = useStudio((s) => s.modelVersion)
   const traceStatus = useStudio((s) => s.traceStatus)
   const tracing = useStudio((s) => s.tracing)
+  const recording = useStudio((s) => s.recording)
   const rows = result ? result.curves.path.length / 3 : 1
 
   return (
@@ -31,6 +32,7 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
       data-build-count={engine.buildCount}
       data-level={level}
       data-building={building}
+      data-recording={!!recording}
       aria-label="חלון המודל, יחס 3:2. גרירה מסובבת, גלגלת או צביטה מקרבות."
       role="img"
     >
@@ -59,6 +61,11 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
         <div className="stage-empty" role="status">
           בונה את המודל מהמתכון
         </div>
+      )}
+      {recording && (
+        <span className="stage-status" role="status" data-testid="recording-status">
+          {recording}
+        </span>
       )}
       {tracing && traceStatus && (
         <span className="stage-status" role="status">

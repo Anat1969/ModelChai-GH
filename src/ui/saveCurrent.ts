@@ -4,6 +4,7 @@
  * Assumes a signed-in session.
  */
 import { clearDraft, saveOrQueue, type SaveOutcome } from '../data/offline'
+import { ensureSession } from '../data/supabase'
 import type { SaveInput, View } from '../data/projects'
 import { visualPrompt } from '../prompt/visualPrompt'
 import { parseRecipe } from '../recipe/schema'
@@ -82,4 +83,26 @@ export async function saveCurrent(note: string | null): Promise<SaveOutcome | { 
   history.replaceState(null, '', `#/studio?v=${input.versionId}`)
   clearDraft()
   return out
+}
+
+export type Anchor =
+  | { ok: true; projectId: string; versionId: string; savedVersion: boolean }
+  | { ok: false; message: string }
+
+/**
+ * The saved version that something made from the screen belongs to (DECISIONS.md 86): the open one, or a new
+ * one when the model was never saved or has changed since.
+ */
+export async function anchorVersion(note: string): Promise<Anchor> {
+  const session = await ensureSession()
+  if (session.status !== 'signed-in') return { ok: false, message: 'אין חיבור לחשבון.' }
+  const st = useStudio.getState()
+  const savedVersion = !st.versionId || st.dirty
+  if (savedVersion) {
+    const out = await saveCurrent(note)
+    if (out.status === 'queued') return { ok: false, message: 'אין חיבור לשרת. הגרסה תישלח כשהחיבור יחזור.' }
+    if (out.status !== 'saved') return { ok: false, message: `שמירת הגרסה נכשלה${'message' in out ? `: ${out.message}` : ''}.` }
+  }
+  const cur = useStudio.getState()
+  return { ok: true, projectId: cur.project!.id, versionId: cur.versionId!, savedVersion }
 }

@@ -66,6 +66,8 @@ interface StudioState {
   /** The recipe as it arrived: its ideal, balanced state. "איפוס" returns to it. */
   baseline: RawRecipe | null
   save: SaveState
+  /** While a clip is drawn: what is happening, shown on the model window, which takes no input meanwhile. */
+  recording: string | null
 
   loadRecipe(raw: unknown, sourceName: string, origin?: ConceptOrigin, from?: { project: ProjectRef | null; versionId: string | null; view: View | null; dirty?: boolean; baseline?: RawRecipe | null }): void
   setParam(path: string, value: unknown): void
@@ -180,6 +182,7 @@ export const useStudio = create<StudioState>((set, get) => {
     pendingView: null,
     baseline: null,
     save: { status: 'idle' },
+    recording: null,
 
     loadRecipe(raw, sourceName, origin, from) {
       const p = parseRecipe(raw)

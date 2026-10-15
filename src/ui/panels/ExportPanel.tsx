@@ -9,17 +9,15 @@ import { useStudio } from '../store'
 const FORMATS: { id: ExportFormat | 'png'; label: string; note: string }[] = [
   { id: 'glb', label: 'glTF', note: 'רשתות עם חומרים, ל-Blender' },
   { id: 'obj', label: 'OBJ', note: 'רשתות וקו הקצה, ל-Rhino' },
-  { id: 'stl', label: 'STL', note: 'גוף אחד, Z למעלה, להדפסה' },
+  { id: 'stl', label: 'STL', note: 'גוף אחד במטרים, Z למעלה, לתוכנות תלת-ממד' },
   { id: 'json', label: 'JSON', note: 'המתכון, לשחזור ולשיתוף' },
   { id: 'png', label: 'PNG', note: 'צילום 3:2 של חלון המודל' },
 ]
 
 export function ExportPanel() {
   const recipe = useStudio((s) => s.validRecipe)
-  const mode = (recipe?.bare as { mode?: string; openings?: { passages?: { count?: number }; slots?: { count?: number } } } | undefined) ?? {}
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState('')
-  const openShell = mode.mode === 'shell' && ((mode.openings?.passages?.count ?? 0) > 0 || (mode.openings?.slots?.count ?? 0) > 0)
   const id = ((recipe?.meta as { id?: string } | undefined)?.id ?? 'model').replace(/[^a-z0-9-]/g, '')
 
   const run = async (fmt: ExportFormat | 'png') => {
@@ -58,12 +56,7 @@ export function ExportPanel() {
           </button>
         ))}
       </div>
-      {openShell && (
-        <p className="hint">
-          בקליפה עם פתחים, ה-STL עדיין לא אטום: שפות הפתחים פתוחות, והמשקופים שסוגרים אותן מגיעים בשלב 6. להדפסה כדאי לייצא בלי
-          פתחים או כגוש.
-        </p>
-      )}
+      <p className="hint">להדפסה: "קובץ להדפסה" למעלה. הוא מוקטן לגודל במילימטרים, אטום, ובודק את עובי הדופן.</p>
       <p className="hint" role="status" data-testid="export-status">
         {message}
       </p>

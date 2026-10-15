@@ -4,13 +4,18 @@ import { expose, transfer } from 'comlink'
 import { build, transferables, type BuildResult } from './build'
 import { buildClosedMesh } from './sweep/closedMesh'
 import { parseRecipe } from '../recipe/schema'
-import { exportFile, type ExportFile, type ExportFormat } from './export'
+import { exportFile, printFiles, type ExportFile, type ExportFormat, type PrintFiles } from './export'
+import type { PrintOptions } from './export/print'
 import type { SolidMesh } from './types'
 
 const api = {
   exportFile(input: unknown, format: ExportFormat): ExportFile | { error: string } {
     const f = exportFile(input, format)
     return 'bytes' in f ? transfer(f, [f.bytes.buffer as ArrayBuffer]) : f
+  },
+  async printFiles(input: unknown, opts: PrintOptions): Promise<PrintFiles | { error: string }> {
+    const f = await printFiles(input, opts)
+    return 'error' in f ? f : transfer(f, [f.stl.bytes.buffer as ArrayBuffer, f.threeMf.bytes.buffer as ArrayBuffer])
   },
   build(input: unknown): BuildResult {
     const r = build(input)

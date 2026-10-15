@@ -6,7 +6,8 @@
  */
 import { wrap, releaseProxy, type Remote } from 'comlink'
 import type { BuildResult } from './build'
-import type { ExportFile, ExportFormat } from './export'
+import type { ExportFile, ExportFormat, PrintFiles } from './export'
+import type { PrintOptions } from './export/print'
 import type { EngineApi } from './worker'
 
 export type BuildOutcome = { status: 'done'; result: BuildResult } | { status: 'superseded' }
@@ -21,6 +22,8 @@ export interface EngineClient {
   build(input: unknown): Promise<BuildOutcome>
   /** Export runs beside the build queue; it never cancels or delays a build request. */
   exportFile(input: unknown, format: ExportFormat): Promise<ExportFile | { error: string }>
+  /** The model ready for a home printer, with its checks. Beside the build queue, like an export. */
+  printFiles(input: unknown, opts: PrintOptions): Promise<PrintFiles | { error: string }>
   /** Number of builds the Worker actually ran. Used to prove that switching levels never rebuilds. */
   readonly buildCount: number
   dispose(): void
@@ -57,6 +60,9 @@ export function createEngineClient(worker: Worker): EngineClient {
     },
     exportFile(input, format) {
       return remote.exportFile(input, format) as Promise<ExportFile | { error: string }>
+    },
+    printFiles(input, opts) {
+      return remote.printFiles(input, opts) as Promise<PrintFiles | { error: string }>
     },
     get buildCount() {
       return buildCount
