@@ -33,7 +33,13 @@ export interface Pose {
 export type Session = <T>(size: { width: number; height: number }, work: (draw: (pose: Pose) => HTMLCanvasElement) => Promise<T>) => Promise<T>
 
 /** Set by the canvas while it is mounted. */
-export const capture: { render: ((r: FrameRequest) => Promise<Frame>) | null; session: Session | null } = { render: null, session: null }
+export const capture: {
+  /** The window as it is, larger. */
+  render: ((r: FrameRequest) => Promise<Frame>) | null
+  /** The window drawn for a visualization: deeper shadows, ambient occlusion, smooth edges (DECISIONS.md 91). */
+  beauty: ((r: FrameRequest) => Promise<Frame>) | null
+  session: Session | null
+} = { render: null, beauty: null, session: null }
 
 /**
  * The largest size, at the requested aspect, that the GPU can draw in one pass. Rounded down to whole pixels,

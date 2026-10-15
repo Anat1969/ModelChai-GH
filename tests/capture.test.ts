@@ -68,3 +68,14 @@ describe('the 4-second clip', async () => {
     expect(end.target).toEqual(start.target)
   })
 })
+
+describe("the clip's timeline", async () => {
+  const { clipPhases } = await import('../src/capture/clip')
+  it('reads 1 s bare, 2 s blend, 1 s realistic, from the blend itself', () => {
+    expect(clipPhases().map((p) => [p.id, p.seconds])).toEqual([
+      ['bare', 1],
+      ['blend', 2],
+      ['realistic', 1],
+    ])
+  })
+})

@@ -3,6 +3,7 @@
  * and Auth are answered here, so every request the app sends is checked.
  * 1. A project reopens exactly in the state it was saved, camera included.
  * 2. Comparison shows two versions with the same camera, and the metrics that changed are marked.
+ * The studio's layout and path (DECISIONS.md 90), and stage 7c: a visualization on the render step.
  * Stage 7b: a print file in millimeters that passes its checks, and a 4-second MP4 clip.
  * Stage 7a: a frozen view is a 3600 × 2400 image on its step of the collection, and opens again as it was.
  * Also: versions are immutable and point to their parent, a save without a connection waits and syncs,
@@ -518,7 +519,30 @@ try {
   await open(fresh, `#/studio?v=${v1.id}`)
   await fresh.reload()
   await modelReady(fresh)
-  await fresh.click('[data-testid=tab-save]')
+  // ---------- the studio's layout: metrics, the model with its path, the tools (DECISIONS.md 90) ----------
+  const layout = await fresh.evaluate(() => {
+    const r = (q) => document.querySelector(q).getBoundingClientRect()
+    const stage = r('[data-testid=stage]'), metrics = r('.work-metrics'), side = r('.work-side'), path = r('[data-testid=pathbar]')
+    const inside = [...document.querySelectorAll('button')].filter((b) => {
+      const q = b.getBoundingClientRect()
+      return q.width && q.left >= stage.left && q.right <= stage.right && q.top >= stage.top && q.bottom <= stage.bottom
+    }).length
+    return {
+      order: metrics.left > stage.right && side.right < stage.left,
+      under: path.top >= stage.bottom,
+      inside,
+      steps: [...document.querySelectorAll('.path-steps > li[data-step]')].map((li) => li.dataset.step),
+      phases: [...document.querySelectorAll('.cliptime-part')].map((p) => Number(p.dataset.seconds)),
+      scroll: document.documentElement.scrollHeight > innerHeight,
+    }
+  })
+  check('the metrics are on the right, the model in the middle, the tools on the left', layout.order)
+  check('no button sits on the model: the path is under it', layout.inside === 0 && layout.under, `${layout.inside} buttons on the model`)
+  check('the path runs 01–06 in the collection\'s order', layout.steps.slice(0, 6).join(',') === 'bare,realistic,freeze,clip,render,print', layout.steps.join(' → '))
+  check('the clip\'s timeline reads 1 s bare, 2 s blend, 1 s realistic', layout.phases.join(',') === '1,2,1', layout.phases.join(' | '))
+  check('the studio fits the screen without scrolling', !layout.scroll)
+
+  await fresh.click('[data-testid=open-print]')
   await fresh.click('[data-testid=print-prepare]')
   await fresh.waitForSelector('[data-testid=print-report]', { timeout: 180000 })
   const printChecks = await fresh.$$eval('[data-testid=print-report] li[data-check]', (els) => els.map((e) => [e.dataset.check, e.dataset.ok]))
@@ -534,6 +558,19 @@ try {
   const printRow = db.mathcreator_library.find((r) => r.kind === 'print')
   const threeMf = printRow && files.get(`mathcreator-library/${printRow.image_path}`)
   check('the 3MF is kept on the print step of the collection', printRow?.stage === 'print' && printRow.version_id === v1.id && threeMf?.subarray(0, 4).toString('latin1') === 'PK\x03\x04' && db.mathcreator_recipe_versions.length === versionsBeforePrint, `${printRow?.distill}, ${((threeMf?.length ?? 0) / 1e6).toFixed(1)} MB`)
+
+  // ---------- stage 7c: a visualization from the bare level ----------
+  await fresh.click('[data-testid=level-bare]')
+  const buildsBeforeRender = await fresh.$eval('[data-testid=stage]', (el) => el.dataset.buildCount)
+  await fresh.click('[data-testid=render-view]')
+  await fresh.waitForFunction(() => ['done', 'failed', 'local'].includes(document.querySelector('[data-testid=render]')?.dataset.status), null, { timeout: 600000 })
+  const renderRow = db.mathcreator_library.find((r) => r.kind === 'still' && r.stage === 'render')
+  const renderJpg = renderRow && files.get(`mathcreator-library/${renderRow.image_path}`)
+  const renderSize = renderJpg ? jpegSize(renderJpg) : null
+  const afterRender = await fresh.$eval('[data-testid=stage]', (el) => [el.dataset.buildCount, el.dataset.level])
+  check('a visualization is a 3600 × 2400 JPEG on the render step, at the realistic level', renderSize?.[0] === 3600 && renderSize?.[1] === 2400 && renderRow.view.level === 'realistic', `${renderSize?.join(' × ')}; ${await fresh.textContent('[data-testid=render-status]')}`)
+  check('rendering builds nothing and returns to the bare level', afterRender[0] === buildsBeforeRender && afterRender[1] === 'bare', `builds ${buildsBeforeRender} → ${afterRender[0]}, level ${afterRender[1]}`)
+  await fresh.click('[data-testid=level-realistic]')
 
   const buildsBefore = await fresh.$eval('[data-testid=stage]', (el) => el.dataset.buildCount)
   const levelBefore = await fresh.$eval('[data-testid=stage]', (el) => el.dataset.level)
@@ -555,6 +592,7 @@ try {
 
   await open(fresh, `#/collection?p=${v1.project_id}`)
   await fresh.waitForSelector('[data-testid=collection] [data-testid=print]', { timeout: 60000 })
+  check('the visualization sits on the render step of the collection', Number(await fresh.$eval('[data-testid=stage-render]', (el) => el.dataset.count)) >= 1)
   await fresh.waitForFunction(() => document.querySelector('[data-testid=clip-video]')?.readyState >= 1, null, { timeout: 60000 })
   const videoSeconds = await fresh.$eval('[data-testid=clip-video]', (v) => v.duration)
   check('the collection plays the clip and lists the print file', Math.abs(videoSeconds - 4) < 0.1, `${videoSeconds} s`)
