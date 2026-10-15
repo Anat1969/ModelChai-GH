@@ -32,3 +32,15 @@ export function orbit(start: { position: Vec3; target: Vec3 }, angle: number): {
 
 /** Frame f's time in microseconds, as WebCodecs counts it. */
 export const timestampAt = (f: number) => Math.round((f * 1e6) / CLIP.fps)
+
+/** The clip's three parts and their length in seconds, read from the blend: bare, blend, realistic. */
+export function clipPhases(): { id: 'bare' | 'blend' | 'realistic'; label: string; seconds: number }[] {
+  const frames = [...Array(FRAMES).keys()]
+  const blendStart = frames.find((f) => mixAt(f) > 0)! - 1
+  const blendEnd = frames.find((f) => mixAt(f) >= 1)!
+  return [
+    { id: 'bare', label: 'ערום', seconds: blendStart / CLIP.fps },
+    { id: 'blend', label: 'מעבר', seconds: (blendEnd - blendStart) / CLIP.fps },
+    { id: 'realistic', label: 'ריאליסטי', seconds: (FRAMES - blendEnd) / CLIP.fps },
+  ]
+}

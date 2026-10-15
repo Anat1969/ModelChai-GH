@@ -23,9 +23,8 @@ import { SavePanel } from '../panels/SavePanel'
 import { DevicePanel } from '../panels/DevicePanel'
 import { ReadingPanel } from '../panels/ReadingPanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
-import { FreezeControl } from '../panels/FreezeControl'
 import { PrintPanel } from '../panels/PrintPanel'
-import { ClipControl } from '../panels/ClipControl'
+import { PathBar } from '../panels/PathBar'
 import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
@@ -35,12 +34,13 @@ const CAMERAS: { id: CameraPreset; label: string }[] = [
   { id: 'courtyard', label: 'מהחצר' },
 ]
 
-type SideTab = 'shape' | 'scene' | 'reading' | 'save' | 'library'
+type SideTab = 'shape' | 'scene' | 'reading' | 'save' | 'print' | 'library'
 const SIDE_TABS: { id: SideTab; label: string }[] = [
   { id: 'shape', label: 'צורה' },
   { id: 'scene', label: 'סביבה' },
   { id: 'reading', label: 'פרשנות' },
   { id: 'save', label: 'שמירה' },
+  { id: 'print', label: 'הדפסה' },
   { id: 'library', label: 'ספרייה' },
 ]
 
@@ -237,57 +237,51 @@ export function Studio() {
       </section>
 
       <main className="work">
-        <div className="work-left">
-          <div className="work-left-inner">
+        <div className="work-metrics" aria-label="מדדים">
+          {result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}
+        </div>
+
+        <div className="work-center">
+          <div className="work-center-inner">
             <div className="work-stage">
               <Viewport recipe={recipe ?? shown} built={shown} />
-              <div className="viewbar" role="toolbar" aria-label="תצוגה">
-                <div className="seg level" role="tablist" aria-label="רמת המחשה">
-                  <button type="button" role="tab" aria-selected={bare} aria-pressed={bare} data-testid="level-bare" onClick={() => set('level', 'bare')}>
-                    ערום
+            </div>
+            <div className="viewbar" role="toolbar" aria-label="תצוגה">
+              <div className="seg cams" role="group" aria-label="נקודות מבט">
+                {CAMERAS.map((c) => (
+                  <button key={c.id} type="button" aria-pressed={camera === c.id} onClick={() => setCamera(c.id)} data-testid={`camera-${c.id}`}>
+                    {c.label}
                   </button>
-                  <button type="button" role="tab" aria-selected={!bare} aria-pressed={!bare} data-testid="level-realistic" onClick={() => set('level', 'realistic')}>
-                    ריאליסטי
+                ))}
+              </div>
+              <div className="viewbar-checks">
+                {bare && (
+                  <button
+                    type="button"
+                    disabled={!edges}
+                    title={edges ? undefined : 'לחתך הזה אין קצוות חדים'}
+                    onClick={() => {
+                      set('showEdges', true)
+                      set('traceStatus', null)
+                      set('tracing', !tracing)
+                    }}
+                  >
+                    {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
                   </button>
-                </div>
-                <div className="seg cams" role="group" aria-label="נקודות מבט">
-                  {CAMERAS.map((c) => (
-                    <button key={c.id} type="button" aria-pressed={camera === c.id} onClick={() => setCamera(c.id)} data-testid={`camera-${c.id}`}>
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-                <FreezeControl />
-                <ClipControl />
-                <div className="viewbar-checks">
-                  {bare && (
-                    <button
-                      type="button"
-                      disabled={!edges}
-                      title={edges ? undefined : 'לחתך הזה אין קצוות חדים'}
-                      onClick={() => {
-                        set('showEdges', true)
-                        set('traceStatus', null)
-                        set('tracing', !tracing)
-                      }}
-                    >
-                      {tracing ? 'עצירת המעקב' : 'מעקב אחרי הקצה'}
-                    </button>
-                  )}
-                  {bare && (
-                    <label className="check">
-                      <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
-                      הקצה
-                    </label>
-                  )}
+                )}
+                {bare && (
                   <label className="check">
-                    <input type="checkbox" checked={showPeople} onChange={(e) => set('showPeople', e.currentTarget.checked)} />
-                    אנשים
+                    <input type="checkbox" checked={showEdges} onChange={(e) => set('showEdges', e.currentTarget.checked)} />
+                    הקצה
                   </label>
-                </div>
+                )}
+                <label className="check">
+                  <input type="checkbox" checked={showPeople} onChange={(e) => set('showPeople', e.currentTarget.checked)} />
+                  אנשים
+                </label>
               </div>
             </div>
-            <div className="work-metrics">{result && built && <MetricsPanel metrics={result.metrics} issues={result.issues} recipe={built} />}</div>
+            <PathBar onPrint={() => openTab('print')} />
           </div>
         </div>
 
@@ -337,7 +331,6 @@ export function Studio() {
             {tab === 'save' && (
               <>
                 <SavePanel />
-                <PrintPanel />
                 <ExportPanel />
                 <DevicePanel />
                 <section className="panel" aria-label="מתכון מקובץ">
@@ -348,6 +341,7 @@ export function Studio() {
                 </section>
               </>
             )}
+            {tab === 'print' && <PrintPanel />}
             {tab === 'library' && <LibraryPanel onNeedSave={() => setTab('save')} />}
           </div>
         </aside>

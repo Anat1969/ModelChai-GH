@@ -801,16 +801,22 @@ textarea.code {
 .work {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: 'left' 'side';
+  grid-template-areas: 'center' 'metrics' 'side';
   gap: var(--space-3);
   padding: 0 var(--space-4) var(--space-4);
 }
-.work-left,
-.work-left-inner {
-  display: contents;
+.work-center {
+  grid-area: center;
+  min-width: 0;
 }
-.work-left {
-  grid-area: left;
+.work-center-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.work-metrics {
+  grid-area: metrics;
+  min-width: 0;
 }
 .work-stage {
   position: sticky;
@@ -871,7 +877,7 @@ textarea.code {
 }
 .sidetabs {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   border-block-end: 1px solid var(--line);
   position: sticky;
   inset-block-start: 0;
@@ -967,59 +973,41 @@ legend {
     height: 100dvh;
     overflow: hidden;
   }
+  /* Three columns, from the right: metrics, the model with its path under it, the tools (DECISIONS.md 90). */
   .work {
     flex: 1;
     min-height: 0;
-    grid-template-columns: minmax(0, 1fr) var(--side);
-    grid-template-areas: 'left side';
+    grid-template-columns: var(--metrics-w, 270px) minmax(0, 1fr) var(--side);
+    grid-template-areas: 'metrics center side';
   }
-  .work-left {
-    display: block;
-    container: left / size;
+  .work-center {
+    container: center / size;
     min-height: 0;
-    min-width: 0;
   }
-  .work-left-inner {
-    display: grid;
+  .work-center-inner {
     height: 100%;
-    gap: var(--space-3);
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas: 'stage' 'metrics';
+    overflow: auto;
+    align-items: center;
   }
   .work-stage {
-    grid-area: stage;
     position: relative;
     padding: 0;
-    width: fit-content;
-    max-width: 100%;
-    align-self: start;
-    justify-self: start;
   }
-  /* The window: the largest 3:2 that leaves 150 px for the metrics under it. */
+  /* The window: the largest 3:2 that leaves room under it for the view row and the path. */
   .work-stage .stage {
-    width: min(100cqw, calc((100cqh - 150px) * 1.5));
+    width: min(100cqw, calc((100cqh - var(--under-model, 172px)) * 1.5));
   }
-  .work-stage .viewbar {
-    position: absolute;
-    inset-inline: 10px;
-    inset-block-end: 10px;
-    z-index: 11;
-    pointer-events: none;
-  }
-  .work-stage .viewbar > * {
-    pointer-events: auto;
-  }
-  .viewbar-checks {
-    background: color-mix(in srgb, var(--white) 88%, transparent);
-    padding: 0 10px;
-    border: 1px solid var(--line);
-    min-height: 36px;
+  .work-center-inner > .viewbar,
+  .work-center-inner > .pathbar {
+    width: min(100cqw, calc((100cqh - var(--under-model, 172px)) * 1.5));
+    min-width: min(100%, 620px);
   }
   .work-metrics {
-    grid-area: metrics;
     overflow: auto;
     min-height: 0;
+  }
+  .work-metrics .metrics {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   }
   .work-side {
     min-height: 0;
@@ -1030,21 +1018,120 @@ legend {
     min-height: 0;
     flex: 1;
   }
-  /* When the area is wide for its height, the metrics move beside the window and the window grows. Below,
-     the window is 1.5 × (h − 150) wide; 240 px of metrics fit beside it once w > 1.5h + 15, about w/h > 1.52. */
-  @container left (min-aspect-ratio: 152 / 100) {
-    .work-left-inner {
-      grid-template-columns: auto minmax(220px, 1fr);
-      grid-template-rows: minmax(0, 1fr);
-      grid-template-areas: 'stage metrics';
-    }
-    .work-stage .stage {
-      width: min(calc(100cqw - 240px), calc(100cqh * 1.5));
-    }
-    .work-metrics .metrics {
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    }
-  }
+}
+
+/* ---------- the path under the model (DECISIONS.md 90) ---------- */
+.pathbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 8px;
+}
+.path-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 6px;
+}
+.path-steps > li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.path-steps > li[data-step] > button,
+.step-control > button,
+.clip-buttons > button {
+  white-space: nowrap;
+}
+.path-steps button {
+  padding-inline: 10px;
+}
+.path-steps button .step-num {
+  margin-inline-end: 2px;
+}
+.path-steps button[aria-pressed='true'] .step-num {
+  color: var(--accent-ink);
+}
+.path-steps button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--accent-ink);
+  border-color: var(--ink);
+}
+.step-num {
+  font-family: var(--f-data);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--muted);
+  align-self: center;
+}
+.path-end {
+  margin-inline-start: auto;
+}
+.step-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.clip-buttons {
+  display: flex;
+  gap: 4px;
+}
+.cliptime {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+.cliptime-title {
+  white-space: nowrap;
+}
+.cliptime-bar {
+  position: relative;
+  display: flex;
+  flex: 1 1 240px;
+  font-size: 12px;
+  font-family: var(--f-data);
+  border: 1px solid var(--line);
+}
+.cliptime-part {
+  padding: 1px 4px;
+  white-space: nowrap;
+  text-align: center;
+}
+.cliptime-part.bare {
+  background: var(--white);
+}
+.cliptime-part.blend {
+  background: linear-gradient(to left, var(--white), var(--grey-2));
+}
+.cliptime-part.realistic {
+  background: var(--grey-2);
+}
+.cliptime-marker {
+  position: absolute;
+  inset-block: -3px;
+  width: 2px;
+  background: var(--ink);
+}
+.cliptime-turn {
+  font-size: 12px;
+  color: var(--muted);
+}
+.path-status:empty {
+  display: none;
+}
+.path-message {
+  margin: 0;
+  font-size: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ---------- library ---------- */

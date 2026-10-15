@@ -6,6 +6,7 @@
 import { useRef, useState } from 'react'
 import { angleAt, CLIP, FRAMES, mixAt, needsBare, needsRealistic, orbit } from '../../capture/clip'
 import { createEncoder } from '../../capture/encode'
+import { paint, settle } from '../../capture/settle'
 import { capture, frameName } from '../../capture/frame'
 import { addItem } from '../../data/collection'
 import { cameraControl } from '../../scene/BareScene'
@@ -13,6 +14,7 @@ import { download } from '../download'
 import { navigate } from '../router'
 import { anchorVersion } from '../saveCurrent'
 import { useStudio } from '../store'
+import { PathStatus } from './pathSlot'
 
 type State =
   | { status: 'idle'; message?: string }
@@ -22,16 +24,9 @@ type State =
 
 class Cancelled extends Error {}
 
-const paint = () => new Promise<void>((res) => requestAnimationFrame(() => setTimeout(res, 0)))
-/** A level switch mounts the other scene; give it time to build its lights and textures before drawing. */
-const settle = async () => {
-  await new Promise((r) => setTimeout(r, 400))
-  await paint()
-  await paint()
-}
 
 export function ClipControl() {
-  const ready = useStudio((s) => !!s.result && !s.building)
+  const ready = useStudio((s) => !!s.result && !s.building && !s.recording)
   const [state, setState] = useState<State>({ status: 'idle' })
   const cancel = useRef(false)
 
@@ -54,7 +49,7 @@ export function ClipControl() {
       // Every few frames: each update re-renders the window around the canvas.
       if (done % 6 && done !== total) return
       const progress = Math.round((100 * done) / total)
-      useStudio.setState({ recording: `מצלם סרטון, ${progress}%` })
+      useStudio.setState({ recording: `מצלם סרטון, ${progress}%`, clipProgress: progress })
       setState({ status: 'busy', progress, step })
     }
     const check = () => {
@@ -67,7 +62,7 @@ export function ClipControl() {
     const g = comp.getContext('2d')!
 
     try {
-      useStudio.setState({ recording: 'מצלם סרטון, 0%' })
+      useStudio.setState({ recording: 'מצלם סרטון, 0%', clipProgress: 0 })
       // First pass: the bare level. Frames before the blend go straight to the encoder.
       if (useStudio.getState().level !== 'bare') useStudio.getState().set('level', 'bare')
       await settle()
@@ -130,7 +125,7 @@ export function ClipControl() {
     }
 
     function restore() {
-      useStudio.setState({ recording: null })
+      useStudio.setState({ recording: null, clipProgress: null })
       useStudio.getState().set('level', levelBefore)
       cameraControl.set?.(start!)
     }
@@ -138,36 +133,35 @@ export function ClipControl() {
 
   const busy = state.status === 'busy'
   return (
-    <div className="freeze" data-testid="clip" data-status={state.status}>
-      <button type="button" onClick={make} disabled={!ready || busy} data-testid="make-clip" title="ארבע שניות: המצלמה מסתובבת 90 מעלות, והמודל עובר מערום לריאליסטי">
-        {busy ? `${state.step}, ${state.progress}%` : 'סרטון'}
-      </button>
-      {busy && (
-        <button type="button" onClick={() => (cancel.current = true)} data-testid="cancel-clip">
-          ביטול
+    <div className="step-control clip-step" data-testid="clip" data-status={state.status}>
+      <div className="clip-buttons">
+        <button type="button" onClick={make} disabled={!ready || busy} data-testid="make-clip" title="ארבע שניות: המצלמה מסתובבת 90 מעלות, והמודל עובר מערום לריאליסטי">
+          <span className="step-num">04</span> {busy ? `${state.step}, ${state.progress}%` : 'סרטון'}
         </button>
-      )}
-      {!busy && state.status !== 'idle' && (
-        <p className="freeze-status" role="status" data-testid="clip-status">
-          {state.message}{' '}
-          {state.status === 'done' && (
-            <>
-              <button type="button" onClick={() => download(state.blob, 'video/mp4', state.name)} data-testid="clip-download">
-                הורדה
-              </button>{' '}
-              {state.projectId && (
-                <button type="button" onClick={() => navigate('collection', { p: state.projectId! })}>
-                  לקולקציה
-                </button>
-              )}
-            </>
-          )}
-        </p>
-      )}
-      {state.status === 'idle' && state.message && (
-        <p className="freeze-status" role="status">
-          {state.message}
-        </p>
+        {busy && (
+          <button type="button" onClick={() => (cancel.current = true)} data-testid="cancel-clip">
+            ביטול
+          </button>
+        )}
+      </div>
+      {!busy && 'message' in state && state.message && (
+        <PathStatus>
+          <p className="path-message" role="status" data-testid="clip-status">
+            {state.message}{' '}
+            {state.status === 'done' && (
+              <>
+                <button type="button" onClick={() => download(state.blob, 'video/mp4', state.name)} data-testid="clip-download">
+                  הורדה
+                </button>{' '}
+                {state.projectId && (
+                  <button type="button" onClick={() => navigate('collection', { p: state.projectId! })}>
+                    לקולקציה
+                  </button>
+                )}
+              </>
+            )}
+          </p>
+        </PathStatus>
       )}
     </div>
   )
