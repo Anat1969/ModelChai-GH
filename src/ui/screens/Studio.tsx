@@ -24,6 +24,8 @@ import { DevicePanel } from '../panels/DevicePanel'
 import { ReadingPanel } from '../panels/ReadingPanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
 import { FreezeControl } from '../panels/FreezeControl'
+import { PrintPanel } from '../panels/PrintPanel'
+import { ClipControl } from '../panels/ClipControl'
 import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
@@ -256,6 +258,7 @@ export function Studio() {
                   ))}
                 </div>
                 <FreezeControl />
+                <ClipControl />
                 <div className="viewbar-checks">
                   {bare && (
                     <button
@@ -334,6 +337,7 @@ export function Studio() {
             {tab === 'save' && (
               <>
                 <SavePanel />
+                <PrintPanel />
                 <ExportPanel />
                 <DevicePanel />
                 <section className="panel" aria-label="מתכון מקובץ">

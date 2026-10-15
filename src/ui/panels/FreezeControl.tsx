@@ -5,11 +5,10 @@
  */
 import { useState } from 'react'
 import { capture, frameName, STILL, STILL_QUALITY, STILL_TYPE, type Frame } from '../../capture/frame'
-import { addStill } from '../../data/collection'
-import { ensureSession } from '../../data/supabase'
+import { addItem, stageOfView } from '../../data/collection'
 import { download } from '../download'
 import { navigate } from '../router'
-import { currentView, saveCurrent } from '../saveCurrent'
+import { anchorVersion, currentView } from '../saveCurrent'
 import { useStudio } from '../store'
 
 type State =
@@ -46,21 +45,13 @@ export function FreezeControl() {
       setState({ status: 'local', frame, message })
     }
 
-    const session = await ensureSession()
-    if (session.status !== 'signed-in') return local('אין חיבור לחשבון, ולכן התמונה ירדה למכשיר בלבד.')
-    const st = useStudio.getState()
-    const savedVersion = !st.versionId || st.dirty
-    if (savedVersion) {
-      setState({ status: 'busy', step: 'שומר את הגרסה של המבט' })
-      const out = await saveCurrent('נשמרה עם הקפאת מבט')
-      if (out.status === 'queued') return local('אין חיבור לשרת. הגרסה תישלח כשהחיבור יחזור, והתמונה ירדה למכשיר.')
-      if (out.status !== 'saved') return local(`שמירת הגרסה נכשלה${'message' in out ? `: ${out.message}` : ''}. התמונה ירדה למכשיר.`)
-    }
-    const cur = useStudio.getState()
+    setState({ status: 'busy', step: 'שומר את הגרסה של המבט' })
+    const anchor = await anchorVersion('נשמרה עם הקפאת מבט')
+    if (!anchor.ok) return local(`${anchor.message} התמונה ירדה למכשיר.`)
     setState({ status: 'busy', step: 'מעלה לקולקציה' })
     try {
-      await addStill({ projectId: cur.project!.id, versionId: cur.versionId!, view, blob: frame.blob })
-      setState({ status: 'done', frame, name, projectId: cur.project!.id, savedVersion, stage: STAGE_LABEL[view.level] ?? view.level })
+      await addItem({ kind: 'still', projectId: anchor.projectId, versionId: anchor.versionId, stage: stageOfView(view), view, blob: frame.blob, ext: 'jpg' })
+      setState({ status: 'done', frame, name, projectId: anchor.projectId, savedVersion: anchor.savedVersion, stage: STAGE_LABEL[view.level] ?? view.level })
     } catch (e) {
       local(`${e instanceof Error ? e.message : String(e)} התמונה ירדה למכשיר.`)
     }

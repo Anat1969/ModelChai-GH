@@ -31,7 +31,7 @@ export interface Collection {
   latest: (VersionRow & { recipe: Record<string, unknown> }) | null
   /** Oldest first: the order the work was done in. */
   versions: CollectionVersion[]
-  /** Oldest first, each with a signed URL. */
+  /** Oldest first, each with a signed URL. Frozen views, clips and print files. */
   stills: LibraryItem[]
   /** Images uploaded from the visual prompts. */
   images: LibraryItem[]
@@ -66,7 +66,7 @@ export async function loadCollection(projectId: string): Promise<Collection> {
   const lib = await supabase.from('mathcreator_library').select('*').eq('project_id', projectId).order('created_at', { ascending: true })
   if (lib.error) fail(lib.error, 'טעינת הקולקציה')
   const items = lib.data as LibraryItem[]
-  const stills = items.filter((i) => i.kind === 'still')
+  const stills = items.filter((i) => i.kind === 'still' || i.kind === 'clip' || i.kind === 'print')
   const images = items.filter((i) => i.kind === 'image')
 
   const [snapUrls, libUrls] = await Promise.all([sign(SNAPSHOT_BUCKET, [...snapOf.values()]), sign(LIBRARY_BUCKET, [...stills, ...images].map((i) => i.image_path!))])
@@ -83,19 +83,31 @@ export async function loadCollection(projectId: string): Promise<Collection> {
   }
 }
 
-/** Uploads a frozen view and records it on its step. */
-export async function addStill(input: { projectId: string; versionId: string; view: View; blob: Blob }): Promise<LibraryItem> {
+const MIME: Record<string, string> = { jpg: 'image/jpeg', mp4: 'video/mp4', webm: 'video/webm', '3mf': 'model/3mf' }
+
+/** Uploads a file made from the model (a frozen view, a clip, a print file) and records it on its step. */
+export async function addItem(input: {
+  kind: 'still' | 'clip' | 'print'
+  projectId: string
+  versionId: string
+  stage: Stage
+  view: View | null
+  blob: Blob
+  ext: keyof typeof MIME
+  /** A short line kept with the item, e.g. the print's scale. */
+  distill?: string
+}): Promise<LibraryItem> {
   const uid = await userId()
   const id = crypto.randomUUID()
-  const path = `${uid}/${input.projectId}/${id}.jpg`
-  const up = await supabase.storage.from(LIBRARY_BUCKET).upload(path, input.blob, { contentType: 'image/jpeg', upsert: false })
-  if (up.error) fail(up.error, 'העלאת המבט')
+  const path = `${uid}/${input.projectId}/${id}.${input.ext}`
+  const up = await supabase.storage.from(LIBRARY_BUCKET).upload(path, input.blob, { contentType: MIME[input.ext], upsert: false })
+  if (up.error) fail(up.error, 'העלאת הקובץ')
   const res = await supabase
     .from('mathcreator_library')
-    .insert({ id, project_id: input.projectId, version_id: input.versionId, kind: 'still', stage: stageOfView(input.view), view: input.view, image_path: path })
+    .insert({ id, project_id: input.projectId, version_id: input.versionId, kind: input.kind, stage: input.stage, view: input.view, image_path: path, distill: input.distill ?? null })
     .select()
     .single()
-  if (res.error) fail(res.error, 'שמירת המבט')
+  if (res.error) fail(res.error, 'שמירה בקולקציה')
   const signed = await supabase.storage.from(LIBRARY_BUCKET).createSignedUrl(path, 3600)
   return { ...(res.data as LibraryItem), url: signed.data?.signedUrl }
 }

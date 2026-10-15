@@ -1520,3 +1520,45 @@ button.reset:disabled {
 .frame figcaption {
   margin: 0;
 }
+
+/* ---------- print file (DECISIONS.md 87) ---------- */
+.bed {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.print-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: 12px;
+}
+.print-scale {
+  margin: 0;
+  font-weight: 600;
+}
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.checks li[data-ok='false'] {
+  border-inline-start: 3px solid var(--ink);
+  padding-inline-start: 8px;
+}
+.print-card {
+  aspect-ratio: 3 / 2;
+  background: var(--stage);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
+}
+.stage[data-recording='true'] canvas {
+  pointer-events: none;
+}

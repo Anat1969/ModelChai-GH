@@ -5,6 +5,8 @@ import { parseRecipe } from '../../recipe/schema'
 import { writeGlb } from './glb'
 import { writeObj } from './obj'
 import { writeStl } from './stl'
+import { preparePrint, type PrintOptions, type PrintReport } from './print'
+import { write3mf } from './threeMf'
 
 export type ExportFormat = 'obj' | 'stl' | 'glb' | 'json'
 
@@ -44,4 +46,26 @@ export function exportFile(input: unknown, format: ExportFormat): ExportFile | {
   if (!r.ok) return { error: 'המודל לא נבנה, ולכן אין מה לייצא' }
   if (format === 'obj') return { filename, mime: EXPORT_MIME.obj, bytes: new TextEncoder().encode(writeObj(r, title)) }
   return { filename, mime: EXPORT_MIME.glb, bytes: writeGlb(r, recipe, title) }
+}
+
+export interface PrintFiles {
+  report: PrintReport
+  stl: ExportFile
+  threeMf: ExportFile
+}
+
+/** The model ready for a home printer: closed, in millimeters at the chosen size, with a printable wall. */
+export async function printFiles(input: unknown, opts: PrintOptions): Promise<PrintFiles | { error: string }> {
+  const parsed = parseRecipe(input)
+  if (!parsed.ok) return { error: 'המתכון לא עומד בסכמה, ולכן אי אפשר להכין אותו להדפסה' }
+  const recipe = parsed.recipe
+  if (recipe.generator.type !== 'sweep') return { error: 'במוצר המינימלי אפשר להדפיס רק מחולל סוויפ' }
+  const { mesh, report } = preparePrint(recipe, opts)
+  const base = `${recipe.meta.id}-${Math.round(opts.sizeMm)}mm-1to${report.scale}`
+  const title = `${recipe.concept.name}, 1:${report.scale}, mm, Z up`
+  return {
+    report,
+    stl: { filename: `${base}.stl`, mime: EXPORT_MIME.stl, bytes: writeStl(mesh, title) },
+    threeMf: { filename: `${base}.3mf`, mime: 'model/3mf', bytes: await write3mf(mesh, title) },
+  }
 }

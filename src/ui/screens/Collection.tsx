@@ -25,7 +25,8 @@ function StillCard({ item, number, onRemove, setStatus }: { item: LibraryItem; n
     setBusy(true)
     try {
       const blob = await (await fetch(item.url)).blob()
-      download(blob, blob.type || 'image/jpeg', item.image_path!.split('/').pop()!)
+      const ext = item.image_path!.split('.').pop()
+      download(blob, blob.type || 'application/octet-stream', `${item.kind}-${item.created_at.slice(0, 10)}.${ext}`)
     } catch (e) {
       setStatus(`ההורדה נכשלה: ${e instanceof Error ? e.message : String(e)}. אפשר לנסות שוב.`)
     } finally {
@@ -33,8 +34,19 @@ function StillCard({ item, number, onRemove, setStatus }: { item: LibraryItem; n
     }
   }
   return (
-    <figure className="gallery-item frame" data-testid="still" data-stage={item.stage ?? ''}>
-      {item.url ? <img className="snapshot" src={item.url} alt={`מבט קפוא, ${when(item.created_at)}`} loading="lazy" /> : <span className="hint">התמונה לא נטענה</span>}
+    <figure className="gallery-item frame" data-testid={item.kind === 'still' ? 'still' : item.kind} data-stage={item.stage ?? ''}>
+      {item.kind === 'print' ? (
+        <div className="print-card">
+          <strong>קובץ הדפסה, 3MF</strong>
+          <span className="num">{item.distill}</span>
+        </div>
+      ) : item.kind === 'clip' ? (
+        item.url ? <video className="snapshot" src={item.url} controls muted loop playsInline preload="metadata" data-testid="clip-video" /> : <span className="hint">הסרטון לא נטען</span>
+      ) : item.url ? (
+        <img className="snapshot" src={item.url} alt={`מבט קפוא, ${when(item.created_at)}`} loading="lazy" />
+      ) : (
+        <span className="hint">התמונה לא נטענה</span>
+      )}
       <figcaption className="hint">
         {[number ? `גרסה ${number}` : null, item.view ? CAMERA_LABEL[item.view.camera.preset] : null, when(item.created_at)].filter(Boolean).join(' · ')}
       </figcaption>
@@ -47,7 +59,7 @@ function StillCard({ item, number, onRemove, setStatus }: { item: LibraryItem; n
         <button type="button" onClick={save} disabled={busy || !item.url}>
           {busy ? 'מוריד' : 'הורדה'}
         </button>
-        <button type="button" className="quiet" onClick={() => confirm('למחוק את המבט מהקולקציה?') && onRemove()} data-testid="remove-still">
+        <button type="button" className="quiet" onClick={() => confirm('למחוק מהקולקציה?') && onRemove()} data-testid="remove-still">
           מחיקה
         </button>
       </div>
@@ -193,7 +205,7 @@ export function CollectionScreen() {
                   </div>
                 )}
 
-                {(s.id === 'bare' || s.id === 'realistic' || s.id === 'render') && stillsOn(s.id).length > 0 && (
+                {s.id !== 'concept' && s.id !== 'recipe' && stillsOn(s.id).length > 0 && (
                   <div className="gallery wide">
                     {stillsOn(s.id).map((item) => (
                       <StillCard key={item.id} item={item} number={numberOf(item.version_id)} onRemove={() => remove(item)} setStatus={setStatus} />
@@ -226,7 +238,16 @@ export function CollectionScreen() {
                   </p>
                 )}
                 {s.id === 'render' && count('render') === 0 && <p className="hint">עוד אין הדמיה. רינדור מלא של מבט נבחר מגיע בשלב הבא, ובינתיים אפשר להעלות תמונות מהפרומפט בספרייה.</p>}
-                {s.id === 'print' && <p className="hint">בדיקת הדפסה (קנה מידה, עובי דופן במ"מ ואטימות) מגיעה בשלב מאוחר יותר. בינתיים, STL נמצא בסטודיו, בלשונית "שמירה".</p>}
+                {s.id === 'print' && count('print') === 0 && (
+                  <p className="hint">
+                    עוד אין קובץ הדפסה. בסטודיו, בלשונית "שמירה", "קובץ להדפסה" מכין קובץ אטום בגודל במילימטרים ובודק את עובי הדופן.{' '}
+                    {data.latest && (
+                      <button type="button" onClick={() => toStudio()}>
+                        לסטודיו
+                      </button>
+                    )}
+                  </p>
+                )}
               </li>
             ))}
           </ol>
