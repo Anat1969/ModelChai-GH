@@ -1439,3 +1439,84 @@ button.reset:disabled {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ---------- freezing a view, and the collection (DECISIONS.md 84–86) ---------- */
+.freeze {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.freeze-status {
+  margin: 0;
+  font-size: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.journey-steps ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.journey-steps a {
+  color: var(--muted);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 4px;
+}
+.journey-steps li[data-filled='true'] a {
+  color: var(--ink);
+  font-weight: 600;
+}
+.journey-steps .num,
+.journey-num {
+  font-family: var(--f-data);
+  font-variant-numeric: tabular-nums;
+}
+.journey {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.journey-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block: 24px;
+  border-block-start: 1px solid var(--line);
+}
+.journey-stage > header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  align-items: baseline;
+}
+.journey-stage > header .hint {
+  grid-column: 2;
+  margin: 0;
+}
+.journey-stage h2 {
+  font-size: 24px;
+  margin: 0;
+}
+.journey-num {
+  font-size: 15px;
+  color: var(--muted);
+}
+.journey-name {
+  font-size: 21px;
+  font-weight: 600;
+  margin: 0;
+}
+.frame figcaption {
+  margin: 0;
+}

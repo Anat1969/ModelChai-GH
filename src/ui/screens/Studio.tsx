@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { loadDraft, saveDraft } from '../../data/offline'
-import { getVersion } from '../../data/projects'
+import { getVersion, type View } from '../../data/projects'
 import { cameraControl } from '../../scene/BareScene'
 import { sectionCut } from '../../engine/sectionCut'
 import { parseRecipe } from '../../recipe/schema'
@@ -23,6 +23,7 @@ import { SavePanel } from '../panels/SavePanel'
 import { DevicePanel } from '../panels/DevicePanel'
 import { ReadingPanel } from '../panels/ReadingPanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
+import { FreezeControl } from '../panels/FreezeControl'
 import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
@@ -40,6 +41,18 @@ const SIDE_TABS: { id: SideTab; label: string }[] = [
   { id: 'save', label: 'שמירה' },
   { id: 'library', label: 'ספרייה' },
 ]
+
+/** A view passed in the address, checked before it moves the camera. */
+function parseView(raw: string | null): View | null {
+  if (!raw) return null
+  try {
+    const v = JSON.parse(raw) as View
+    const vec = (a: unknown) => Array.isArray(a) && a.length === 3 && a.every((n) => Number.isFinite(n))
+    return (v.level === 'bare' || v.level === 'realistic') && vec(v.camera?.position) && vec(v.camera?.target) ? v : null
+  } catch {
+    return null
+  }
+}
 
 function asSweep(raw: unknown): Sweep | null {
   if (!raw) return null
@@ -97,17 +110,24 @@ export function Studio() {
   const fileInput = useRef<HTMLDivElement>(null)
 
   const versionParam = useParam('v')
+  // A view from the collection: the version opens looked at exactly as it was frozen.
+  const viewParam = useParam('view')
   const [opening, setOpening] = useState<string | null>(null)
 
   // Opening order: a version named in the address, then what is already open, then a local draft, then the reference model.
   useEffect(() => {
     const st = useStudio.getState()
+    const frozen = parseView(viewParam)
+    if (versionParam && versionParam === st.versionId && frozen) {
+      useStudio.setState((s) => ({ level: frozen.level, camera: frozen.camera.preset, pendingView: frozen, cameraNonce: s.cameraNonce + 1 }))
+      return
+    }
     if (versionParam && versionParam !== st.versionId) {
       setOpening('פותח את הגרסה')
       getVersion(versionParam).then(
         (v) => {
           setOpening(null)
-          load(v.recipe, v.project.title_he, undefined, { project: { id: v.project.id, concept: v.project.concept, title_he: v.project.title_he }, versionId: v.id, view: v.view, dirty: false })
+          load(v.recipe, v.project.title_he, undefined, { project: { id: v.project.id, concept: v.project.concept, title_he: v.project.title_he }, versionId: v.id, view: frozen ?? v.view, dirty: false })
         },
         (e: unknown) => {
           setOpening(null)
@@ -134,7 +154,7 @@ export function Studio() {
       return
     }
     load(structuredClone(FIXTURES[0]!.recipe), FIXTURES[0]!.id)
-  }, [load, versionParam])
+  }, [load, versionParam, viewParam])
 
   // Every unsaved change is kept on the device, so closing the tab loses nothing.
   useEffect(() => {
@@ -235,6 +255,7 @@ export function Studio() {
                     </button>
                   ))}
                 </div>
+                <FreezeControl />
                 <div className="viewbar-checks">
                   {bare && (
                     <button

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ExportFormat } from '../../engine/export'
 import { viewport } from '../../scene/Viewport'
+import { download } from '../download'
 import { engine } from '../engine'
 import { useStudio } from '../store'
 
@@ -12,17 +13,6 @@ const FORMATS: { id: ExportFormat | 'png'; label: string; note: string }[] = [
   { id: 'json', label: 'JSON', note: 'המתכון, לשחזור ולשיתוף' },
   { id: 'png', label: 'PNG', note: 'צילום 3:2 של חלון המודל' },
 ]
-
-function download(bytes: BlobPart, mime: string, filename: string) {
-  const url = URL.createObjectURL(new Blob([bytes], { type: mime }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 
 export function ExportPanel() {
   const recipe = useStudio((s) => s.validRecipe)

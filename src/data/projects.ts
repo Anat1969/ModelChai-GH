@@ -51,7 +51,7 @@ export interface ProjectSummary extends ProjectRow {
   thumbnail: string | null
 }
 
-const VERSION_COLUMNS = 'id,project_id,parent_id,note,schema_version,view,created_at'
+export const VERSION_COLUMNS = 'id,project_id,parent_id,note,schema_version,view,created_at'
 
 export class DataError extends Error {
   constructor(

@@ -3,6 +3,7 @@
  * and Auth are answered here, so every request the app sends is checked.
  * 1. A project reopens exactly in the state it was saved, camera included.
  * 2. Comparison shows two versions with the same camera, and the metrics that changed are marked.
+ * Stage 7a: a frozen view is a 3600 × 2400 image on its step of the collection, and opens again as it was.
  * Also: versions are immutable and point to their parent, a save without a connection waits and syncs,
  * and an unsaved change survives a reload as a local draft.
  */
@@ -219,6 +220,16 @@ async function orbit(page, sel, dx, dy) {
   await page.waitForTimeout(1500)
 }
 const recipeR = (v) => v.recipe.generator.params.path.R
+/** Width and height from a JPEG's start-of-frame marker. */
+function jpegSize(buf) {
+  for (let i = 2; i + 9 < buf.length; ) {
+    if (buf[i] !== 0xff) return null
+    const marker = buf[i + 1]
+    if (marker >= 0xc0 && marker <= 0xc3) return [buf.readUInt16BE(i + 7), buf.readUInt16BE(i + 5)]
+    i += 2 + buf.readUInt16BE(i + 2)
+  }
+  return null
+}
 const near = (a, b) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) < 2e-3)
 
 try {
@@ -411,8 +422,9 @@ try {
 
   await fresh.click('[data-testid=open-library]')
   await fresh.waitForFunction(() => document.querySelectorAll('[data-testid=library-image]').length === 2 && document.querySelector('[data-testid=post]'), null, { timeout: 30000 })
-  await fresh.waitForFunction(() => document.querySelector('h1')?.textContent !== 'ספרייה', null, { timeout: 30000 }).catch(() => {})
-  const screenTitle = await fresh.textContent('h1')
+  // The studio's title can still be on screen for a moment, so wait for the library screen's own header.
+  await fresh.waitForFunction(() => location.hash.startsWith('#/library') && [document.querySelector('header.screen h1')?.textContent].every((t) => t && t !== 'ספרייה'), null, { timeout: 90000 }).catch(() => {})
+  const screenTitle = await fresh.textContent('header.screen h1')
   check('the library has its own screen, with the concept as the title', screenTitle === v1.recipe.narrative.name_he && fresh.url().includes(`library?p=${v1.project_id}`), screenTitle)
   await fresh.screenshot({ path: shots + 'stage5-library.png', fullPage: true, timeout: 120000 })
 
@@ -421,11 +433,65 @@ try {
   await fresh.waitForFunction(() => document.querySelectorAll('[data-testid=library-image]').length === 1, null, { timeout: 30000 })
   check('deleting an image removes its row and its file', db.mathcreator_library.filter((r) => r.kind === 'image').length === 1 && log.some((l) => l.startsWith('REMOVE mathcreator-library 1')))
 
+  // ---------- stage 7a: frozen views on their step of the collection ----------
+  await open(fresh, `#/studio?v=${v1.id}`)
+  await fresh.reload()
+  await modelReady(fresh)
+  await fresh.waitForFunction(() => document.querySelector('[data-testid=stage]')?.dataset.camera, null, { timeout: 30000 })
+  await orbit(fresh, '[data-testid=stage] canvas', -120, 20)
+  const frozenCam = JSON.parse(await fresh.$eval('[data-testid=stage]', (el) => el.dataset.camera))
+  const versionsBefore = db.mathcreator_recipe_versions.length
+  // The time from the click to the busy button, measured in the page: the large draw holds the page right after.
+  await fresh.evaluate(() => {
+    const b = document.querySelector('[data-testid=freeze-view]')
+    b.addEventListener('click', () => (window.__clickAt = performance.now()), { capture: true, once: true })
+    new MutationObserver((_, o) => b.disabled && ((window.__busyAt = performance.now()), o.disconnect())).observe(b, { attributes: true, childList: true, subtree: true })
+  })
+  await fresh.click('[data-testid=freeze-view]')
+  await fresh.waitForSelector('[data-testid=freeze][data-status=done]', { timeout: 180000 })
+  const answered = Math.round(await fresh.evaluate(() => window.__busyAt - window.__clickAt))
+  const still1 = db.mathcreator_library.find((r) => r.kind === 'still')
+  const jpg1 = still1 && files.get(`mathcreator-library/${still1.image_path}`)
+  const size1 = jpg1 ? jpegSize(jpg1) : null
+  check('the freeze button answers within 100 ms', answered < 100, `${answered} ms to the busy state`)
+  check('a frozen view is a 3600 × 2400 JPEG in the owner\'s folder', size1?.[0] === 3600 && size1?.[1] === 2400 && still1.image_path.startsWith(`${USER}/${v1.project_id}/`), size1?.join(' × '))
+  check('a view of a saved model hangs on its version and step, without a new version', still1?.version_id === v1.id && still1.stage === 'realistic' && db.mathcreator_recipe_versions.length === versionsBefore, `${still1?.stage}, ${db.mathcreator_recipe_versions.length - versionsBefore} new versions`)
+  check('the frozen view keeps the camera that made it', near([...still1.view.camera.position, ...still1.view.camera.target], frozenCam), frozenCam.slice(0, 3).join(', '))
+
+  await fresh.click('[data-testid=level-bare]')
+  await nudgeR(fresh, 1)
+  await fresh.click('[data-testid=freeze-view]')
+  await fresh.waitForFunction(() => document.querySelector('[data-testid=freeze]')?.dataset.status === 'done' && !document.querySelector('[data-testid=freeze-view]').disabled, null, { timeout: 180000 })
+  const still2 = db.mathcreator_library.filter((r) => r.kind === 'still')[1]
+  const vFrozen = db.mathcreator_recipe_versions.at(-1)
+  const vFrozenPng = files.get(`mathcreator-snapshots/${db.mathcreator_snapshots.find((x) => x.version_id === vFrozen.id)?.image_path}`)
+  // A blank canvas compresses to almost nothing; a drawn model does not.
+  check('the version saved by a freeze has a drawn snapshot, not a blank one', vFrozenPng?.length > 20000, `${vFrozenPng?.length} bytes`)
+  check('freezing a changed model saves its version first, and the view points to it', db.mathcreator_recipe_versions.length === versionsBefore + 1 && vFrozen.note === 'נשמרה עם הקפאת מבט' && still2?.version_id === vFrozen.id && still2.stage === 'bare', `${still2?.stage} → ${vFrozen?.note}`)
+
+  await fresh.click('[data-testid=open-collection]')
+  await fresh.waitForFunction(() => [...document.querySelectorAll('[data-testid=still] img')].filter((i) => i.naturalWidth > 0).length === 2, null, { timeout: 60000 })
+  const steps = await fresh.$$eval('[data-testid^=stage-]', (els) => els.filter((e) => e.closest('[data-testid=collection]')).map((e) => [e.dataset.testid.slice(6), Number(e.dataset.count)]))
+  const projectVersions = db.mathcreator_recipe_versions.filter((v) => v.project_id === v1.project_id).length
+  check('the collection runs the six steps in order', steps.map(([k]) => k).join(',') === 'concept,recipe,bare,realistic,render,print', steps.map(([k]) => k).join(' → '))
+  check('each view sits on its step, and the recipe step lists every version', Object.fromEntries(steps).bare === 1 && Object.fromEntries(steps).realistic === 1 && Object.fromEntries(steps).recipe === projectVersions, JSON.stringify(Object.fromEntries(steps)))
+  await fresh.screenshot({ path: shots + 'stage7a-collection.png', fullPage: true, timeout: 120000 })
+
+  await fresh.click('[data-testid=stage-realistic] [data-testid=open-view]')
+  await modelReady(fresh)
+  await fresh.waitForFunction((c) => document.querySelector('[data-testid=stage]')?.dataset.camera === JSON.stringify(c), frozenCam, { timeout: 30000 }).catch(() => {})
+  const reopenedView = {
+    level: await fresh.$eval('[data-testid=stage]', (el) => el.dataset.level),
+    camera: JSON.parse(await fresh.$eval('[data-testid=stage]', (el) => el.dataset.camera)),
+  }
+  check('a frozen view opens again exactly as it was looked at', reopenedView.level === 'realistic' && near(reopenedView.camera, frozenCam), `${reopenedView.level}, ${reopenedView.camera.slice(0, 3).join(', ')}`)
+  await fresh.screenshot({ path: shots + 'stage7a-freeze.png', timeout: 120000 })
+
   // ---------- 400 px ----------
   const narrow = await browser.newPage({ viewport: { width: 400, height: 900 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true })
   await mock(narrow)
   await narrow.addInitScript((s) => localStorage.setItem('mathcreator-auth', JSON.stringify(s)), session())
-  for (const [hash, sel] of [['#/projects', '[data-testid=project]'], [`#/compare?a=${v1.id}&b=${v2.id}`, '[data-testid=metric-diff]'], [`#/library?p=${v1.project_id}`, '[data-testid=post]']]) {
+  for (const [hash, sel] of [['#/projects', '[data-testid=project]'], [`#/compare?a=${v1.id}&b=${v2.id}`, '[data-testid=metric-diff]'], [`#/library?p=${v1.project_id}`, '[data-testid=post]'], [`#/collection?p=${v1.project_id}`, '[data-testid=still]']]) {
     await open(narrow, hash)
     await narrow.waitForSelector(sel, { timeout: 120000 })
     if (hash.startsWith('#/projects')) await narrow.click('[data-testid=toggle-versions]')

@@ -2,7 +2,7 @@
  * The concept's library: saved visual prompts, the images made from them (uploaded by the owner), and posts
  * that read the concept as a building in its place. One table, `mathcreator_library`, and a private bucket.
  */
-import { DataError, type ProjectRow, type VersionRow } from './projects'
+import { DataError, type ProjectRow, type VersionRow, type View } from './projects'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from './supabase'
 
 export const LIBRARY_BUCKET = 'mathcreator-library'
@@ -14,11 +14,14 @@ export interface LibraryItem {
   id: string
   project_id: string
   version_id: string | null
-  kind: 'prompt' | 'image' | 'post' | 'reading'
+  kind: 'prompt' | 'image' | 'post' | 'reading' | 'still'
   prompt_id: string | null
   distill: string | null
   body: string | null
   image_path: string | null
+  /** For a frozen view: the step of the process it documents, and how it was looked at (DECISIONS.md 84). */
+  stage?: string | null
+  view?: View | null
   created_at: string
   /** Signed URL, for images. */
   url?: string
@@ -32,7 +35,7 @@ export interface Library {
   prompts: (LibraryItem & { images: LibraryItem[] })[]
 }
 
-function fail(error: { message: string } | null, what: string): never {
+export function fail(error: { message: string } | null, what: string): never {
   const msg = error?.message ?? 'unknown'
   const offline = (typeof navigator !== 'undefined' && navigator.onLine === false) || /fetch|network|load failed/i.test(msg)
   throw new DataError(offline ? `אין חיבור לשרת (${what}).` : `${what} נכשל: ${msg}`, offline)
@@ -60,7 +63,7 @@ export async function loadLibrary(projectId: string): Promise<Library> {
   }
 }
 
-async function userId(): Promise<string> {
+export async function userId(): Promise<string> {
   const { data } = await supabase.auth.getSession()
   const id = data.session?.user.id
   if (!id) throw new DataError('צריך להיות מחוברים כדי לשמור בספרייה.', false)
