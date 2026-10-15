@@ -49,6 +49,9 @@ export function LibraryScreen() {
             <button type="button" onClick={() => navigate('studio', { v: source.versionId! })}>
               פתיחה בסטודיו
             </button>
+            <button type="button" onClick={() => navigate('collection', { p: projectId! })}>
+              קולקציה
+            </button>
           </div>
         )}
       </header>

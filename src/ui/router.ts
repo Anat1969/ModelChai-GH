@@ -1,8 +1,8 @@
 /** Hash routes, so every screen has a link and the app needs no router library. Projects is the home screen. */
 import { useSyncExternalStore } from 'react'
 
-export type Route = 'projects' | 'new' | 'studio' | 'compare' | 'library' | 'connect'
-const ROUTES: Route[] = ['projects', 'new', 'studio', 'compare', 'library', 'connect']
+export type Route = 'projects' | 'new' | 'studio' | 'compare' | 'library' | 'collection' | 'connect'
+const ROUTES: Route[] = ['projects', 'new', 'studio', 'compare', 'library', 'collection', 'connect']
 
 export interface Location {
   route: Route

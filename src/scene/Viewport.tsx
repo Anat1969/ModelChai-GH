@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber'
 import type { Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
 import { BareScene, CameraRig } from './BareScene'
+import { CaptureBridge } from './CaptureBridge'
 import { RealisticScene } from './RealisticScene'
 import { engine } from '../ui/engine'
 
@@ -45,6 +46,7 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
         >
           {level === 'realistic' ? <RealisticScene result={result} built={built} recipe={recipe} /> : <BareScene result={result} recipe={built} rows={rows} />}
           <CameraRig recipe={built} ready={!!result} />
+          <CaptureBridge />
         </Canvas>
       )}
       <span className="badge">3:2</span>
