@@ -6,6 +6,7 @@ import { NewConcept } from './ui/screens/NewConcept'
 import { Connect } from './ui/screens/Connect'
 import { LibraryScreen } from './ui/screens/LibraryScreen'
 import { CollectionScreen } from './ui/screens/Collection'
+import { DossierScreen } from './ui/screens/Dossier'
 import { Projects } from './ui/screens/Projects'
 import { Studio } from './ui/screens/Studio'
 import { useStudio } from './ui/store'
@@ -34,6 +35,7 @@ export function App() {
   if (route === 'compare') return <Compare />
   if (route === 'library') return <LibraryScreen />
   if (route === 'collection') return <CollectionScreen />
+  if (route === 'dossier') return <DossierScreen />
   if (route === 'connect') return <Connect />
   return <Projects />
 }

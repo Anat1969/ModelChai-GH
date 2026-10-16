@@ -42,6 +42,9 @@ function ProjectCard({ p }: { p: ProjectSummary }) {
           <button type="button" onClick={() => navigate('collection', { p: p.id })} data-testid="open-collection">
             קולקציה
           </button>
+          <button type="button" onClick={() => navigate('dossier', { p: p.id })} data-testid="open-dossier">
+            מסמך
+          </button>
           <button type="button" onClick={() => navigate('library', { p: p.id })} data-testid="open-library">
             ספרייה
           </button>
