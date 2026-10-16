@@ -1,4 +1,9 @@
+import { useState } from 'react'
+import { install, useInstall } from './install'
 import { navigate, useRoute, type Route } from './router'
+
+/** The development conversation this app is built in (DECISIONS.md 96). */
+export const DEV_SESSION_URL = 'https://claude.ai/code/session_01NME4tEKTn9Q8JPNJLsjQWV'
 
 const LINKS: { route: Route; label: string }[] = [
   { route: 'projects', label: 'פרויקטים' },
@@ -13,14 +18,35 @@ export interface Crumb {
 }
 
 /**
- * One thin bar for the whole app: the brand, where you are (breadcrumbs, with the screen name last) and the
- * main screens. It stays on top, so navigation is always one click away. Text only; no icons.
+ * One thin bar for the whole app (DECISIONS.md 96): the app's mark and name, which lead home; where you are
+ * (breadcrumbs, with the screen name last); the main screens; and four tools: copy this page's link, the
+ * development conversation, the research project, and installing the app. It stays on top. The mark is the
+ * app's one image; the rest is words.
  */
 export function TopNav({ crumbs }: { crumbs: Crumb[] }) {
   const route = useRoute()
+  const installState = useInstall()
+  const [said, setSaid] = useState<string | null>(null)
+  const say = (text: string) => {
+    setSaid(text)
+    setTimeout(() => setSaid((s) => (s === text ? null : s)), 2500)
+  }
+  const copyLink = async () => {
+    const ok = await navigator.clipboard?.writeText(location.href).then(
+      () => true,
+      () => false,
+    )
+    say(ok ? 'הקישור הועתק' : 'ההעתקה נכשלה. אפשר להעתיק משורת הכתובת.')
+  }
+  const onInstall = async () => {
+    if (!(await install())) say('בתפריט הדפדפן: "התקנת האפליקציה" או "הוספה למסך הבית".')
+  }
   return (
     <header className="topbar">
-      <span className="brand">יוצר: מתמטיקה</span>
+      <a className="brand" href="#/projects" onClick={(e) => (e.preventDefault(), navigate('projects'))} data-testid="brand" aria-label="יוצר: מתמטיקה, לדף הבית">
+        <img className="brand-mark" src="/icon.svg" alt="" width="26" height="26" />
+        <span>יוצר: מתמטיקה</span>
+      </a>
       <nav className="crumbs" aria-label="מיקום">
         <ol>
           {crumbs.map((c, i) => {
@@ -46,6 +72,27 @@ export function TopNav({ crumbs }: { crumbs: Crumb[] }) {
           </a>
         ))}
       </nav>
+      <div className="topbar-tools" role="group" aria-label="כלים">
+        <button type="button" className="quiet" onClick={copyLink} data-testid="copy-link">
+          העתקת קישור
+        </button>
+        <a className="toollink" href={DEV_SESSION_URL} target="_blank" rel="noreferrer" data-testid="dev-session">
+          שיחת הפיתוח
+        </a>
+        <a className="toollink" href={`${location.origin}/#/projects`} target="_blank" rel="noreferrer" data-testid="research-project">
+          פרויקט המחקר
+        </a>
+        {installState !== 'installed' && (
+          <button type="button" className="quiet" onClick={onInstall} data-testid="install-app">
+            התקנה
+          </button>
+        )}
+        {said && (
+          <span className="topbar-said" role="status" data-testid="topbar-said">
+            {said}
+          </span>
+        )}
+      </div>
     </header>
   )
 }

@@ -486,6 +486,54 @@ select {
   font-weight: 700;
   font-size: 18px;
   white-space: nowrap;
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.brand-mark {
+  display: block;
+  width: 26px;
+  height: 26px;
+}
+.topbar-tools {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-inline-start: 1px solid var(--line);
+  padding-inline-start: var(--space-3);
+}
+.topbar-tools button,
+.topbar-tools .toollink {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding-inline: 8px;
+  min-height: 44px;
+}
+.topbar-tools .toollink {
+  color: var(--ink);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.topbar-tools .toollink:hover,
+.topbar-tools button:hover {
+  text-decoration: underline;
+}
+.topbar-said {
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-end: 0;
+  background: var(--ink);
+  color: var(--accent-ink);
+  font-size: 14px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  z-index: 30;
 }
 .topbar .crumbs {
   min-width: 0;
@@ -525,15 +573,28 @@ select {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-@media (max-width: 700px) {
+@media (max-width: 1180px) {
   .topbar {
     flex-wrap: wrap;
     gap: 0 var(--space-3);
     padding-block: 4px;
   }
+  .topbar-tools {
+    order: 4;
+    flex-basis: 100%;
+    border-inline-start: 0;
+    padding-inline-start: 0;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 700px) {
   .topbar .crumbs {
     order: 3;
     flex-basis: 100%;
+  }
+  .topbar-said {
+    white-space: normal;
+    max-width: calc(100vw - 32px);
   }
 }
 

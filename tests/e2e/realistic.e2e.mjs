@@ -151,7 +151,7 @@ try {
   const layout = await narrow.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
-    icons: document.querySelectorAll('svg, img, i[class*=icon], [class*=icon]').length,
+    icons: document.querySelectorAll('svg, img:not(.brand-mark), i[class*=icon], [class*=icon]').length,
     smallTargets: [...document.querySelectorAll('button, select')].filter((b) => b.getBoundingClientRect().height < 44).length,
   }))
   check('realistic tab: no horizontal scroll at 400 px', layout.scrollWidth <= layout.clientWidth, `${layout.scrollWidth} ≤ ${layout.clientWidth}`)

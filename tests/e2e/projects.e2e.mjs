@@ -186,7 +186,7 @@ async function mock(page) {
 // ---------- helpers ----------
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: root, stdio: 'ignore' })
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
-const context = await browser.newContext({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 1, acceptDownloads: true })
+const context = await browser.newContext({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 1, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
 
 async function open(page, hash) {
   for (let i = 0; i < 60; i++) {
@@ -272,6 +272,30 @@ try {
   const exampleCount = await page.$$eval('[data-testid^=example-]', (els) => els.length)
   check('the projects screen offers ready examples', exampleCount >= 8, `${exampleCount}`)
   check('no login: the device signs in on its own, without an email', log.includes('DEVICE') && !(await page.$('[data-testid=email-login]')))
+
+  // ---------- the app's icon and top bar (DECISIONS.md 95, 96) ----------
+  const head = await page.evaluate(async () => {
+    const get = async (sel) => {
+      const href = document.querySelector(sel)?.getAttribute('href')
+      return href ? (await fetch(href)).status : 0
+    }
+    return { manifest: await get('link[rel=manifest]'), icon: await get('link[rel=icon][type="image/svg+xml"]'), png: await get('link[rel=icon][type="image/png"]'), apple: await get('link[rel=apple-touch-icon]') }
+  })
+  check('the app has an icon and an install manifest', Object.values(head).every((v) => v === 200), JSON.stringify(head))
+  const bar = await page.evaluate(() => ({
+    mark: document.querySelector('[data-testid=brand] .brand-mark')?.getAttribute('src'),
+    tools: [...document.querySelectorAll('.topbar-tools > button, .topbar-tools > a')].map((e) => e.textContent.trim()),
+    dev: document.querySelector('[data-testid=dev-session]')?.getAttribute('href'),
+  }))
+  check('the top bar has the mark, and copy link, the development chat, the research project and install', bar.mark === '/icon.svg' && bar.tools.join('|') === 'העתקת קישור|שיחת הפיתוח|פרויקט המחקר|התקנה' && /claude\.ai\/code\/session_/.test(bar.dev), bar.tools.join(' · '))
+  await open(page, '#/new')
+  await page.click('[data-testid=copy-link]')
+  await page.waitForSelector('[data-testid=topbar-said]')
+  const copied = await page.evaluate(() => navigator.clipboard.readText())
+  check('"העתקת קישור" copies this page\'s address', copied.endsWith('#/new'), copied)
+  await page.click('[data-testid=brand]')
+  await page.waitForFunction(() => location.hash === '#/projects')
+  check('the app\'s name leads home', true)
 
   // ---------- version 1: edited geometry, realistic level, an orbited camera ----------
   await open(page, '#/studio')
@@ -611,7 +635,7 @@ try {
     const layout = await narrow.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
-      icons: document.querySelectorAll('svg, img:not(.snapshot), [class*=icon]').length,
+      icons: document.querySelectorAll('svg, img:not(.snapshot):not(.brand-mark), [class*=icon]').length,
       small: [...document.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().height < 44).length,
       dir: document.documentElement.dir,
     }))
