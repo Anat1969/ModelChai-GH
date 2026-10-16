@@ -116,10 +116,13 @@ export function CollectionScreen() {
         {data && (
           <div className="toolbar compact">
             {data.latest && (
-              <button type="button" className="primary" onClick={() => toStudio()}>
+              <button type="button" onClick={() => toStudio()}>
                 פתיחה בסטודיו
               </button>
             )}
+            <button type="button" className="primary" onClick={() => navigate('dossier', { p: data.project.id })} data-testid="open-dossier">
+              מסמך הפרויקט
+            </button>
             <button type="button" onClick={() => navigate('library', { p: data.project.id })}>
               ספרייה
             </button>
