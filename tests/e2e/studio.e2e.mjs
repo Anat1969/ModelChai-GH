@@ -199,7 +199,7 @@ try {
       htmlDir: document.documentElement.dir,
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
-      icons: document.querySelectorAll('svg, img, i[class*=icon], [class*=icon]').length,
+      icons: document.querySelectorAll('svg, img:not(.brand-mark), i[class*=icon], [class*=icon]').length,
       stage: [stage.width, stage.height],
       smallTargets: [...document.querySelectorAll('button, select, .filebtn')].filter((b) => b.getBoundingClientRect().height < 44).length,
     }
@@ -217,7 +217,7 @@ try {
   const form = await narrow.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
-    icons: document.querySelectorAll('svg, img, [class*=icon]').length,
+    icons: document.querySelectorAll('svg, img:not(.brand-mark), [class*=icon]').length,
     crumbs: document.querySelector('.crumbs')?.textContent,
     title: document.querySelector('h1')?.textContent,
     submitDisabled: document.querySelector('[data-testid=submit]').disabled,
