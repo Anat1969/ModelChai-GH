@@ -16,6 +16,8 @@
     "integration": "vite build && node tests/e2e/concepts.integration.mjs"
   },
   "dependencies": {
+    "@fontsource/frank-ruhl-libre": "5.3.0",
+    "@fontsource/heebo": "5.3.0",
     "@fontsource/ibm-plex-mono": "5.3.0",
     "@fontsource/ibm-plex-sans-hebrew": "5.3.0",
     "@react-three/drei": "10.7.9",
@@ -26,6 +28,7 @@
     "html-to-image": "1.11.13",
     "jspdf": "4.2.1",
     "mp4-muxer": "5.2.2",
+    "qrcode": "1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "suncalc": "2.1.1",
@@ -36,6 +39,7 @@
   "devDependencies": {
     "@anthropic-ai/sdk": "0.133.0",
     "@types/node": "26.6.5",
+    "@types/qrcode": "1.5.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/three": "0.186.0",

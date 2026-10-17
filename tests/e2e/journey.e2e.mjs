@@ -404,8 +404,10 @@ await page.screenshot({ path: shots + 'journey-step.png', fullPage: true })
 await page.click('[data-testid=open-article]')
 await page.waitForSelector('[data-testid=article-page]', { timeout: 30000 })
 await page.waitForFunction(() => !/טוען תמונות/.test(document.querySelector('[data-testid=article-status]')?.textContent ?? ''), null, { timeout: 30000 })
-const text = await page.textContent('[data-testid=article-pages]')
 const typed = ['קצה אחד שמקיף שלוש פעמים', 'קצה אחד יכול להקיף', 'מבנה שמחבר את העיר לים.', 'הגלים שחוזרים אל עצמם.', 'שער שהוא קו אחד', 'הקצה האחד נראה כקו של אור.', 'אבן ירושלמית', 'החודים דרשו עיבוי', 'המודל עומד על החוד']
+// The pages settle once the images are in; the text is read after that.
+await page.waitForFunction((ts) => ts.every((t) => document.querySelector('[data-testid=article-pages]')?.textContent.includes(t)), typed, { timeout: 10000 }).catch(() => {})
+const text = await page.textContent('[data-testid=article-pages]')
 check('the article carries what was written on every step', typed.every((t) => text.includes(t)), typed.filter((t) => !text.includes(t)).join(' | ') || 'all')
 const heads = await page.$$eval('.ar-page .ar-h2', (els) => els.map((e) => e.textContent.replace(/^\d+\s*/, '')))
 check('the article tells the development in order', heads[0] === 'המושג המתמטי' && heads[1] === 'הידע שנלמד' && heads.indexOf('מהמילים לתמונה') < heads.indexOf('המודל') && heads.indexOf('התוצאה') > heads.indexOf('לייצור ולהצגה'), heads.join(' > '))
@@ -443,6 +445,35 @@ t = Date.now()
 const [docDl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('[data-testid=article-docx]')])
 const xml = strFromU8(unzipSync(new Uint8Array(readFileSync(await docDl.path())))['word/document.xml'])
 check('the article exports as Word, right to left, with the edit and without the gap marks', xml.includes('<w:bidi/>') && xml.includes('נוסח ערוך של המושג') && !xml.includes('חסר:'), `${Date.now() - t} ms`)
+
+// 10b. The exhibition flyer (DECISIONS.md 127): one page over the image, A4 or A3, PDF and PNG
+await page.click('[data-testid=article-poster]')
+await page.waitForSelector('[data-testid=poster-page]', { timeout: 30000 })
+await page.waitForFunction(() => !document.querySelector('[data-testid=poster-pdf]')?.disabled && document.querySelector('.pf-image img'), null, { timeout: 60000 })
+const flyer = await page.evaluate(() => ({
+  t1: document.querySelector('.pf-t1')?.textContent,
+  t2: document.querySelector('.pf-t2')?.textContent,
+  items: document.querySelectorAll('.pf-list li').length,
+  line: !!document.querySelector('.pf-line path'),
+  label: document.querySelector('.pf-label')?.textContent,
+  acc: getComputedStyle(document.querySelector('.pf-page')).getPropertyValue('--acc'),
+}))
+check('the flyer stands on the project: title, the model line over the image, four properties of the model', flyer.t1 && flyer.t2 && flyer.items === 4 && flyer.line && !!flyer.label, JSON.stringify(flyer))
+await page.fill('[data-testid=pf-verse]', 'קו אחד\nמקיף שלוש פעמים\nוחוזר אל הים')
+check('a rewritten part is kept on the project', await until(() => project()?.article?.poster?.verse?.startsWith('קו אחד')))
+await page.screenshot({ path: shots + 'journey-flyer-screen.png' })
+await page.click('[data-testid=pf-format-a3]')
+t = Date.now()
+const [flyerPdf] = await Promise.all([page.waitForEvent('download', { timeout: 120000 }), page.click('[data-testid=poster-pdf]')])
+const fp = readFileSync(await flyerPdf.path())
+const box = /\/MediaBox\s*\[\s*0\s+0\s+([\d.]+)\s+([\d.]+)/.exec(fp.toString('latin1'))
+check('the flyer exports as one A3 page', fp.subarray(0, 4).toString() === '%PDF' && box && Math.abs(+box[1] - 841.89) < 1 && Math.abs(+box[2] - 1190.55) < 1, `${box?.[1]}×${box?.[2]} pt, ${Math.round(fp.length / 1024)} KB, ${Date.now() - t} ms`)
+writeFileSync(tmp + 'flyer.pdf', fp)
+execFileSync('pdftoppm', ['-r', '40', '-png', '-singlefile', tmp + 'flyer.pdf', shots + 'journey-flyer'])
+const [flyerPng] = await Promise.all([page.waitForEvent('download', { timeout: 120000 }), page.click('[data-testid=poster-png]')])
+const pngHead = readFileSync(await flyerPng.path()).subarray(16, 24)
+const [pw, ph] = [pngHead.readUInt32BE(0), pngHead.readUInt32BE(4)]
+check('and as a PNG to share, in the page\'s proportions', Math.abs(ph / pw - 1123 / 794) < 0.01, `${pw}×${ph}`)
 
 // 11. An older project, completed after the fact
 const O = '33333333-3333-4333-8333-333333333333'

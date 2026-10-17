@@ -9,6 +9,7 @@ import { removeItem, type LibraryItem } from '../../data/library'
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { parseRecipe } from '../../recipe/schema'
 import { download } from '../download'
+import { useOnReturn } from '../freshness'
 import { EmailLogin } from '../panels/EmailLogin'
 import type { Sweep } from '../params'
 import { navigate, useParam } from '../router'
@@ -87,6 +88,7 @@ export function CollectionScreen() {
     }
   }, [projectId])
   useEffect(() => void refresh(), [refresh])
+  useOnReturn(refresh)
 
   const parsed = data?.latest ? parseRecipe(data.latest.recipe) : null
   const recipe = parsed?.ok && parsed.recipe.generator.type === 'sweep' ? (parsed.recipe as Sweep) : null

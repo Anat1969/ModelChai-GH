@@ -9,6 +9,7 @@ import { ensureSession, type SessionState } from '../../data/supabase'
 import { createProject } from '../../data/work'
 import { STAGES } from '../../journey/stages'
 import { MODELS } from '../../learn/atlas'
+import { useOnReturn } from '../freshness'
 import { EmailLogin } from '../panels/EmailLogin'
 import { navigate } from '../router'
 import { TopNav } from '../TopNav'
@@ -31,17 +32,18 @@ export function Home() {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
 
-  useEffect(() => {
-    void ensureSession().then(async (s) => {
-      setSession(s)
-      if (s.status !== 'signed-in') return
-      try {
-        setProjects(await listProjects())
-      } catch {
-        setProjects([])
-      }
-    })
-  }, [])
+  const refresh = async () => {
+    const s = await ensureSession()
+    setSession(s)
+    if (s.status !== 'signed-in') return
+    try {
+      setProjects(await listProjects())
+    } catch {
+      setProjects((p) => p ?? [])
+    }
+  }
+  useEffect(() => void refresh(), [])
+  useOnReturn(refresh)
 
   const start = async () => {
     setBusy(true)

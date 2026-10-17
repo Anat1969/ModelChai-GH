@@ -550,23 +550,55 @@ select {
   border-inline-start: 1px solid var(--line);
   padding-inline-start: var(--space-3);
 }
-.topbar-tools button,
-.topbar-tools .toollink {
-  font-size: 14px;
-  font-weight: 500;
-  white-space: nowrap;
-  padding-inline: 8px;
+.system-button {
+  font-size: 15px;
+  font-weight: 600;
   min-height: 44px;
+  padding-inline: 12px;
+  white-space: nowrap;
 }
-.topbar-tools .toollink {
+.system-button[aria-expanded='true'] {
+  background: var(--ink);
+  color: var(--accent-ink);
+}
+.system-menu {
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: 40;
+  min-width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+.system-menu > button,
+.system-menu > .toollink {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: start;
+  border: 0;
+  background: none;
   color: var(--ink);
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 12px;
+  min-height: 44px;
 }
-.topbar-tools .toollink:hover,
-.topbar-tools button:hover {
-  text-decoration: underline;
+.system-menu small {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.system-menu > button:hover,
+.system-menu > .toollink:hover,
+.system-menu > :focus-visible {
+  background: var(--hairline);
 }
 .topbar-said {
   position: absolute;
@@ -622,13 +654,6 @@ select {
     flex-wrap: wrap;
     gap: 0 var(--space-3);
     padding-block: 4px;
-  }
-  .topbar-tools {
-    order: 4;
-    flex-basis: 100%;
-    border-inline-start: 0;
-    padding-inline-start: 0;
-    flex-wrap: wrap;
   }
 }
 @media (max-width: 700px) {
@@ -2643,8 +2668,32 @@ button.reset:disabled {
   position: absolute;
   visibility: hidden;
   inset-inline-start: -10000px;
-  inline-size: 674px;
+  inline-size: 702px;
   pointer-events: none;
+}
+/* Empty pages, laid out like the real ones, to read how much room a page has. */
+.ar-probe {
+  position: absolute;
+  visibility: hidden;
+  inset-inline-start: -10000px;
+  pointer-events: none;
+}
+.ar-probe .dz-page {
+  block-size: 1123px;
+}
+/* The article fills its page (DECISIONS.md 126): narrower margins, a lighter running head. */
+.dz-page.ar-page {
+  padding: 38px 46px 26px;
+}
+.ar-page .dz-run {
+  margin-block-end: 14px;
+}
+.ar-page .dz-foot {
+  margin-block-start: 10px;
+}
+.ar-p-cut {
+  text-align-last: justify;
+  margin-block-end: 0;
 }
 .ar-measure > div,
 .ar-body > div {
@@ -2733,7 +2782,7 @@ button.reset:disabled {
   gap: 10px;
 }
 .ar-figs.n1 {
-  grid-template-columns: minmax(0, 0.7fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 .ar-figs.n2,
 .ar-figs.n3 {
@@ -3305,4 +3354,285 @@ button.reset:disabled {
 .suggest .model-figure .mf-main {
   animation: none;
   stroke-dashoffset: 0;
+}
+
+/* ---------- the exhibition flyer (DECISIONS.md 127) ---------- */
+.pf-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.pf-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: sticky;
+  inset-block-start: 64px;
+}
+.pf-choice {
+  border: 1px solid var(--hairline);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pf-choice label {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.pf-thumbs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.pf-thumbs button {
+  padding: 0;
+  border: 2px solid transparent;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  min-height: 0;
+}
+.pf-thumbs button[aria-pressed='true'] {
+  border-color: var(--ink);
+}
+.pf-thumbs img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pf-holder {
+  min-width: 0;
+}
+.pf-zoom {
+  inline-size: 794px;
+}
+.pf-page {
+  position: relative;
+  inline-size: 794px;
+  block-size: 1123px;
+  overflow: hidden;
+  direction: rtl;
+  font-family: 'Heebo', var(--f-body);
+  box-shadow: 0 0 0 1px var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.pf-image {
+  position: relative;
+  block-size: 66%;
+  flex: none;
+  overflow: hidden;
+}
+.pf-image img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  display: block;
+}
+.pf-image-empty {
+  block-size: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: var(--soft);
+  border-block-end: 1px dashed var(--soft);
+}
+.pf-line {
+  position: absolute;
+  inset-block-start: 8%;
+  inset-inline-start: 6%;
+  inline-size: 88%;
+  block-size: 70%;
+  opacity: 0.9;
+}
+.pf-fade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 0.5) 0%, transparent 16%, transparent 52%, var(--ground) 100%);
+  pointer-events: none;
+}
+.pf-kicker {
+  position: absolute;
+  inset-block-start: 34px;
+  inset-inline: 48px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pf-kicker::before {
+  content: '';
+  inline-size: 28px;
+  block-size: 3px;
+  background: var(--acc);
+}
+.pf-label {
+  position: absolute;
+  inset-block-start: 36px;
+  inset-inline-end: 48px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  background: rgb(0 0 0 / 0.45);
+  padding: 3px 8px;
+}
+.pf-line-note {
+  color: var(--acc);
+}
+.pf-title {
+  position: relative;
+  margin-block-start: -2.15em;
+  padding-inline: 48px;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-weight: 700;
+  line-height: 1.02;
+  display: flex;
+  flex-direction: column;
+  text-shadow: 0 2px 18px rgb(0 0 0 / 0.35);
+}
+.pf-page[data-tone='light'] .pf-title {
+  text-shadow: 0 1px 14px rgb(243 240 234 / 0.8);
+}
+.pf-t2 {
+  color: var(--acc);
+}
+.pf-rule {
+  display: block;
+  inline-size: 72px;
+  block-size: 4px;
+  background: var(--acc);
+  margin-block-start: 16px;
+}
+.pf-cols {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 36px;
+  padding: 18px 48px 0;
+  min-block-size: 0;
+}
+.pf-col {
+  min-width: 0;
+}
+.pf-maxim {
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 23px;
+  line-height: 1.38;
+  margin: 0 0 12px;
+}
+.pf-verse {
+  display: flex;
+  flex-direction: column;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 0 0 12px;
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid var(--acc);
+}
+.pf-verse .acc {
+  color: var(--acc);
+}
+.pf-dna {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--soft);
+  margin: 0 0 10px;
+}
+.pf-list + .pf-dna {
+  margin-block-start: 14px;
+}
+.pf-dna strong {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--acc);
+  margin-block-end: 2px;
+}
+.pf-sub {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--acc);
+  margin: 2px 0 8px;
+  font-family: 'Heebo', sans-serif;
+}
+.pf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.pf-cols.dense .pf-list {
+  font-size: 13px;
+  gap: 7px;
+}
+.pf-list li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 6px;
+}
+.pf-num {
+  font-family: 'Frank Ruhl Libre', serif;
+  font-weight: 700;
+  color: var(--acc);
+  font-variant-numeric: tabular-nums;
+}
+.pf-question {
+  margin: 14px 0 0;
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: 18px;
+  color: var(--acc);
+}
+.pf-foot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 48px;
+  padding-block: 12px 22px;
+  border-block-start: 1px solid var(--soft);
+  font-size: 12px;
+  color: var(--soft);
+}
+.pf-foot .pf-mid {
+  flex: 1;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+.pf-qr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pf-qr-code {
+  inline-size: 46px;
+  block-size: 46px;
+  background: #ffffff;
+  padding: 3px;
+}
+.pf-qr-code svg {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+}
+@media (max-width: 900px) {
+  .pf-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pf-side {
+    position: static;
+  }
 }

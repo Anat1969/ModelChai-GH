@@ -1,8 +1,8 @@
 /** Hash routes, so every screen has a link and the app needs no router library. The landing page is home (DECISIONS.md 97). */
 import { useSyncExternalStore } from 'react'
 
-export type Route = 'home' | 'learn' | 'project' | 'article' | 'projects' | 'new' | 'studio' | 'compare' | 'library' | 'collection' | 'dossier' | 'connect'
-const ROUTES: Route[] = ['home', 'learn', 'project', 'article', 'projects', 'new', 'studio', 'compare', 'library', 'collection', 'dossier', 'connect']
+export type Route = 'home' | 'learn' | 'project' | 'article' | 'projects' | 'new' | 'studio' | 'compare' | 'library' | 'collection' | 'dossier' | 'poster' | 'connect'
+const ROUTES: Route[] = ['home', 'learn', 'project', 'article', 'projects', 'new', 'studio', 'compare', 'library', 'collection', 'dossier', 'poster', 'connect']
 
 export interface Location {
   route: Route

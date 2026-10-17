@@ -282,13 +282,16 @@ try {
     return { manifest: await get('link[rel=manifest]'), icon: await get('link[rel=icon][type="image/svg+xml"]'), png: await get('link[rel=icon][type="image/png"]'), apple: await get('link[rel=apple-touch-icon]') }
   })
   check('the app has an icon and an install manifest', Object.values(head).every((v) => v === 200), JSON.stringify(head))
+  await page.click('[data-testid=system-menu]')
   const bar = await page.evaluate(() => ({
     mark: document.querySelector('[data-testid=brand] .brand-mark')?.getAttribute('src'),
-    tools: [...document.querySelectorAll('.topbar-tools > button, .topbar-tools > a')].map((e) => e.textContent.trim()),
+    tools: [...document.querySelectorAll('.system-menu > [role=menuitem]')].map((e) => e.firstChild.textContent.trim()),
+    inBar: document.querySelectorAll('.topbar-tools > button').length,
     dev: document.querySelector('[data-testid=dev-session]')?.getAttribute('href'),
   }))
-  check('the top bar has the mark, and copy link, the development chat, the research project and install', bar.mark === '/icon.svg' && bar.tools.join('|') === 'העתקת קישור|שיחת הפיתוח|פרויקט המחקר|התקנה' && /claude\.ai\/code\/session_/.test(bar.dev), bar.tools.join(' · '))
+  check('the top bar has the mark, and copy link, the development chat, the research project and install', bar.mark === '/icon.svg' && bar.inBar === 1 && bar.tools.join('|') === 'העתקת קישור|שיחת הפיתוח|פרויקט המחקר|התקנה' && /claude\.ai\/code\/session_/.test(bar.dev), bar.tools.join(' · '))
   await open(page, '#/new')
+  await page.click('[data-testid=system-menu]')
   await page.click('[data-testid=copy-link]')
   await page.waitForSelector('[data-testid=topbar-said]')
   const copied = await page.evaluate(() => navigator.clipboard.readText())

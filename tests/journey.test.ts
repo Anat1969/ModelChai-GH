@@ -4,7 +4,8 @@ import { strFromU8, unzipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { articleMaterials, buildArticle } from '../src/journey/article'
 import { articleDocument } from '../src/journey/docx'
-import { paginate } from '../src/journey/paginate'
+import { flow, paginate, type FlowItem } from '../src/journey/paginate'
+import { isStale } from '../src/ui/freshness'
 import { doneCount, fieldValue, nextStage, projectName, STAGES, stageById, stageStatus, withField, type WorkState } from '../src/journey/stages'
 import { parseRecipe } from '../src/recipe/schema'
 import { fixture } from './helpers'
@@ -163,5 +164,41 @@ describe('article pages', () => {
     ])
     // A block taller than a page sits alone.
     expect(paginate([1200, 100], [false, false], 900)).toEqual([[0], [1]])
+  })
+})
+
+describe('article flow (DECISIONS.md 126)', () => {
+  // Every sentence is 100 px tall.
+  const byLine = (_i: number, from: number, to: number) => (to - from) * 100
+  const text = (n: number, group = 'a'): FlowItem => ({ h: n * 100, sentences: n, group })
+
+  it('cuts a paragraph between sentences to fill the page to its foot', () => {
+    const pages = flow([text(3), text(5)], 600, byLine)
+    expect(pages).toEqual([[{ i: 0 }, { i: 1, from: 0, to: 3 }], [{ i: 1, from: 3, to: 5 }]])
+  })
+
+  it('shortens a figure that nearly fits, and moves one that does not while its text fills the room', () => {
+    const fig: FlowItem = { h: 500, figure: { fixed: 40, img: 460 }, group: 'a' }
+    // 400 left: the image shrinks to 360 px, more than 60% of 460.
+    expect(flow([text(2), fig], 600, byLine)).toEqual([[{ i: 0 }, { i: 1, imgH: 360 }]])
+    // 200 left: too short for the image; the text after it fills the page, and it opens the next one.
+    expect(flow([text(4), fig, text(3)], 600, byLine)).toEqual([
+      [{ i: 0 }, { i: 2, from: 0, to: 2 }],
+      [{ i: 1 }, { i: 2, from: 2, to: 3 }],
+    ])
+  })
+
+  it('never ends a page on a heading, and lets the first page differ', () => {
+    const pages = flow([text(5), { h: 50, keep: true, group: 'b' }, text(3, 'b')], (n) => (n === 0 ? 560 : 900), byLine)
+    expect(pages[0]).toEqual([{ i: 0 }])
+    expect(pages[1]![0]).toEqual({ i: 1 })
+  })
+})
+
+describe('fresh version', () => {
+  it('is stale only when the deploy serves another build', () => {
+    expect(isStale('a1', 'b2')).toBe(true)
+    expect(isStale('a1', 'a1')).toBe(false)
+    expect(isStale('a1', null)).toBe(false)
   })
 })
