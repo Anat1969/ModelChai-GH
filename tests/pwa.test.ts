@@ -13,10 +13,10 @@ const pngSize = (rel: string) => {
 
 describe('manifest', () => {
   const m = JSON.parse(readFileSync(root + 'public/manifest.webmanifest', 'utf8'))
-  it('names the app in Hebrew, right to left, opening on the projects', () => {
+  it('names the app in Hebrew, right to left, opening on the home page', () => {
     expect(m.name).toBe('יוצר: מתמטיקה')
     expect(m.short_name).toBeTruthy()
-    expect([m.lang, m.dir, m.display, m.start_url]).toEqual(['he', 'rtl', 'standalone', '/#/projects'])
+    expect([m.lang, m.dir, m.display, m.start_url]).toEqual(['he', 'rtl', 'standalone', '/#/home'])
   })
   it('lists icons that exist at the sizes it states, with a maskable one', () => {
     for (const icon of m.icons) {
