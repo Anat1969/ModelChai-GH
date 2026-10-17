@@ -211,7 +211,7 @@ export function Workspace() {
   return (
     <div className="wrap">
       <TopNav crumbs={[{ label: 'בית', to: 'home' }, { label: name, to: 'project', params: projectId ? { p: projectId } : undefined }, { label: stage.title }]} />
-      <header className="screen work-head">
+      <header className="screen jw-head">
         <span className="eyebrow">פרויקט · {state ? `${doneCount(state)} מתוך 9 שלבים הושלמו` : ''}</span>
         <h1>{name}</h1>
         {work && (
@@ -252,8 +252,8 @@ export function Workspace() {
       )}
 
       {state && st && (
-        <div className="work">
-          <nav className="work-rail" aria-label="שלבי העבודה">
+        <div className="jw">
+          <nav className="jw-rail" aria-label="שלבי העבודה">
             <ol>
               {STAGES.map((s) => {
                 const ss = stageStatus(s.id, state)
@@ -261,8 +261,8 @@ export function Workspace() {
                   <li key={s.id} data-state={ss.state} aria-current={s.id === stage.id ? 'step' : undefined}>
                     <a href={`#/project?p=${projectId}&s=${s.id}`} onClick={(e) => (e.preventDefault(), go(s.id))} data-testid={`rail-${s.id}`}>
                       <span className="num">{s.num}</span>
-                      <span className="work-rail-title">{s.title}</span>
-                      <span className="work-rail-state">{STATE_WORD[ss.state]}</span>
+                      <span className="jw-rail-title">{s.title}</span>
+                      <span className="jw-rail-state">{STATE_WORD[ss.state]}</span>
                     </a>
                   </li>
                 )
@@ -270,20 +270,20 @@ export function Workspace() {
             </ol>
           </nav>
 
-          <section className="work-stage" aria-labelledby="stage-title" data-testid="stage" data-stage={stage.id} data-state={st.state}>
-            <header className="work-stage-head">
-              <span className="work-num num">{stage.num}</span>
+          <section className="jw-stage" aria-labelledby="stage-title" data-testid="step" data-stage={stage.id} data-state={st.state}>
+            <header className="jw-stage-head">
+              <span className="jw-num num">{stage.num}</span>
               <div>
                 <h2 id="stage-title">{stage.title}</h2>
                 <p className="lead">{stage.goal}</p>
               </div>
             </header>
 
-            <div className="work-leans">
+            <div className="jw-leans">
               <h3>נשען על</h3>
               <p>{stage.leans}</p>
               {before.length > 0 && (
-                <ul className="work-before">
+                <ul className="jw-before">
                   {before.map(({ s, line }) => (
                     <li key={s.id}>
                       <a href={`#/project?p=${projectId}&s=${s.id}`} onClick={(e) => (e.preventDefault(), go(s.id))}>
@@ -296,7 +296,7 @@ export function Workspace() {
               )}
             </div>
 
-            <div className="work-fields">
+            <div className="jw-fields">
               <h3>למלא</h3>
               {stage.fields.map((f) => {
                 const value = ((journey[stage.id] ?? {}) as Record<string, string | undefined>)[f.key] ?? ''
@@ -320,7 +320,7 @@ export function Workspace() {
 
             {/* ---------- materials of the step ---------- */}
             {stage.id === 'context' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>תמונות השראה</h3>
                 <Gallery images={state.references.map((i) => ({ ...i, remove: () => removeLib(i.id) }))} onRemove />
                 <div className="field">
@@ -332,10 +332,10 @@ export function Workspace() {
             )}
 
             {stage.id === 'concept' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>המתכון</h3>
                 {state.recipe ? (
-                  <div className="work-recipe">
+                  <div className="jw-recipe">
                     <p className="journey-name">
                       {state.recipe.narrative.name_he} · {state.recipe.concept.name_he} <span lang="en">({state.recipe.concept.name})</span>
                     </p>
@@ -361,7 +361,7 @@ export function Workspace() {
             )}
 
             {stage.id === 'prompt' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>פרומפטים</h3>
                 {state.prompts.length === 0 && <p className="hint">עוד אין פרומפט. אפשר לגזור אחד מהמודל, או לכתוב אחד משלך.</p>}
                 {state.prompts.map((p) => (
@@ -423,7 +423,7 @@ export function Workspace() {
             )}
 
             {stage.id === 'illustration' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>תמונות מהפרומפטים</h3>
                 {state.prompts.map((p) => (
                   <article key={p.id} className="prompt-card">
@@ -453,7 +453,7 @@ export function Workspace() {
             )}
 
             {stage.id === 'form' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>מבטים מהסטודיו</h3>
                 <Gallery images={[...state.stills.bare, ...state.stills.realistic]} />
                 {state.stills.bare.length + state.stills.realistic.length === 0 && <p className="hint">בסטודיו, "הקפאת מבט" שומרת את מה שעל המסך בשלב שלו. מבט ערום ומבט ריאליסטי נכנסים למאמר.</p>}
@@ -472,7 +472,7 @@ export function Workspace() {
             )}
 
             {stage.id === 'physical' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>קובץ ההדפסה</h3>
                 <p>{state.print ?? 'עוד אין קובץ הדפסה. בסטודיו, הלשונית "הדפסה" מכינה קובץ סגור בגודל במילימטרים ובודקת את עובי הדופן.'}</p>
                 {latest && (
@@ -484,7 +484,7 @@ export function Workspace() {
             )}
 
             {stage.id === 'documentation' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>צילומים של התוצאה</h3>
                 <Gallery images={state.photos.map((i) => ({ ...i, remove: () => removeLib(i.id) }))} onRemove />
                 <div className="field">
@@ -503,7 +503,7 @@ export function Workspace() {
             )}
 
             {stage.id === 'exhibition' && (
-              <div className="work-materials">
+              <div className="jw-materials">
                 <h3>המאמר</h3>
                 <p>המאמר נבנה מכל השלבים, ואפשר לערוך בו כל פסקה. {gaps ? `${gaps} חלקים עוד חסרים, וכל אחד מהם מוביל לשלב שבו משלימים אותו.` : 'כל החלקים מלאים.'}</p>
                 <button type="button" className="primary" onClick={() => (void flush(), navigate('article', { p: projectId! }))}>
@@ -512,15 +512,15 @@ export function Workspace() {
               </div>
             )}
 
-            <div className="work-yield" data-testid="stage-status">
+            <div className="jw-yield" data-testid="step-status">
               <h3>התוצר</h3>
               <p>{stage.yields}</p>
-              <p className="work-state" data-state={st.state}>
+              <p className="jw-state" data-state={st.state}>
                 {STATE_WORD[st.state]}
               </p>
               {st.have.length > 0 && <p>יש: {st.have.join(', ')}.</p>}
               {st.missing.length > 0 && (
-                <p data-testid="stage-missing">
+                <p data-testid="step-missing">
                   <strong>חסר: </strong>
                   {st.missing.join(', ')}. אפשר להמשיך בלי זה ולחזור לכאן.
                 </p>
@@ -531,7 +531,7 @@ export function Workspace() {
               {status}
             </p>
 
-            <nav className="work-steps toolbar" aria-label="מעבר בין שלבים">
+            <nav className="jw-steps toolbar" aria-label="מעבר בין שלבים">
               {index > 0 && (
                 <button type="button" onClick={() => go(STAGES[index - 1]!.id)} data-testid="prev-stage">
                   הקודם: {STAGES[index - 1]!.title}
