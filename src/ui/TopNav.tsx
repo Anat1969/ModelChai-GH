@@ -1,14 +1,16 @@
 import { useState } from 'react'
+import { ClaudeKey } from './claude/ClaudeKey'
 import { install, useInstall } from './install'
 import { navigate, useRoute, type Route } from './router'
 
 /** The development conversation this app is built in (DECISIONS.md 96). */
 export const DEV_SESSION_URL = 'https://claude.ai/code/session_01NME4tEKTn9Q8JPNJLsjQWV'
 
+// Two doors only (DECISIONS.md 103): the concepts to learn from, and the projects to work on. The studio, the
+// collection and the article are reached from inside a project, on its path.
 const LINKS: { route: Route; label: string }[] = [
+  { route: 'learn', label: 'מושגים' },
   { route: 'projects', label: 'פרויקטים' },
-  { route: 'new', label: 'מושג חדש' },
-  { route: 'studio', label: 'סטודיו' },
 ]
 
 export interface Crumb {
@@ -72,6 +74,7 @@ export function TopNav({ crumbs }: { crumbs: Crumb[] }) {
           </a>
         ))}
       </nav>
+      <ClaudeKey />
       <div className="topbar-tools" role="group" aria-label="כלים">
         <button type="button" className="quiet" onClick={copyLink} data-testid="copy-link">
           העתקת קישור
