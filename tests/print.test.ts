@@ -5,6 +5,7 @@ import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
 import { closedMeshVolume, buildClosedMesh } from '../src/engine/sweep/closedMesh'
 import { minWall, openEdges, preparePrint, PRINT_DEFAULTS } from '../src/engine/export/print'
 import { crc32 } from '../src/engine/export/threeMf'
+import { cutBelow } from '../src/engine/planeCut'
 import { printFiles } from '../src/engine/export'
 import { parseRecipe, type Recipe } from '../src/recipe/schema'
 import { fixture } from './helpers'
@@ -79,10 +80,11 @@ describe('a print-ready body', () => {
     expect(torus.bare.shell!.thickness).toBe(0.3)
   })
 
+  // The printed body is cut at the ground (DECISIONS.md 113), so the meters volume is measured on the cut body too.
   it('has a volume in mm³ equal to the meters volume times the scale cubed, within 0.5%', () => {
     const thick = structuredClone(torus)
     thick.bare.shell!.thickness = report.thicknessM!
-    const m = buildClosedMesh(thick, sweep(thick), { withOpenings: false })
+    const m = cutBelow(buildClosedMesh(thick, sweep(thick), { withOpenings: false }), 0).mesh
     const mmPerM = Math.max(...report.sizeMm) / (Math.max(...report.sizeMm) * report.scale / 1000)
     const expected = Math.abs(closedMeshVolume(m)) * (1000 / report.scale) ** 3 / 1000
     expect(Math.abs(report.volumeCm3 - expected) / expected).toBeLessThan(0.005)
@@ -103,6 +105,35 @@ describe('a print-ready body', () => {
     expect(tiny.body).toBe('solid-from-shell')
     expect(tiny.bodyNote).toMatch(/גוף מלא/)
     expect(tiny.openEdges).toBe(0)
+  })
+
+  it('cuts at the ground: nothing below it, the cap closed, the buried part measured', () => {
+    let minY = Infinity, maxY = -Infinity
+    for (let i = 1; i < mesh.positions.length; i += 3) (minY = Math.min(minY, mesh.positions[i]!)), (maxY = Math.max(maxY, mesh.positions[i]!))
+    expect(report.groundCut).toBe(true)
+    expect(report.belowGroundM).toBeCloseTo(5.7, 6)
+    expect(report.sectionCenterM).toBe(1.5)
+    // Above the ground: the section center 1.5 m plus the outer radius 3 × 2.4 m.
+    expect(Math.abs(report.sizeM[2] - 8.7) / 8.7).toBeLessThan(0.005)
+    expect(Math.abs(maxY - minY - report.sizeMm[2])).toBeLessThan(1e-6)
+    expect(minY).toBeCloseTo(0, 9)
+    for (let k = 0; k < 3; k++) expect(report.sizeMm[k]).toBeCloseTo(report.sizeM[k]! * report.mmPerM, 6)
+    expect(report.belowGroundM3).toBeGreaterThan(0)
+    expect(report.belowGroundShare).toBeGreaterThan(0.2)
+    expect(report.belowGroundShare).toBeLessThan(0.5)
+    const whole = preparePrint(torus, { ...PRINT_DEFAULTS, groundCut: false }).report
+    expect(whole.groundCut).toBe(false)
+    expect(whole.sizeM[2]).toBeCloseTo(14.4, 4)
+    expect(report.volumeCm3).toBeLessThan(whole.volumeCm3)
+    console.info(
+      `[print] ground cut: height ${whole.sizeM[2].toFixed(2)} → ${report.sizeM[2].toFixed(2)} m, ${whole.sizeMm.map((v) => v.toFixed(1)).join(' × ')} → ${report.sizeMm.map((v) => v.toFixed(1)).join(' × ')} mm, 1:${whole.scale} → 1:${report.scale}, ${whole.volumeCm3.toFixed(1)} → ${report.volumeCm3.toFixed(1)} cm³, buried ${report.belowGroundM3.toFixed(1)} m³ (${(report.belowGroundShare * 100).toFixed(1)}%)`,
+    )
+  })
+
+  it('leaves a model that stands above the ground whole', () => {
+    const r = preparePrint(recipeOf(fixture('mobius-strip'))).report
+    expect(r.belowGroundM).toBe(0)
+    expect(r.groundCut).toBe(false)
   })
 
   it('prints a solid as a solid', () => {

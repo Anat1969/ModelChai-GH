@@ -1716,6 +1716,67 @@ button.reset:disabled {
   margin: 0;
   font-weight: 600;
 }
+.print-size {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+.print-size dt {
+  font-weight: 600;
+}
+.print-size dd {
+  margin: 0;
+}
+/* "148 × 150 × 28" reads left to right inside the Hebrew line: width, depth, height. */
+.print-size .num,
+.print-scale .num,
+.print-preview .num {
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.print-ground {
+  margin: 0;
+  border-inline-start: 3px solid var(--ink);
+  padding-inline-start: 8px;
+}
+.print-preview {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.print-preview-view {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  width: 100%;
+  background: var(--stage);
+  touch-action: none;
+  /* The labels are placed from the left by the 3D view; the words inside them stay right to left. */
+  direction: ltr;
+  overflow: hidden;
+}
+.print-preview-canvas {
+  position: absolute;
+  inset: 0;
+}
+.preview-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  display: block;
+  white-space: nowrap;
+  direction: rtl;
+  font-family: var(--f-body);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--black);
+  background: rgba(255, 255, 255, 0.86);
+  padding: 1px 6px;
+  pointer-events: none;
+}
 .checks {
   list-style: none;
   margin: 0;
