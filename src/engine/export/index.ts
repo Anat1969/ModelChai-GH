@@ -60,7 +60,13 @@ export async function printFiles(input: unknown, opts: PrintOptions): Promise<Pr
   if (!parsed.ok) return { error: 'המתכון לא עומד בסכמה, ולכן אי אפשר להכין אותו להדפסה' }
   const recipe = parsed.recipe
   if (recipe.generator.type !== 'sweep') return { error: 'במוצר המינימלי אפשר להדפיס רק מחולל סוויפ' }
-  const { mesh, report } = preparePrint(recipe, opts)
+  let prepared: ReturnType<typeof preparePrint>
+  try {
+    prepared = preparePrint(recipe, opts)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : String(e) }
+  }
+  const { mesh, report } = prepared
   const base = `${recipe.meta.id}-${Math.round(opts.sizeMm)}mm-1to${report.scale}`
   const title = `${recipe.concept.name}, 1:${report.scale}, mm, Z up`
   return {
