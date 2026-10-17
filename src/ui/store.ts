@@ -51,6 +51,8 @@ interface StudioState {
   cameraNonce: number
   showEdges: boolean
   showPeople: boolean
+  /** Animated wind lines in the realistic level: a view setting, not part of the recipe (DECISIONS.md 122). */
+  showWind: boolean
   tracing: boolean
   traceStatus: string | null
   origin: ConceptOrigin | null
@@ -173,6 +175,7 @@ export const useStudio = create<StudioState>((set, get) => {
     cameraNonce: 0,
     showEdges: true,
     showPeople: true,
+    showWind: false,
     tracing: false,
     traceStatus: null,
     origin: null,

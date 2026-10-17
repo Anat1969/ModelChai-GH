@@ -101,11 +101,15 @@ export function workState(row: ProjectWork, c: Collection, lib: Library, referen
 }
 
 /** A project that starts from an idea, before there is any recipe. */
-export async function createProject(input: { title: string; idea?: string }): Promise<string> {
+export async function createProject(input: { title: string; idea?: string; use?: string; concept?: Journey['concept'] }): Promise<string> {
   await userId()
   const id = crypto.randomUUID()
   const title = input.title.trim().slice(0, 80) || 'פרויקט חדש'
-  const journey: Journey = { idea: { title, ...(input.idea?.trim() ? { idea: input.idea.trim() } : {}) } }
+  const journey: Journey = {
+    idea: { title, ...(input.idea?.trim() ? { idea: input.idea.trim() } : {}) },
+    ...(input.use?.trim() ? { context: { use: input.use.trim() } } : {}),
+    ...(input.concept ? { concept: input.concept, discover: { saved: input.concept.model ? [input.concept.model] : [] } } : {}),
+  }
   const res = await supabase.from('mathcreator_projects').insert({ id, concept: title.slice(0, 120), title_he: title, journey })
   if (res.error) fail(res.error, 'יצירת הפרויקט')
   return id

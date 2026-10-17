@@ -1,0 +1,141 @@
+/**
+ * What each metric means (DECISIONS.md 106): what it measures, what it teaches about the structure, and how it
+ * helps a design decision. And when a parameter moves, which metrics moved and what that means in form, space and
+ * use — so a number never stands without its reason. Pure, so the wording is tested.
+ */
+export interface MetricInfo {
+  measures: string
+  learn: string
+  decide: string
+  /** What a rise and a fall mean, in space and in use. */
+  up: string
+  down: string
+}
+
+export const METRIC_INFO: Record<string, MetricInfo> = {
+  outerDiameter: {
+    measures: 'הרוחב הכולל של המבנה בתוכנית, מקצה לקצה.',
+    learn: 'כמה מקום המבנה תופס במגרש, ואיך הוא נראה ביחס לאדם ולעיר.',
+    decide: 'בודקים מול המגרש ומול המבנים סביב: האם הוא נקודה בכיכר או גבול שלה.',
+    up: 'המבנה תופס יותר מהמגרש ונקרא מרחוק יותר.',
+    down: 'המבנה קטן יותר במגרש, קרוב יותר לקנה מידה של פסל.',
+  },
+  courtyardDiameter: {
+    measures: 'הרוחב של החצר הפתוחה שהמבנה מקיף.',
+    learn: 'כמה אנשים החצר מכילה, ואם היא מרגישה כחדר פתוח או ככיכר.',
+    decide: 'חצר של 10–15 מ\' היא חדר; מעל 25 מ\' היא כיכר. לפי מה שקורה בה.',
+    up: 'החצר מכילה יותר אנשים, אבל המבנה סוגר אותה פחות.',
+    down: 'החצר אינטימית יותר ומוגנת יותר, ומכילה פחות.',
+  },
+  edgeCount: {
+    measures: 'כמה קווי גבול נפרדים יש לצורה.',
+    learn: 'קצה אחד רציף פירושו שאפשר ללכת לאורך הגבול בלי שהוא נגמר.',
+    decide: 'אם הרעיון הוא רציפות, שומרים על קצה אחד; כמה קצוות הם כמה אירועים נפרדים.',
+    up: 'הגבול התפרק לכמה קווים: יותר אירועים נפרדים, פחות רציפות.',
+    down: 'הגבול התאחד: ההליכה לאורכו ארוכה ורציפה יותר.',
+  },
+  edgeLength: {
+    measures: 'האורך הכולל של קו הגבול.',
+    learn: 'כמה ארוכה ההליכה לאורך הקצה, וכמה פרט יש למבנה.',
+    decide: 'קצה ארוך הוא מסלול; בודקים אם הוא נגיש ואם יש בו עצירות.',
+    up: 'הקצה ארוך יותר: מסלול ארוך יותר, יותר מקומות על הגבול.',
+    down: 'הקצה קצר יותר: מסלול קצר וצורה פשוטה יותר.',
+  },
+  floorWidth: {
+    measures: 'הרוחב של הרצפה השמישה בתוך הקליפה, בין הצר לרחב.',
+    learn: 'אם אפשר ללכת, לעבור זה ליד זה, או לשבת.',
+    decide: 'מתחת ל-1.2 מ\' אי אפשר לעבור בנוחות; 2.4 מ\' ומעלה מאפשר תנועה בשני כיוונים.',
+    up: 'יש יותר מקום ללכת ולשבת בפנים.',
+    down: 'הרצפה הצטמצמה: פחות מקום לתנועה בפנים.',
+  },
+  clearHeight: {
+    measures: 'הגובה מהרצפה עד התקרה, בין הנמוך לגבוה.',
+    learn: 'אם אפשר לעמוד, ואיך מרגישים: דחוס או מרווח.',
+    decide: 'פחות מ-2.4 מ\' לא שמיש לעמידה; מעל 4 מ\' החלל מרגיש ציבורי.',
+    up: 'החלל גבוה יותר ומרווח יותר.',
+    down: 'החלל נמוך יותר; בדוק שהוא נשאר מעל 2.4 מ\'.',
+  },
+  floorContinuous: {
+    measures: 'האם הרצפה ממשיכה לאורך כל ההקפה.',
+    learn: 'רצפה רציפה מאפשרת להקיף את כל המבנה בהליכה.',
+    decide: 'אם ההקפה היא החוויה, הרצפה צריכה להיות רציפה.',
+    up: 'הרצפה נסגרה במעגל: אפשר להקיף בהליכה.',
+    down: 'הרצפה נקטעת: ההקפה נשברת למקטעים.',
+  },
+  wallAtCorners: {
+    measures: 'עובי הדופן בחודים, הנקודה הדקה ביותר של הקליפה.',
+    learn: 'שם המבנה חלש ביותר, וקשה לבנות או להדפיס.',
+    decide: 'מתחת ל-0.3 מ\' בבטון זה גבולי. בהדפסה זה הדבר הראשון שמתעבה.',
+    up: 'החודים עבים יותר: חזקים וקלים יותר לבנייה.',
+    down: 'החודים דקים יותר: בדוק את היציבות ואת ההדפסה.',
+  },
+  openingFraction: {
+    measures: 'כמה מהמעטפת פתוחה למעברים ולאור.',
+    learn: 'כמה הסביבה נכנסת פנימה: אור, רוח ומבט.',
+    decide: 'מעט פתחים נותנים מחסה; הרבה פתחים מחברים את הפנים לכיכר.',
+    up: 'המבנה פתוח יותר: יותר אור, רוח ומבט פנימה.',
+    down: 'המבנה סגור יותר: יותר מחסה, פחות קשר לסביבה.',
+  },
+  volume: {
+    measures: 'נפח החומר במבנה.',
+    learn: 'כמה חומר דרוש: עלות, פחמן ומשקל.',
+    decide: 'קליפה דקה חוסכת חומר; משווים חלופות לפי הנפח.',
+    up: 'יותר חומר: כבד ויקר יותר.',
+    down: 'פחות חומר: קל וחסכוני יותר.',
+  },
+  weight: {
+    measures: 'המשקל המשוער לפי צפיפות החומר שנבחר.',
+    learn: 'סדר גודל לעומס על הקרקע וליסודות.',
+    decide: 'לבדיקת סדר גודל בלבד; לא תחליף לחישוב קונסטרוקטיבי.',
+    up: 'המבנה כבד יותר: עומס גדול יותר על הקרקע.',
+    down: 'המבנה קל יותר.',
+  },
+  saving: {
+    measures: 'כמה חומר נחסך לעומת גוש מלא באותה צורה.',
+    learn: 'כמה הקליפה יעילה.',
+    decide: 'חיסכון גבוה הוא קליפה דקה; בודקים שהדופן עדיין עבה מספיק.',
+    up: 'הקליפה יעילה יותר.',
+    down: 'הקליפה קרובה יותר לגוש מלא.',
+  },
+  envelopeArea: {
+    measures: 'שטח הפנים של המעטפת, מבפנים ומבחוץ.',
+    learn: 'כמה חיפוי, צבע או בידוד צריך, וכמה משטח פוגש שמש.',
+    decide: 'משווים חלופות לפי שטח החיפוי.',
+    up: 'יותר משטח: יותר חיפוי, ויותר משטח לאור ולצל.',
+    down: 'פחות משטח לחיפוי.',
+  },
+  cuspBurial: {
+    measures: 'כמה החוד התחתון שקוע מתחת לפני הקרקע.',
+    learn: 'כמה מהצורה מוסתר בקרקע, וכמה רצפה נוצרת בפנים.',
+    decide: 'קבורה עמוקה מורידה גובה ומסתירה את הצורה; קבורה רדודה מגביהה את הרצפה.',
+    up: 'יותר מהצורה מתחת לקרקע: המבנה נמוך יותר ונראה פחות.',
+    down: 'פחות מהצורה בקרקע: המבנה עולה ונחשף.',
+  },
+}
+
+/** The key of a row in MetricInfo: the volume row's label carries the material, its key does not. */
+export const infoOf = (key: string): MetricInfo | undefined => METRIC_INFO[key]
+
+export interface Change {
+  key: string
+  label: string
+  from: string
+  to: string
+  meaning: string
+}
+
+/** Metrics that moved by more than half a percent, with what the move means. */
+export function changes(prev: { key: string; label: string; value: string; raw?: number }[], next: { key: string; label: string; value: string; raw?: number }[]): Change[] {
+  const before = new Map(prev.map((r) => [r.key, r]))
+  const out: Change[] = []
+  for (const r of next) {
+    const p = before.get(r.key)
+    if (!p || p.raw === undefined || r.raw === undefined) continue
+    const base = Math.abs(p.raw) || 1
+    if (Math.abs(r.raw - p.raw) / base <= 0.005) continue
+    const info = infoOf(r.key)
+    if (!info) continue
+    out.push({ key: r.key, label: r.label, from: p.value, to: r.value, meaning: r.raw > p.raw ? info.up : info.down })
+  }
+  return out
+}

@@ -2,6 +2,7 @@
  * Client for the concept-to-recipe Edge Function. The function streams NDJSON: progress lines while Claude
  * works, then one result line. Cancel with the AbortSignal.
  */
+import { withClaude } from './claudeActivity'
 import type { RuleIssue } from '../recipe/rules'
 import type { SchemaError } from '../recipe/schema'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from './supabase'
@@ -30,7 +31,15 @@ export type ConceptOutcome =
       status?: number
     }
 
-export async function requestRecipe(
+export function requestRecipe(
+  req: ConceptRequest,
+  token: string,
+  opts: { signal?: AbortSignal; onProgress?: (p: ConceptProgress) => void } = {},
+): Promise<ConceptOutcome> {
+  return withClaude('Claude מתרגם את המושג למתכון', () => requestRecipeRaw(req, token, opts), (r) => (r.ok ? { ok: true } : { ok: false, error: r.error }))
+}
+
+async function requestRecipeRaw(
   req: ConceptRequest,
   token: string,
   opts: { signal?: AbortSignal; onProgress?: (p: ConceptProgress) => void } = {},

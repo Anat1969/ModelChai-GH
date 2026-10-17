@@ -29,6 +29,22 @@
 
 **כלל הפרדה:** רק `generator` ו-`bare` משנים גאומטריה. שינוי ב-`realistic` לא בונה מחדש את הרשת, רק חומרים, אור וסביבה.
 
+## `realistic`: שדות וערכים
+| שדה | ערכים | ברירת מחדל |
+|---|---|---|
+| `site` | `lat` ‏−90 עד 90, `lon` ‏−180 עד 180, `name` עד 80 תווים | חובה |
+| `datetime` | ISO 8601 עם אזור זמן | חובה |
+| `weather` | `clear`, `haze`, `overcast`, `rain`, `fog`, `snow` | חובה |
+| `orientation_deg` | שלם 0–359. סיבוב המבנה סביב מרכזו, עם כיוון השעון מהצפון. החזית היא הצד שפונה ל-−Z ברמה הערומה, כלומר לצפון בסיבוב 0 | `0` |
+| `wind` | `from_deg` שלם 0–359, הכיוון שממנו הרוח נושבת (270 = ממערב). `speed_ms` ‏0–40 מטר לשנייה | `{ "from_deg": 270, "speed_ms": 5 }` |
+| `materials.outer`, `inner`, `floor` | `polished_concrete_light`, `concrete_matte`, `polished_concrete_grey`, `jerusalem_stone`, `corten_steel`, `timber_oak`, `rammed_earth`, `glass_clear`, `white_marble`, `red_brick`, `terracotta_tiles`, `basalt`, `copper_patina`, `charred_timber`, `white_render`, `perforated_metal` | `outer` חובה |
+| `context.preset` | `coastal_dunes`, `urban_plaza`, `desert_loess`, `park_lawn`, `waterfront`, `urban_gateway`, `forest_edge`, `rocky_slope`, `snow_field`, `river_bank` | חובה |
+| `context.vegetation` | `none`, `dune_shrubs_low`, `olive_trees`, `lawn_and_trees`, `desert_acacia`, `pine_forest`, `riverside_trees`, `garrigue` | לפי ההקשר |
+| `context.people` | שלם 0–40 | 0 |
+| `camera` | `preset`, `height`, `fov_deg`, `aspect` | ראו הסכמה |
+
+`orientation_deg` ו-`wind` הם אופציונליים, ומתכון ישן בלי השדות נפתח עם ברירת המחדל. הם משנים רק את התצוגה הריאליסטית: המבנה מסתובב בסצנה, והרשת לא נבנית מחדש. טבלת הצפיפויות של החומרים נמצאת ב-`LEVELS.md` 2.3.
+
 ## המחולל במוצר המינימלי: סוויפ
 חתך דו-ממדי נע לאורך מסלול, מסתובב בתוך המישור שלו, ואופציונלית משנה קנה מידה.
 

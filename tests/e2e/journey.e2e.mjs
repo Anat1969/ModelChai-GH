@@ -6,7 +6,8 @@
  * concept is completed after the fact. Run with `node tests/e2e/journey.e2e.mjs` after `vite build`.
  */
 import { spawn } from 'node:child_process'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { unzipSync, strFromU8 } from 'fflate'
 import { chromium } from 'playwright'
@@ -201,7 +202,7 @@ async function open(page, hash) {
 // ---------- the whole way, in one project ----------
 const recipe = JSON.parse(readFileSync(root + 'docs/fixtures/umbilic-torus.recipe.json', 'utf8'))
 const pngFile = (name) => ({ name, mimeType: 'image/png', buffer: readFileSync(shots + name) })
-const project = () => db.mathcreator_projects.find((p) => p.title_he === 'שער הים' || p.journey?.idea?.title === 'שער הים')
+const project = () => db.mathcreator_projects.find((p) => p.title_he === 'שער הים' || p.journey?.idea?.title === 'שער הים' || p.journey?.concept?.model === 'umbilic_torus')
 const lib = (kind) => db.mathcreator_library.filter((r) => r.kind === kind && r.project_id === project()?.id)
 const until = async (cond, ms = 15000) => {
   const t0 = Date.now()
@@ -223,94 +224,180 @@ await page.route('**/functions/v1/concept-to-recipe', async (route) => {
   const lines = [{ type: 'progress', stage: 'calling', attempt: 1 }, { type: 'result', ok: true, recipe, attempts: 1, issues: [], model: 'mock', durationMs: 900 }]
   await route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: lines.map((l) => JSON.stringify(l)).join('\n') + '\n' })
 })
+// The partner function: answers like Claude would, slowly enough to see the key lit, and records what it was sent.
+const partnerCalls = []
+let failNextPartner = false
+await page.route('**/functions/v1/concept-partner', async (route) => {
+  const body = JSON.parse(route.request().postData())
+  partnerCalls.push(body)
+  await new Promise((r) => setTimeout(r, 900))
+  if (failNextPartner) {
+    failNextPartner = false
+    return route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'שירות Claude עמוס כרגע. אפשר לנסות שוב בעוד דקה.' }) })
+  }
+  const reply =
+    body.mode === 'explore'
+      ? { summary: 'טבעת שהחתך שלה משולש קעור.', dna: ['שלושה חודים.'], uses: [{ use: 'ביתן', why: 'הקצה הרציף.', how: 'טבעת סביב חצר.' }], limits: ['חודים צרים.'], connections: [{ title: 'קטסטרופות', text: 'רנה תום.' }], questions: ['איפה נכנסים?'] }
+      : body.mode === 'suggest'
+        ? {
+            understanding: 'כניסה לעיר מבקשת סף ברור.',
+            suggestions: [
+              { name_he: 'שרשרת תלויה', name: 'Catenary', atlas_id: 'catenary', why: 'קשת בלחיצה טהורה עוברת מעל הדרך.', experience: 'עוברים מתחת לקשת.', limits: 'קירות נמוכים בצדדים.', buildable: 'none' },
+              { name_he: 'טורוס טבורי', name: 'Umbilic torus', atlas_id: 'umbilic_torus', why: 'שלושה חודים מסמנים כיוון.', experience: 'מקיפים.', limits: 'סגור.', buildable: 'full' },
+              { name_he: 'פרקטל עץ', name: 'Fractal tree', atlas_id: null, why: 'הסתעפות כמו שער של עצים.', experience: 'צל מדורג.', limits: 'קשה לבנייה.', buildable: 'none' },
+            ],
+            alternatives: [{ name_he: 'סכום רימן', name: 'Riemann sum', why: 'קירות נפרדים לאורך הדרך.' }],
+            knowledge: [{ title: 'שער', text: 'שערי עיר היו תמיד סף.' }],
+            statement: body.chosen ? 'שער שהוא קו אחד: מי שנכנס לעיר מהים עובר מתחת לחוד, ומקיף את החצר לפני שהוא ממשיך.' : '',
+          }
+        : Object.fromEntries(['concept', 'knowledge', 'context', 'inspiration', 'image', 'model', 'environment', 'production', 'result', 'closing'].map((k) => [k, k === 'closing' || body.materials[k] ? `טיוטה של Claude לחלק ${k}.` : '']))
+  await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, mode: body.mode, ...reply, model: 'mock', durationMs: 900 }) })
+})
 await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE })
+const keyState = () => page.getAttribute('[data-testid=claude-key]', 'data-state')
 
-// 1. The landing page
+// 1. The landing page: the vision, two doors, the path
 await open(page, '')
-await page.waitForSelector('[data-testid=home-start]', { timeout: 30000 })
+await page.waitForSelector('[data-testid=door-learn]', { timeout: 30000 })
 const steps = await page.$$eval('.home-steps li strong', (els) => els.map((e) => e.textContent))
-check('the landing page explains the way: nine steps, from an idea to the exhibition', steps.length === 9 && steps[0] === 'רעיון וכוונה' && steps[8] === 'עריכה לתערוכה', steps.join(' > '))
-check('the landing page names what comes out at the end', (await page.$$('.home-outcome-grid .home-card')).length === 4)
+check('the landing page starts from knowledge: two doors, and nine steps from learning to the exhibition', steps.length === 9 && steps[0] === 'למידה וגילוי' && steps[8] === 'תיעוד לתערוכה' && !!(await page.$('[data-testid=door-need]')), steps.join(' > '))
+const nav = await page.$$eval('.topnav a', (els) => els.map((e) => e.textContent))
+check('the top bar has two doors only: concepts and projects', nav.join('|') === 'מושגים|פרויקטים', nav.join(' · '))
+check('the Claude key is in the top bar, idle', (await keyState()) === 'idle')
 await page.screenshot({ path: shots + 'journey-home.png', fullPage: true })
-await page.fill('[data-testid=home-title]', 'שער הים')
-await page.fill('[data-testid=home-idea]', 'מבנה שמחבר את העיר לים.')
-await page.click('[data-testid=home-start]')
-await page.waitForSelector('[data-testid=step][data-stage=idea]', { timeout: 15000 })
+
+// 2. Discovering a model
+await page.click('[data-testid=door-learn]')
+await page.waitForSelector('[data-testid=atlas]')
+const cards = await page.$$('[data-testid=atlas-card]')
+check('the atlas shows at least twenty models', cards.length >= 20, `${cards.length}`)
+await page.screenshot({ path: shots + 'learn-atlas.png' })
+await page.click('[data-testid=atlas-card][data-model=umbilic_torus] h3 a')
+await page.waitForSelector('[data-testid=model-page]')
+const mp = await page.evaluate(() => ({
+  dna: document.querySelectorAll('.model-dna li').length,
+  uses: [...document.querySelectorAll('[data-testid=model-use] h3')].map((e) => e.textContent),
+  reasons: document.querySelectorAll('[data-testid=model-use] li').length,
+  limits: document.querySelector('.model-grid')?.textContent.includes('מגבלות'),
+  figure: document.querySelectorAll('.model-hero path').length,
+}))
+check('a model page: what it is, its DNA, uses with reasons, limits, a drawing', mp.dna >= 3 && mp.uses.length >= 2 && mp.reasons >= mp.uses.length && mp.limits && mp.figure > 2, `${mp.uses.join(', ')}; ${mp.reasons} reasons`)
+await page.click('[data-testid=explore-claude]')
+await page.waitForFunction(() => document.querySelector('[data-testid=claude-key]')?.dataset.state === 'running', null, { timeout: 5000 })
+const lit = await page.$eval('[data-testid=claude-key]', (e) => [e.textContent, e.querySelector('svg')?.dataset.lit])
+check('while Claude works, the key is lit and says what it does', lit[1] === 'true' && /Claude חוקר/.test(lit[0]), lit[0])
+await page.waitForSelector('[data-testid=explore-result]', { timeout: 15000 })
+check('when Claude is done, the key says so', (await keyState()) === 'done' && /הסתיים/.test(await page.textContent('[data-testid=claude-key]')))
+await page.screenshot({ path: shots + 'learn-model.png', fullPage: true })
+
+// 3. From a need
+await open(page, '#/learn?mode=need')
+await page.waitForSelector('[data-testid=use-gateway]')
+await page.click('[data-testid=use-gateway]')
+const ranked = await page.$$eval('[data-testid=need-ranked] [data-testid=atlas-card]', (els) => els.map((e) => e.dataset.model))
+check('a need ranks the models whose traits serve it', ranked.includes('catenary') && ranked.length >= 4, ranked.join(', '))
+await page.fill('[data-testid=need-idea]', 'כניסה לעיר מהים')
+failNextPartner = true
+await page.click('[data-testid=ask-suggest]')
+await page.waitForFunction(() => document.querySelector('[data-testid=claude-key]')?.dataset.state === 'failed', null, { timeout: 15000 })
+check('a failed Claude call says why, in plain words', /עמוס/.test(await page.textContent('[data-testid=claude-key]')))
+await page.click('[data-testid=ask-suggest]')
+await page.waitForSelector('[data-testid=suggest-result]', { timeout: 15000 })
+const sugg = await page.$$eval('[data-testid=suggestion] h4', (els) => els.map((e) => e.textContent))
+check('Claude suggests concepts, inside and outside the atlas, with alternatives and knowledge', sugg.length === 3 && (await page.textContent('[data-testid=suggest-result]')).includes('כיוונים אחרים') && partnerCalls.at(-1).atlas.length >= 20, sugg.join(' | '))
+
+// 4. A project from a model
+await open(page, '#/learn?m=umbilic_torus')
+await page.waitForSelector('[data-testid=start-from-model]')
+await page.click('[data-testid=start-from-model]')
+await page.waitForSelector('[data-testid=step][data-stage=concept]', { timeout: 15000 })
 const P = project()?.id
-check('a project starts from a sentence, before any recipe', !!P && project().journey.idea.idea === 'מבנה שמחבר את העיר לים.' && db.mathcreator_recipe_versions.length === 0, P)
-check('the first step shows what is still missing, without blocking', /חסר: הכוונה/.test(await page.textContent('[data-testid=step-missing]')))
-
-// 2. Writing on the steps is saved by itself
-const type = async (sel, text) => {
-  await page.fill(`[data-testid=${sel}]`, text)
-}
-await type('f-idea-intent', 'לעצור רגע לפני המים.')
-await type('f-idea-question', 'האם קו אחד יכול להיות גם פנים וגם חוץ?')
-check('fields are saved on the project as they are written', await until(() => project()?.journey?.idea?.question?.startsWith('האם קו')), JSON.stringify(project()?.journey?.idea))
-check('a filled step is done', (await page.getAttribute('[data-testid=step]', 'data-state')) === 'done')
-
-await page.click('[data-testid=next-stage]')
+check('a project starts from a model, on the step of the concept', !!P && project().journey.concept.model === 'umbilic_torus' && !!(await page.$('[data-testid=chosen-concept] svg')), P)
+const type = async (sel, text) => page.fill(`[data-testid=${sel}]`, text)
+await type('f-concept-why', 'קצה אחד שמקיף שלוש פעמים, כמו מעבר שחוזר אל עצמו.')
+await page.click('[data-testid=rail-discover]')
+await page.waitForSelector('[data-testid=step][data-stage=discover]')
+await type('f-discover-learned', 'קצה אחד יכול להקיף שלוש פעמים לפני שהוא נסגר.')
+check('the model chosen is in the learning list', (await page.$$('.jw-model')).length >= 1)
+await page.click('[data-testid=rail-context]')
 await page.waitForSelector('[data-testid=step][data-stage=context]')
-check('the next step shows what the steps before it hold', /מבנה שמחבר את העיר לים/.test(await page.textContent('.jw-before')))
+await type('f-idea-title', 'שער הים')
+await type('f-idea-idea', 'מבנה שמחבר את העיר לים.')
+await type('f-idea-intent', 'לעצור רגע לפני המים.')
 await type('f-context-place', 'אשדוד (Ashdod, Israel)')
-await type('f-context-use', 'ביתן ציבורי')
-await type('f-context-inspiration', 'הגלים שחוזרים אל עצמם.')
-await page.setInputFiles('[data-testid=upload-reference]', pngFile('stage4-context-coastal_dunes.png'))
-check('an inspiration image joins the project', await until(() => lib('reference').length === 1))
-await page.waitForSelector('.jw-materials .gallery img')
+await type('f-context-use', 'כניסה לעיר')
+await page.waitForSelector('[data-testid=use-fit]')
+const fitText = await page.textContent('[data-testid=use-fit]')
+check('the step shows why the concept serves the use, and what works against it', /נגד/.test(fitText) && /חוד|פיתול/.test(fitText), fitText.slice(0, 120))
+check('fields are saved on the project as they are written', await until(() => project()?.journey?.context?.use === 'כניסה לעיר' && project().journey.discover?.learned))
 
-// 3. The concept: the recipe is made from the steps before it, and lands in this project
+// 5. Inspiration: drag and drop, preview, saved
 await page.click('[data-testid=next-stage]')
-await page.waitForSelector('[data-testid=step][data-stage=concept]')
-await type('f-concept-math', 'Umbilic torus')
-await type('f-concept-why', 'לטורוס הטבורי יש קצה אחד שמקיף שלוש פעמים.')
-await until(() => project()?.journey?.concept?.why)
+await page.waitForSelector('[data-testid=step][data-stage=inspiration]')
+await type('f-context-inspiration', 'הגלים שחוזרים אל עצמם.')
+const dropped = await page.evaluateHandle(async (b64) => {
+  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+  const dt = new DataTransfer()
+  dt.items.add(new File([bytes], 'gal.png', { type: 'image/png' }))
+  return dt
+}, readFileSync(shots + 'stage4-context-coastal_dunes.png').toString('base64'))
+await page.dispatchEvent('[data-testid=upload-reference-zone]', 'drop', { dataTransfer: dropped })
+await page.waitForSelector('[data-testid=upload-reference-item][data-state=saved]', { timeout: 15000 })
+const preview = await page.$eval('[data-testid=upload-reference-item] img', (i) => i.naturalWidth)
+check('a dropped image shows at once and says it was saved in the project', preview > 0 && (await page.textContent('[data-testid=upload-reference-item]')).includes('נשמרה בפרויקט') && lib('reference').length === 1)
+await page.setInputFiles('[data-testid=upload-reference]', pngFile('stage4-plaza-stone-haze.png'))
+check('an image chosen from the disk is saved too', await until(() => lib('reference').length === 2))
+await page.waitForFunction(() => document.querySelectorAll('.jw-materials .gallery img').length >= 2, null, { timeout: 15000 })
+await page.click('[data-testid=suggest-statement]')
+await page.waitForSelector('[data-testid=statement]', { timeout: 15000 })
+const sent = partnerCalls.at(-1)
+check('Claude reads the concept, the context, the inspiration and its images', sent.mode === 'suggest' && sent.chosen?.name === 'Umbilic torus' && sent.need.use === 'כניסה לעיר' && sent.need.images.length === 2 && /הגלים/.test(sent.need.inspiration), `${sent.need.images.length} images`)
+await page.click('[data-testid=statement] button')
+check('the suggested concept goes into the field, to edit', await until(() => /שער שהוא קו אחד/.test(project()?.journey?.concept?.statement ?? '')))
+await page.screenshot({ path: shots + 'journey-inspiration.png', fullPage: true })
+
+// 6. The model: the recipe lands in the project, metrics explain themselves, the view is navigable
+await page.click('[data-testid=next-stage]')
+await page.waitForSelector('[data-testid=make-recipe]')
 await page.click('[data-testid=make-recipe]')
 await page.waitForSelector('[data-testid=concept]')
 await page.waitForFunction(() => document.querySelector('[data-testid=concept]').value !== '', null, { timeout: 15000 }).catch(() => null)
-const pre = { concept: await page.inputValue('[data-testid=concept]'), use: await page.inputValue('[data-testid=use]'), context: await page.inputValue('[data-testid=context]') }
-check('the new-concept form arrives filled from steps 2 and 3', pre.concept === 'Umbilic torus' && pre.use === 'ביתן ציבורי' && pre.context.startsWith('אשדוד'), JSON.stringify(pre))
+const pre = { concept: await page.inputValue('[data-testid=concept]'), use: await page.inputValue('[data-testid=use]') }
+check('the concept form arrives filled from the earlier steps', pre.concept === 'Umbilic torus' && pre.use === 'כניסה לעיר', JSON.stringify(pre))
 await page.click('[data-testid=submit]')
-check('the recipe is asked with the use and the place', await until(() => recipeAsked?.use === 'ביתן ציבורי'))
-check('the first version is saved in the same project, without a manual save', await until(() => db.mathcreator_recipe_versions.some((v) => v.project_id === P), 60000))
-check('the project keeps its own name', project().title_he === 'שער הים', project().title_he)
+check('the first version is saved in the same project', await until(() => db.mathcreator_recipe_versions.some((v) => v.project_id === P), 60000))
+await page.waitForSelector('[data-testid=metric-why]', { timeout: 60000 })
+check('in the studio, every metric opens to what it measures and how it helps decide', (await page.$$('[data-testid=metric-why]')).length >= 8)
+check('in the studio, the view has navigation controls', (await page.$$('.nav-controls button, [data-testid^=nav-]')).length >= 6)
 
-// 4. The prompt
-await open(page, `#/project?p=${P}&s=prompt`)
-await page.waitForSelector('[data-testid=prompt-from-model]', { timeout: 30000 })
-await page.click('[data-testid=prompt-from-model]')
-check('a prompt is derived from the model and kept', await until(() => lib('prompt').length === 1))
-await page.waitForSelector('[data-testid=work-prompt]')
-
-// 5. The image made from the prompt, and what it means
+// 7–9. Environment, illustration, production
+await open(page, `#/project?p=${P}&s=environment`)
+await page.waitForSelector('[data-testid=f-environment-decisions]', { timeout: 30000 })
+await type('f-environment-decisions', 'אבן ירושלמית, צהרי חורף, רוח מערבית.')
 await page.click('[data-testid=next-stage]')
-await page.waitForSelector('[data-testid=step][data-stage=illustration]')
+await page.waitForSelector('[data-testid=prompt-from-model]')
+await page.click('[data-testid=prompt-from-model]')
+check('a prompt is derived from the model', await until(() => lib('prompt').length === 1))
+await page.waitForSelector('[data-testid=upload-to-prompt]', { state: 'attached' })
 await page.setInputFiles('[data-testid=upload-to-prompt]', pngFile('stage4-plaza-stone-haze.png'))
 check('the image is kept with the prompt it was made from', await until(() => lib('image').length === 1 && lib('image')[0].prompt_id === lib('prompt')[0].id))
 await type('f-illustration-expresses', 'הקצה האחד נראה כקו של אור.')
 await type('f-illustration-translates', 'הקו הופך לשביל שמקיף את החצר.')
-
-// 6–9. Form, physical, result, exhibition
-await open(page, `#/project?p=${P}&s=form`)
-await page.waitForSelector('[data-testid=f-form-decisions]', { timeout: 30000 })
-await type('f-form-decisions', 'עובי דופן של מטר, שלושה מעברים.')
 await page.click('[data-testid=next-stage]')
-await type('f-physical-scale', '1:324, הצלע הארוכה 150 מ"מ')
+await page.waitForSelector('[data-testid=step][data-stage=production]')
+await type('f-physical-scale', '1:324, הצלע הארוכה 15 ס"מ')
 await type('f-physical-notes', 'החודים דרשו עיבוי של הדופן.')
+await type('f-production-video', 'מעבר כניסה מהחוף אל החצר.')
 await page.click('[data-testid=next-stage]')
+await page.waitForSelector('[data-testid=step][data-stage=exhibition]')
 await page.setInputFiles('[data-testid=upload-photo]', pngFile('stage2-umbilic-eye-level.png'))
 check('a photo of the result joins the project', await until(() => lib('photo').length === 1))
 await type('f-documentation-result', 'המודל עומד על החוד, והאור עובר בפתחים.')
-await page.click('[data-testid=next-stage]')
 await type('f-exhibition-author', 'ענת')
-check('every step wrote to the project', await until(() => project()?.journey?.exhibition?.author === 'ענת' && project().journey.documentation?.result && project().journey.physical?.notes))
-
-// Reload: everything is still there
+check('every step wrote to the project', await until(() => project()?.journey?.exhibition?.author === 'ענת' && project().journey.production?.video && project().journey.environment?.decisions))
 await page.reload()
 await page.waitForSelector('[data-testid=f-exhibition-author]', { timeout: 30000 })
-check('after a reload the fields come back from the project', (await page.inputValue('[data-testid=f-exhibition-author]')) === 'ענת')
-const rail = await page.$$eval('.jw-rail li', (els) => els.map((e) => e.dataset.state))
-check('the rail marks steps done, and partial where a frozen view, a print file or a reading is missing', rail.length === 9 && rail.filter((s) => s === 'done').length === 5 && rail[5] === 'partial' && rail[6] === 'partial', rail.join(','))
+check('after a reload the fields come back', (await page.inputValue('[data-testid=f-exhibition-author]')) === 'ענת')
 await page.screenshot({ path: shots + 'journey-step.png', fullPage: true })
 
 // 10. The article
@@ -318,71 +405,69 @@ await page.click('[data-testid=open-article]')
 await page.waitForSelector('[data-testid=article-page]', { timeout: 30000 })
 await page.waitForFunction(() => !/טוען תמונות/.test(document.querySelector('[data-testid=article-status]')?.textContent ?? ''), null, { timeout: 30000 })
 const text = await page.textContent('[data-testid=article-pages]')
-const typed = ['מבנה שמחבר את העיר לים.', 'הגלים שחוזרים אל עצמם.', 'לטורוס הטבורי יש קצה אחד', 'הקצה האחד נראה כקו של אור.', 'עובי דופן של מטר', 'החודים דרשו עיבוי', 'המודל עומד על החוד']
+const typed = ['קצה אחד שמקיף שלוש פעמים', 'קצה אחד יכול להקיף', 'מבנה שמחבר את העיר לים.', 'הגלים שחוזרים אל עצמם.', 'שער שהוא קו אחד', 'הקצה האחד נראה כקו של אור.', 'אבן ירושלמית', 'החודים דרשו עיבוי', 'המודל עומד על החוד']
 check('the article carries what was written on every step', typed.every((t) => text.includes(t)), typed.filter((t) => !text.includes(t)).join(' | ') || 'all')
 const heads = await page.$$eval('.ar-page .ar-h2', (els) => els.map((e) => e.textContent.replace(/^\d+\s*/, '')))
-check('the article runs from the idea to the result', heads[0] === 'הרעיון' && heads.indexOf('ההמחשה') > heads.indexOf('מהמילים לתמונה') && heads.indexOf('התוצאה') > heads.indexOf('המבנה הפיזי'), heads.join(' > '))
+check('the article tells the development in order', heads[0] === 'המושג המתמטי' && heads[1] === 'הידע שנלמד' && heads.indexOf('מהמילים לתמונה') < heads.indexOf('המודל') && heads.indexOf('התוצאה') > heads.indexOf('לייצור ולהצגה'), heads.join(' > '))
 const gaps = await page.$$eval('[data-testid=article-gaps] li', (els) => els.map((e) => e.textContent))
-check('missing material is marked and not invented: no frozen view, no print file yet', gaps.some((g) => /מבט קפוא/.test(g)) && gaps.some((g) => /קובץ הדפסה/.test(g)) && !/חסר/.test(text), gaps.join(' | '))
+check('missing material is marked, not invented', gaps.some((g) => /מבט ערום/.test(g)) && gaps.some((g) => /קובץ הדפסה/.test(g)) && !/חסר/.test(text), gaps.join(' | '))
+const ratios = await page.$$eval('.ar-page .ar-fig img', (els) => els.map((e) => Math.abs(e.naturalWidth / e.naturalHeight - e.clientWidth / e.clientHeight)))
+check('images keep their own proportions', ratios.length >= 4 && ratios.every((d) => d < 0.03), ratios.map((d) => d.toFixed(3)).join(','))
+await page.click('[data-testid=article-draft]')
+await page.waitForSelector('[data-testid=article-editor]', { timeout: 15000 })
+check('Claude drafts the article from the materials; empty sections stay empty', await until(() => project()?.article?.drafted && project().article.sections.concept?.startsWith('טיוטה')) && partnerCalls.at(-1).mode === 'article' && /קצה אחד/.test(partnerCalls.at(-1).materials.concept))
+await page.fill('[data-testid=edit-text-concept]', 'נוסח ערוך של המושג, לתערוכה.')
+check('the draft is edited before export, and the edit is kept', await until(() => project()?.article?.sections?.concept === 'נוסח ערוך של המושג, לתערוכה.'))
+await page.click('[data-testid=mode-preview]')
+await page.waitForSelector('[data-testid=article-page]')
 const pages = await page.$$eval('[data-testid=article-page]', (els) => els.map((e) => [e.offsetWidth, e.offsetHeight]))
 check('the preview is A4 pages', pages.length >= 2 && pages.every(([w, h]) => w === 794 && h === 1123), JSON.stringify(pages))
-const figs = await page.$$eval('.ar-page .ar-fig img', (els) => els.map((e) => e.naturalWidth))
-check('the images of the steps are in the article', figs.length >= 4 && figs.every((w) => w > 0), `${figs.length} images`)
 await page.screenshot({ path: shots + 'journey-article.png' })
-await (await page.$$('[data-testid=article-page]'))[0].screenshot({ path: shots + 'journey-article-page1.png' })
 
-// Edit, then undo
-await page.click('[data-testid=mode-edit]')
-await page.fill('[data-testid=edit-text-idea]', 'נוסח ערוך של הרעיון, לתערוכה.')
-check('an edit is kept on the project', await until(() => project()?.article?.sections?.idea === 'נוסח ערוך של הרעיון, לתערוכה.'))
-await page.click('[data-testid=mode-preview]')
-check('the edit shows in the article', (await page.textContent('[data-testid=article-pages]')).includes('נוסח ערוך של הרעיון'))
-
-// Exports
 let t = Date.now()
 const [pdfDl] = await Promise.all([page.waitForEvent('download', { timeout: 120000 }), page.click('[data-testid=article-pdf]')])
 const pdf = readFileSync(await pdfDl.path())
 const pdfPages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
-check('the article exports as a PDF, page for page', pdf.subarray(0, 4).toString() === '%PDF' && pdfPages === pages.length && /-article-/.test(pdfDl.suggestedFilename()), `${pdfPages} pages, ${Math.round(pdf.length / 1024)} KB, ${Date.now() - t} ms, ${pdfDl.suggestedFilename()}`)
+check('the article exports as a PDF, page for page', pdf.subarray(0, 4).toString() === '%PDF' && pdfPages === pages.length, `${pdfPages} pages, ${Math.round(pdf.length / 1024)} KB, ${Date.now() - t} ms`)
+// The exported file itself, rendered back to images and looked at.
+const tmp = root + 'node_modules/.tmp/e2e-article/'
+mkdirSync(tmp, { recursive: true })
+for (const f of readdirSync(tmp)) if (f.endsWith('.png')) statSync(tmp + f) && execFileSync('rm', [tmp + f])
+writeFileSync(tmp + 'article.pdf', pdf)
+execFileSync('pdftoppm', ['-r', '60', '-png', tmp + 'article.pdf', tmp + 'p'])
+const pngs = readdirSync(tmp).filter((f) => f.endsWith('.png')).sort()
+const sizes = pngs.map((f) => execFileSync('python3', ['-c', `import struct;d=open('${tmp + f}','rb').read(24);print(*struct.unpack('>II',d[16:24]))`]).toString().trim())
+check('the exported PDF opens, every page A4 upright', pngs.length === pages.length && sizes.every((s) => { const [w, h] = s.split(' ').map(Number); return Math.abs(h / w - 297 / 210) < 0.02 }), sizes.join(' | '))
+execFileSync('pdftoppm', ['-r', '110', '-png', '-f', '1', '-l', '2', tmp + 'article.pdf', shots + 'journey-pdf'])
 t = Date.now()
 const [docDl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('[data-testid=article-docx]')])
 const xml = strFromU8(unzipSync(new Uint8Array(readFileSync(await docDl.path())))['word/document.xml'])
-check('the article exports as Word, right to left, with the edit and without the gap marks', xml.includes('<w:bidi/>') && xml.includes('נוסח ערוך של הרעיון') && xml.includes('הגלים שחוזרים') && !xml.includes('חסר:'), `${Date.now() - t} ms`)
+check('the article exports as Word, right to left, with the edit and without the gap marks', xml.includes('<w:bidi/>') && xml.includes('נוסח ערוך של המושג') && !xml.includes('חסר:'), `${Date.now() - t} ms`)
 
-await page.click('[data-testid=mode-edit]')
-await page.click('[data-testid=reset-idea]')
-check('undoing the edit brings back the text from the materials', await until(() => project()?.article?.sections && !('idea' in project().article.sections)))
-
-// A gap leads to its step
-await page.click('[data-testid=mode-preview]')
-await page.click('[data-testid=article-gaps] li button:has-text("קובץ הדפסה")')
-await page.waitForSelector('[data-testid=step][data-stage=physical]')
-check('a gap opens the step where it is filled in', true)
-
-// 11. An older project, made from a concept, completed after the fact
+// 11. An older project, completed after the fact
 const O = '33333333-3333-4333-8333-333333333333'
-db.mathcreator_projects.push({ id: O, concept: 'Umbilic torus', title_he: 'הטבעת המשולשת', created_at: now(), updated_at: now(), owner: USER, journey: {}, article: {} })
+db.mathcreator_projects.push({ id: O, concept: 'Umbilic torus', title_he: 'הטבעת המשולשת', created_at: now(), updated_at: now(), owner: USER, journey: { idea: { idea: 'רעיון ישן' } }, article: {} })
 db.mathcreator_recipe_versions.push({ id: '44444444-4444-4444-8444-444444444444', project_id: O, parent_id: null, note: null, schema_version: '1.0', view: null, created_at: now(), recipe })
 await open(page, `#/project?p=${O}`)
 await page.waitForFunction(() => document.querySelector('.jw-head h1')?.textContent !== 'שער הים' && document.querySelector('[data-testid=step]'), null, { timeout: 30000 })
-check('an older project opens on its first unfinished step', (await page.getAttribute('[data-testid=step]', 'data-stage')) === 'idea')
-await page.click('[data-testid=rail-concept]')
-await page.waitForSelector('[data-testid=step][data-stage=concept]')
-check('its recipe already counts on step 3', (await page.getAttribute('[data-testid=step]', 'data-state')) === 'partial')
+check('an older project opens on its first unfinished step, with its text kept', (await page.getAttribute('[data-testid=step]', 'data-stage')) === 'discover')
+await page.click('[data-testid=rail-context]')
+await page.waitForSelector('[data-testid=step][data-stage=context]')
+check('its old text is on the new step', (await page.inputValue('[data-testid=f-idea-idea]')) === 'רעיון ישן')
 await page.click('[data-testid=rail-illustration]')
 await page.waitForSelector('[data-testid=step][data-stage=illustration]')
-await page.fill('[data-testid=ill-body]', 'Umbilic torus pavilion on the shore, Documentary realism, Professional architecture photography, 3:2')
+await page.fill('[data-testid=own-body]', 'Umbilic torus pavilion on the shore, Documentary realism, Professional architecture photography, 3:2')
 await page.setInputFiles('[data-testid=upload-with-prompt]', pngFile('stage4-summer-noon-aerial.png'))
 const older = () => db.mathcreator_library.filter((r) => r.project_id === O)
 check('an image and its prompt are added after the fact', await until(() => older().some((r) => r.kind === 'prompt' && /Umbilic/.test(r.body)) && older().some((r) => r.kind === 'image')))
 
 // 12. Phone
 await page.setViewportSize({ width: 400, height: 860 })
-for (const [hash, name] of [['', 'home'], [`#/project?p=${P}&s=illustration`, 'step'], [`#/article?p=${P}`, 'article']]) {
+for (const [hash, name] of [['', 'home'], ['#/learn', 'atlas'], ['#/learn?m=umbilic_torus', 'model'], [`#/project?p=${P}&s=inspiration`, 'step'], [`#/article?p=${P}`, 'article']]) {
   await open(page, hash)
   await page.waitForTimeout(1500)
-  const s = await sideways(page)
-  check(`at 400 px, no sideways scroll: ${name}`, s <= 0, `${s} px`)
+  const sw = await sideways(page)
+  check(`at 400 px, no sideways scroll: ${name}`, sw <= 0, `${sw} px`)
 }
 await page.screenshot({ path: shots + 'journey-400px.png' })
 

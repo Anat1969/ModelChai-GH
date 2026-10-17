@@ -8,6 +8,7 @@ import { LibraryScreen } from './ui/screens/LibraryScreen'
 import { CollectionScreen } from './ui/screens/Collection'
 import { DossierScreen } from './ui/screens/Dossier'
 import { Home } from './ui/screens/Home'
+import { LearnScreen } from './ui/screens/Learn'
 import { Workspace } from './ui/screens/Workspace'
 import { ArticleScreen } from './ui/screens/Article'
 import { Projects } from './ui/screens/Projects'
@@ -33,6 +34,7 @@ export function App() {
     window.addEventListener('online', flush)
     return () => window.removeEventListener('online', flush)
   }, [])
+  if (route === 'learn') return <LearnScreen />
   if (route === 'project') return <Workspace />
   if (route === 'article') return <ArticleScreen />
   if (route === 'projects') return <Projects />

@@ -43,6 +43,8 @@ Defaults when the user gives no detail:
 - realistic.datetime: today at 17:00 local time.
 - realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "3:2".
 - realistic.context.preset: choose the one closest to the user's context hint; otherwise coastal_dunes.
+- realistic.weather: clear, unless the concept or the context calls for haze, overcast, rain, fog or snow.
+- realistic.orientation_deg: 0. realistic.wind: from_deg 270, speed_ms 5 (the afternoon sea breeze), unless the context implies another wind.
 - meta.source: "claude". meta.created_at: the timestamp given in the user message.
 
 Style for Hebrew fields: natural, precise, professional Hebrew. Not flowery. No emoji.

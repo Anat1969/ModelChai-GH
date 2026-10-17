@@ -2,6 +2,7 @@
  * The concept's library: saved visual prompts, the images made from them (uploaded by the owner), and posts
  * that read the concept as a building in its place. One table, `mathcreator_library`, and a private bucket.
  */
+import { withClaude } from './claudeActivity'
 import { DataError, type ProjectRow, type VersionRow, type View } from './projects'
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, supabase } from './supabase'
 
@@ -125,7 +126,10 @@ export async function removeItem(item: LibraryItem, images: LibraryItem[] = []):
 export type PostOutcome = { ok: true; short: string; post: string; durationMs: number } | { ok: false; error: string }
 
 /** Asks the server function for a post. The Claude key never leaves the server. */
-export async function requestPost(input: { recipe: unknown; prompt?: string; metrics?: Record<string, string> }): Promise<PostOutcome> {
+export const requestPost = (input: { recipe: unknown; prompt?: string; metrics?: Record<string, string> }): Promise<PostOutcome> =>
+  withClaude('Claude כותב פוסט', () => requestPostRaw(input), (r) => (r.ok ? { ok: true } : { ok: false, error: r.error }))
+
+async function requestPostRaw(input: { recipe: unknown; prompt?: string; metrics?: Record<string, string> }): Promise<PostOutcome> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'צריך להיות מחוברים כדי לכתוב פוסט.' }
@@ -186,7 +190,10 @@ export async function addReading(input: { projectId: string; versionId: string |
 
 export type ReadingOutcome = { ok: true; reading: Reading; durationMs: number } | { ok: false; error: string }
 
-export async function requestReading(input: { recipe: unknown; metrics?: Record<string, string>; figureGround?: Record<string, string> }): Promise<ReadingOutcome> {
+export const requestReading = (input: { recipe: unknown; metrics?: Record<string, string>; figureGround?: Record<string, string> }): Promise<ReadingOutcome> =>
+  withClaude('Claude כותב פרשנות', () => requestReadingRaw(input), (r) => (r.ok ? { ok: true } : { ok: false, error: r.error }))
+
+async function requestReadingRaw(input: { recipe: unknown; metrics?: Record<string, string>; figureGround?: Record<string, string> }): Promise<ReadingOutcome> {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   if (!token) return { ok: false, error: 'החיבור לשרת עוד לא מוכן. אפשר לנסות שוב בעוד רגע.' }

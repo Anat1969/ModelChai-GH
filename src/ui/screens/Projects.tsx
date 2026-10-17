@@ -18,7 +18,6 @@ const when = (iso: string) => new Date(iso).toLocaleString('he-IL', { dateStyle:
 function ProjectCard({ p }: { p: ProjectSummary }) {
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
-  const latest = p.versions[0]
   const toggle = (id: string) => setPicked((xs) => (xs.includes(id) ? xs.filter((x) => x !== id) : [...xs.slice(-1), id]))
   // Versions are numbered from the first, so "גרסה 3" means the same thing everywhere.
   const number = (id: string) => p.versions.length - p.versions.findIndex((v) => v.id === id)
@@ -34,22 +33,8 @@ function ProjectCard({ p }: { p: ProjectSummary }) {
           {p.concept} · {p.versions.length === 1 ? 'גרסה אחת' : `${p.versions.length} גרסאות`} · עודכן {when(p.updated_at)}
         </p>
         <div className="toolbar">
-          {latest && (
-            <button type="button" className="primary" onClick={() => navigate('studio', { v: latest.id })} data-testid="open-latest">
-              פתיחה בסטודיו
-            </button>
-          )}
-          <button type="button" onClick={() => navigate('project', { p: p.id })} data-testid="open-work">
-            מסלול העבודה
-          </button>
-          <button type="button" onClick={() => navigate('collection', { p: p.id })} data-testid="open-collection">
-            קולקציה
-          </button>
-          <button type="button" onClick={() => navigate('dossier', { p: p.id })} data-testid="open-dossier">
-            מסמך
-          </button>
-          <button type="button" onClick={() => navigate('library', { p: p.id })} data-testid="open-library">
-            ספרייה
+          <button type="button" className="primary" onClick={() => navigate('project', { p: p.id })} data-testid="open-work">
+            המשך במסלול
           </button>
           <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} data-testid="toggle-versions">
             {open ? 'הסתרת הגרסאות' : 'גרסאות והשוואה'}

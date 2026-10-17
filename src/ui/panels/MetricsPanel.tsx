@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react'
 import type { Metrics } from '../../engine/metrics'
-import { MATERIAL_LOOK } from '../../engine/materials'
+import { changes, infoOf, type Change } from '../metricMeaning'
+import { DENSITY, MATERIAL_LOOK } from '../../engine/materials'
 import type { RuleIssue } from '../../recipe/rules'
 import { meters, num, percent, range } from '../format'
 import type { Sweep } from '../params'
@@ -54,20 +56,56 @@ export function metricRows(m: Metrics, r: Sweep): MetricRow[] {
   }
   if (shell) out.push({ key: 'openingFraction', label: 'פתחים מתוך המעטפת', value: percent(m.openingFraction), raw: m.openingFraction })
   out.push({ key: 'volume', label: `${material}, ${shell ? 'קליפה' : 'גוש מלא'}`, value: `${num(m.volume, 0)} מ"ק`, raw: m.volume })
-  out.push({ key: 'weight', label: 'משקל משוער', value: `${num(m.weight, 0)} טון`, raw: m.weight })
+  // The weight follows the material on screen: a material change does not rebuild, so the build's weight may be stale.
+  const weight = m.volume * DENSITY[r.realistic.materials.outer]
+  out.push({ key: 'weight', label: 'משקל משוער', value: `${num(weight, 0)} טון`, raw: weight })
   if (shell) out.push({ key: 'saving', label: 'חיסכון לעומת גוש', value: percent(1 - m.volume / m.solidVolume), raw: 1 - m.volume / m.solidVolume })
   out.push({ key: 'envelopeArea', label: 'שטח מעטפת', value: `${num(m.envelopeArea, 0)} מ"ר`, raw: m.envelopeArea })
   out.push({ key: 'cuspBurial', label: 'עומק החוד בקרקע', value: meters(m.cuspBurial, 2), raw: m.cuspBurial, rules: [8] })
   return out
 }
 
+/**
+ * Metrics that explain themselves (DECISIONS.md 106): each one opens to say what it measures, what it teaches and
+ * how it helps decide. When a parameter moves, a line on top says which metrics moved and what that means in form,
+ * space and use, until the next change.
+ */
 export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; issues: RuleIssue[]; recipe: Sweep }) {
+  const rows = metricRows(metrics, recipe)
+  const prev = useRef<MetricRow[] | null>(null)
+  const [moved, setMoved] = useState<Change[]>([])
+  useEffect(() => {
+    if (prev.current) {
+      const c = changes(prev.current, rows)
+      if (c.length) setMoved(c)
+    }
+    prev.current = rows
+  }, [metrics]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <section className="panel" aria-labelledby="metrics-title">
       <h2 id="metrics-title">מדדים</h2>
+      {moved.length > 0 && (
+        <div className="metric-moved" role="status" data-testid="metric-moved">
+          <strong>מה השתנה בשינוי האחרון</strong>
+          <ul>
+            {moved.slice(0, 4).map((c) => (
+              <li key={c.key}>
+                <span className="num">
+                  {c.label}: {c.from} ← {c.to}
+                </span>{' '}
+                {c.meaning}
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="quiet" onClick={() => setMoved([])}>
+            הסתרה
+          </button>
+        </div>
+      )}
       <dl className="metrics">
-        {metricRows(metrics, recipe).map((row) => {
+        {rows.map((row) => {
           const hit = issues.filter((i) => row.rules?.includes(i.rule))
+          const info = infoOf(row.key)
           return (
             <div key={row.key} className={hit.length ? 'warn' : undefined}>
               <dt>{row.label}</dt>
@@ -79,13 +117,30 @@ export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; is
                   {i.message}
                 </span>
               ))}
+              {info && (
+                <details className="metric-why" data-testid="metric-why">
+                  <summary>מה זה אומר</summary>
+                  <p>
+                    <strong>מודד: </strong>
+                    {info.measures}
+                  </p>
+                  <p>
+                    <strong>לומדים: </strong>
+                    {info.learn}
+                  </p>
+                  <p>
+                    <strong>להחלטה: </strong>
+                    {info.decide}
+                  </p>
+                </details>
+              )}
             </div>
           )
         })}
       </dl>
       <p className="hint">
-        נפח לפי משפט פאפוס: שטח החתך כפול אורך מסלול המרכז. בקליפה: ההפרש בין החתך החיצוני לפנימי, פחות הפתחים. המשקל לפי צפיפות
-        משוערת של החומר, לבדיקת סדר גודל בלבד.
+        מחושב מהגאומטריה: נפח לפי משפט פאפוס, שטח החתך כפול אורך מסלול המרכז. בקליפה: ההפרש בין החתך החיצוני לפנימי, פחות הפתחים.
+        המשקל לפי צפיפות משוערת של החומר, לבדיקת סדר גודל בלבד.
       </p>
     </section>
   )
