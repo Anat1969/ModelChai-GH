@@ -18,7 +18,7 @@ import {
   type Progress,
   type Turn,
 } from '../supabase/functions/concept-to-recipe/src/core'
-import { MAX_OPTIONAL, countOptional, modelSchema } from '../supabase/functions/concept-to-recipe/src/modelSchema'
+import { MAX_OPTIONAL, countOptional, dropNullSurfaceFields, modelSchema } from '../supabase/functions/concept-to-recipe/src/modelSchema'
 import { FIXTURE_NAMES, fixture } from './helpers'
 
 const input = { concept: 'Umbilic torus', use: 'ביתן ציבורי', context: 'חוף ים', generators: ['sweep'] }
@@ -159,6 +159,33 @@ describe('structured-output schema', () => {
   it('stays within the API limit of optional fields (it rejected 29 against a limit of 24)', () => {
     expect(countOptional(recipeSchema)).toBeGreaterThan(MAX_OPTIONAL)
     expect(countOptional(s)).toBeLessThanOrEqual(MAX_OPTIONAL)
+    // With the parametric surface offered, its dimensions are required and nullable: no optional field more.
+    const both = modelSchema(recipeSchema as Record<string, unknown>, ['sweep', 'parametric_surface'])
+    console.info(`[optional] sweep only ${countOptional(s)}, sweep and surface ${countOptional(both)}, limit ${MAX_OPTIONAL}`)
+    expect(countOptional(both)).toBe(countOptional(s))
+  })
+
+  it('offers the parametric surface: a complete surface recipe passes, and its nulls are dropped before the contract', () => {
+    const both = modelSchema(recipeSchema as Record<string, unknown>, ['sweep', 'parametric_surface'])
+    const ajv = new Ajv2020({ strict: false })
+    addFormats(ajv)
+    const v = ajv.compile(both)
+    const r = JSON.parse(readFileSync('docs/examples/hypar-canopy.recipe.json', 'utf8'))
+    r.meta.notes ??= 'note'
+    r.bare.highlight ??= ['edges']
+    // The model writes null for the dimensions its family does not use.
+    for (const k of ['waist_radius', 'end_radius', 'height', 'radius', 'pitch', 'turns', 'tube']) r.generator.params[k] = null
+    expect(v(r), JSON.stringify(v.errors)).toBe(true)
+    expect(parseRecipe(r).ok).toBe(false)
+    expect(parseRecipe(dropNullSurfaceFields(r)).ok).toBe(true)
+    expect(Object.keys(r.generator.params).sort()).toEqual(['family', 'rise', 'span', 'span2'])
+    // A sweep still passes the same schema, and its nulls (fit_note) are not touched.
+    const sweep = fixture('umbilic-torus')
+    delete sweep.generator.params.resolution
+    sweep.meta.notes ??= 'note'
+    sweep.generator.params.section.aspect ??= 1
+    sweep.generator.params.twist.initial_angle_deg ??= 0
+    expect(v(sweep), JSON.stringify(v.errors)).toBe(true)
   })
 
   it('narrows the generator to the sweep and accepts complete recipes', () => {

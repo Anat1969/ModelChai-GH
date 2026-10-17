@@ -4,7 +4,8 @@
  * An error blocks the build. A warning builds and marks the related metric in orange.
  * Interpretations where the docs leave room are recorded in docs/DECISIONS.md.
  */
-import type { Recipe, SweepParams, SweepSection } from './schema'
+import type { Recipe, SurfaceParams, SweepParams, SweepSection } from './schema'
+import { KLEIN_REACH, clearance, family, minCurvatureRadius, planSpan } from '../engine/surface/families'
 import { parseRecipe, type SchemaError } from './schema'
 
 export type Severity = 'error' | 'warning'
@@ -28,6 +29,12 @@ export const RULES: readonly RuleDef[] = [
   { id: 7, severity: 'error', scope: 'recipe', message: 'המעברים חופפים' },
   { id: 8, severity: 'warning', scope: 'recipe', message: 'החוד קבור עמוק, נדרש יסוד עמוק' },
   { id: 9, severity: 'error', scope: 'system', message: 'הגאומטריה ברמה הריאליסטית שונה מהרמה הערומה' },
+  // Parametric surfaces (GENERATORS.md 4.1, DECISIONS.md 138).
+  { id: 10, severity: 'error', scope: 'recipe', message: 'משטח נבנה רק כקליפה' },
+  { id: 11, severity: 'error', scope: 'recipe', message: 'מידות המשטח סותרות זו את זו' },
+  { id: 12, severity: 'error', scope: 'recipe', message: 'הדופן עבה מהעיקול של המשטח, והקליפה מתקפלת על עצמה' },
+  { id: 13, severity: 'warning', scope: 'recipe', message: 'הקליפה דקה מאוד ביחס למפתח שלה' },
+  { id: 14, severity: 'warning', scope: 'recipe', message: 'אין גובה לעמידה מתחת לקליפה' },
 ]
 
 export interface RuleIssue {
@@ -178,8 +185,42 @@ function sweepIssues(recipe: Recipe, g: SweepParams): RuleIssue[] {
   return out
 }
 
+/** A shell thinner than its span over this ratio is a warning (rule 13). Thin concrete shells reach about 1:500. */
+export const MAX_SPAN_RATIO = 600
+
+/** Rules for a parametric surface (RECIPE_SCHEMA.md, rules 10–14). */
+function surfaceIssues(recipe: Recipe, p: SurfaceParams): RuleIssue[] {
+  const out: RuleIssue[] = []
+  const bare = recipe.bare
+  // 10. A surface has no inside to fill: it is built as a shell of a given thickness.
+  if (bare.mode !== 'shell' || !bare.shell) {
+    out.push(issue(10, 'bare.mode', 0, 'mode = "shell"'))
+    return out
+  }
+  const t = bare.shell.thickness
+  // 11. Dimensions that cannot make the family.
+  if (p.family === 'hyperboloid' && !(p.end_radius! > p.waist_radius! + 0.05 - EPS)) {
+    out.push(issue(11, `${P}.end_radius`, p.end_radius!, `end_radius > waist_radius + 0.05 = ${round(p.waist_radius! + 0.05)}`))
+  }
+  if (p.family === 'klein_bottle' && !(p.radius! > KLEIN_REACH * p.tube! + t + EPS)) {
+    out.push(issue(11, `${P}.radius`, p.radius!, `radius > ${KLEIN_REACH} × tube + thickness = ${round(KLEIN_REACH * p.tube! + t)}`))
+  }
+  if (out.length) return out
+  // 12. The offset folds over itself where the surface bends tighter than half the thickness.
+  const rMin = minCurvatureRadius(family(p))
+  if (!(t / 2 < rMin - EPS)) out.push(issue(12, 'bare.shell.thickness', t, `thickness < 2 × smallest radius of curvature = ${round(2 * rMin)}`))
+  // 13. A shell much thinner than its span cannot carry itself.
+  const span = planSpan(p)
+  if (span / t > MAX_SPAN_RATIO + EPS) out.push(issue(13, 'bare.shell.thickness', t, `thickness ≥ span / ${MAX_SPAN_RATIO} = ${round(span / MAX_SPAN_RATIO)}`))
+  // 14. Where people walk under the shell, they must be able to stand.
+  const clear = clearance(p, t, bare.section_center_height)
+  if (clear && !(clear.min >= MIN_CLEAR_HEIGHT - EPS)) out.push(issue(14, p.family === 'helicoid' ? `${P}.pitch` : `${P}.rise`, clear.min, `clear height ≥ ${MIN_CLEAR_HEIGHT}`))
+  return out
+}
+
 /** Runs every recipe-scope rule. Assumes the recipe already passed the schema. */
 export function checkRules(recipe: Recipe): RuleIssue[] {
+  if (recipe.generator.type === 'parametric_surface') return surfaceIssues(recipe, recipe.generator.params)
   if (recipe.generator.type !== 'sweep') return []
   return sweepIssues(recipe, recipe.generator.params)
 }

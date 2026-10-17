@@ -5,6 +5,7 @@
  */
 import { repairMessage, validateRecipe, type RuleIssue } from '../../../../src/recipe/rules'
 import type { SchemaError } from '../../../../src/recipe/schema'
+import { dropNullSurfaceFields } from './modelSchema'
 
 export const MAX_REPAIRS = 2
 
@@ -84,13 +85,13 @@ export function jerusalemTimestamp(d: Date): string {
 
 function parse(text: string): { value: unknown; error?: SchemaError } {
   try {
-    return { value: JSON.parse(text) }
+    return { value: dropNullSurfaceFields(JSON.parse(text)) }
   } catch {
     // Without structured outputs the model may wrap the JSON in a fence; take the outermost object.
     const a = text.indexOf('{'), b = text.lastIndexOf('}')
     if (a >= 0 && b > a) {
       try {
-        return { value: JSON.parse(text.slice(a, b + 1)) }
+        return { value: dropNullSurfaceFields(JSON.parse(text.slice(a, b + 1))) }
       } catch {
         /* fall through */
       }
@@ -173,11 +174,12 @@ export async function conceptToRecipe(
 }
 
 /**
- * Human-scale rules worth one more round: wall thickness (4), a continuous floor (5), full standing height (6).
+ * Human-scale rules worth one more round: wall thickness (4), a continuous floor (5), full standing height (6),
+ * and on a parametric surface a shell too thin for its span (13) and no room to stand under it (14).
  * Rule 8, cusp burial, is a design choice with a cost (the reference model buries its cusp 5.7 m), so it stays
  * a warning and is never polished away.
  */
-export const POLISH_RULES = [4, 5, 6]
+export const POLISH_RULES = [4, 5, 6, 13, 14]
 
 export function polishMessage(soft: RuleIssue[]): string {
   return [

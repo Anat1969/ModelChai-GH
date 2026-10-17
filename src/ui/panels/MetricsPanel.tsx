@@ -4,7 +4,7 @@ import { changes, infoOf, type Change } from '../metricMeaning'
 import { DENSITY, MATERIAL_LOOK } from '../../engine/materials'
 import type { RuleIssue } from '../../recipe/rules'
 import { meters, num, percent, range } from '../format'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 
 export interface MetricRow {
   key: string
@@ -18,7 +18,43 @@ export interface MetricRow {
   rules?: number[]
 }
 
-export function metricRows(m: Metrics, r: Sweep): MetricRow[] {
+const FAMILY_HE: Record<string, string> = {
+  hyperboloid: 'היפרבולואיד',
+  catenoid: 'קטנואיד',
+  hyperbolic_paraboloid: 'פרבולואיד היפרבולי',
+  monkey_saddle: 'אוכף קוף',
+  helicoid: 'הליקואיד',
+  klein_bottle: 'בקבוק קליין',
+}
+
+/** Rows of a parametric surface (DECISIONS.md 139): the ones that apply to it, each with its own explanation. */
+function surfaceRows(m: Metrics, r: Built): MetricRow[] {
+  const s = m.surface!
+  const material = MATERIAL_LOOK[r.realistic.materials.outer].name_he
+  const out: MetricRow[] = []
+  out.push({ key: 'height', label: 'גובה', value: meters(s.height, 1), raw: s.height })
+  if (m.outerDiameter !== null) out.push({ key: 'outerDiameter', label: 'קוטר חיצוני', value: meters(m.outerDiameter), raw: m.outerDiameter })
+  else out.push({ key: 'planSize', label: 'מידות בתוכנית', value: `${num(s.planWidth, 1)} × ${num(s.planDepth, 1)} מ'`, raw: s.planWidth * s.planDepth })
+  if (s.waistDiameter !== null) out.push({ key: 'waistDiameter', label: 'קוטר המותן מבפנים', value: meters(s.waistDiameter, 2), raw: s.waistDiameter })
+  if (m.clearHeight) out.push({ key: 'clearHeight', label: 'גובה חופשי', value: range(m.clearHeight.min, m.clearHeight.max, 2), raw: m.clearHeight.min, rawMax: m.clearHeight.max, rules: [14] })
+  out.push({
+    key: 'edgeCount',
+    label: 'מספר קצוות',
+    value: m.edgeCount === 0 ? 'אין קצוות' : m.edgeCount === 1 ? '1 רציף' : `${num(m.edgeCount, 0)} נפרדים`,
+    raw: m.edgeCount,
+  })
+  if (m.edgeCount > 0) out.push({ key: 'edgeLength', label: 'אורך הקצה', value: meters(m.edgeLength, 1), raw: m.edgeLength })
+  out.push({ key: 'surfaceArea', label: `שטח ה${FAMILY_HE[s.family]}`, value: `${num(s.midArea, 0)} מ"ר`, raw: s.midArea, rules: [13] })
+  out.push({ key: 'curvatureRadius', label: 'רדיוס העיקול הקטן', value: meters(s.minCurvatureRadius, 2), raw: s.minCurvatureRadius, rules: [12] })
+  out.push({ key: 'volume', label: `${material}, קליפה בעובי ${meters(s.thickness, 2)}`, value: `${num(m.volume, 0)} מ"ק`, raw: m.volume })
+  const weight = m.volume * DENSITY[r.realistic.materials.outer]
+  out.push({ key: 'weight', label: 'משקל משוער', value: `${num(weight, 0)} טון`, raw: weight })
+  out.push({ key: 'sinkDepth', label: 'עומק הבסיס בקרקע', value: meters(s.sinkDepth, 2), raw: s.sinkDepth })
+  return out
+}
+
+export function metricRows(m: Metrics, r: Built): MetricRow[] {
+  if (m.surface) return surfaceRows(m, r)
   const shell = r.bare.mode === 'shell'
   const material = MATERIAL_LOOK[r.realistic.materials.outer].name_he
   const out: MetricRow[] = []
@@ -70,7 +106,7 @@ export function metricRows(m: Metrics, r: Sweep): MetricRow[] {
  * how it helps decide. When a parameter moves, a line on top says which metrics moved and what that means in form,
  * space and use, until the next change.
  */
-export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; issues: RuleIssue[]; recipe: Sweep }) {
+export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; issues: RuleIssue[]; recipe: Built }) {
   const rows = metricRows(metrics, recipe)
   const prev = useRef<MetricRow[] | null>(null)
   const [moved, setMoved] = useState<Change[]>([])
@@ -138,10 +174,17 @@ export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; is
           )
         })}
       </dl>
-      <p className="hint">
-        מחושב מהגאומטריה: נפח לפי משפט פאפוס, שטח החתך כפול אורך מסלול המרכז. בקליפה: ההפרש בין החתך החיצוני לפנימי, פחות הפתחים.
-        המשקל לפי צפיפות משוערת של החומר, לבדיקת סדר גודל בלבד.
-      </p>
+      {metrics.surface ? (
+        <p className="hint">
+          מחושב מהגאומטריה: שטח המשטח באינטגרציה נומרית של <span dir="ltr" className="num">|S<sub>u</sub> × S<sub>v</sub>|</span>, והנפח הוא השטח כפול העובי, כי הקליפה היא היסט לאורך הנורמל לשני
+          הצדדים. המשקל לפי צפיפות משוערת של החומר, לבדיקת סדר גודל בלבד.
+        </p>
+      ) : (
+        <p className="hint">
+          מחושב מהגאומטריה: נפח לפי משפט פאפוס, שטח החתך כפול אורך מסלול המרכז. בקליפה: ההפרש בין החתך החיצוני לפנימי, פחות הפתחים.
+          המשקל לפי צפיפות משוערת של החומר, לבדיקת סדר גודל בלבד.
+        </p>
+      )}
     </section>
   )
 }

@@ -6,9 +6,9 @@ Claude מתרגם מושג מתמטי למתכון שעומד בסכמה. הקר
 | נושא | החלטה |
 |---|---|
 | מודל | משתנה סביבה `CLAUDE_MODEL`. ברירת מחדל: `claude-sonnet-5-5`, מהיר ומספיק למשימה מובנית. לבדוק שמות מודלים עדכניים ב-docs.claude.com לפני פריסה |
-| פלט מובנה | Structured outputs (`output_config.format`) עם גרסה של `recipe.schema.json` שהמהדר של ה-API מקבל: בלי מגבלות טווח ואורך ובלי if/then, והמחולל מצומצם למחוללים הזמינים. הבדיקה המלאה מול הסכמה והכללים רצה אחרי כל תשובה. בגלל ש-Sonnet 5.5 דוחה `tool_choice` מכריח, אין כלי `submit_recipe` (`DECISIONS.md` 32) |
-| מחוללים זמינים | נשלחים בהודעת המשתמש לפי הגדרת האפליקציה. במוצר המינימלי: `["sweep"]` |
-| דוגמאות | שלושת הקבצים ב-`docs/fixtures/` מצורפים להנחיית המערכת בזמן ריצה, כך שאין שכפול בין המסמך לקוד |
+| פלט מובנה | Structured outputs (`output_config.format`) עם גרסה של `recipe.schema.json` שהמהדר של ה-API מקבל: בלי מגבלות טווח ואורך ובלי if/then, והמחולל מצומצם למחוללים הזמינים. `params` הוא הסוויפ או המשטח הפרמטרי (`anyOf`). במשטח כל המידות נדרשות ויכולות להיות `null`, כך שלא נוסף אף שדה אופציונלי (17 מתוך 24 המותרים), והשרת מוחק את ה-`null` לפני הבדיקה (`DECISIONS.md` 142). הבדיקה המלאה מול הסכמה והכללים רצה אחרי כל תשובה. בגלל ש-Sonnet 5.5 דוחה `tool_choice` מכריח, אין כלי `submit_recipe` (`DECISIONS.md` 32) |
+| מחוללים זמינים | נשלחים בהודעת המשתמש לפי הגדרת האפליקציה. מאז שלב 6: `["sweep", "parametric_surface"]` |
+| דוגמאות | שלושת הקבצים ב-`docs/fixtures/`, ואחריהם `docs/examples/hypar-canopy.recipe.json` כדוגמה למשטח, מצורפים להנחיית המערכת בזמן ריצה, כך שאין שכפול בין המסמך לקוד |
 | טמפרטורה | לא נשלחת. ב-Sonnet 5.5 ערך שאינו ברירת המחדל מחזיר שגיאה. במקומה `effort: medium` (`DECISIONS.md` 33) |
 | מטמון | הנחיית המערכת והדוגמאות מסומנות ל-prompt caching, כי הן זהות בכל קריאה |
 | סירוב | `fallbacks: "default"` עם הכותרת `server-side-fallback-2026-07-01`: סירוב בקטגוריות שמכוסות עובר למודל חלופי באותה קריאה |
@@ -27,6 +27,11 @@ How to think, in order:
 3. Size it for the requested use at human scale. A person is 1.75 m. Enterable spaces need at least 2.4 m clear height.
 4. Write the narrative in Hebrew: name_he (2-4 words), insight (one or two plain sentences about what the form does in space, not what it looks like), maxim (one short line).
 5. Be honest about fit: if the generator cannot fully express the concept, set narrative.fit_note to one Hebrew sentence saying what was lost. If the fit is complete, set it to null.
+
+The parametric_surface generator (when it is available): a named surface from a fixed library, built as a shell of even thickness by offsetting the surface along its normal. Choose it when the concept IS one of these surfaces; choose the sweep when the concept is a section moving along a path.
+- hyperboloid: waist_radius, end_radius (> waist_radius), height. hyperbolic_paraboloid: span, span2, rise. catenoid: waist_radius, height (at most 4 * waist_radius). helicoid: radius, pitch, turns. klein_bottle: radius, tube (radius > 1.25 * tube + thickness). monkey_saddle: span, rise.
+Write null for every dimension field the family does not use. Surfaces need bare.mode "shell". bare.section_center_height is the height of the shell's lowest point. Openings and floors are not built on surfaces.
+(The full text is in system.md.)
 
 Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
@@ -58,7 +63,7 @@ Examples of correct recipes follow.
 Concept: {concept}
 Use: {use | "not specified"}
 Context hint: {context | "not specified"}
-Available generators: {["sweep"]}
+Available generators: {["sweep", "parametric_surface"]}
 Timestamp: {ISO datetime, Asia/Jerusalem}
 ```
 
@@ -80,6 +85,7 @@ Keep every other field unchanged.
 | `umbilic-torus.recipe.json` | טורוס טבורי | התאמה מלאה. קליפה שנכנסים אליה, פתחים ורצפה רציפה |
 | `mobius-strip.recipe.json` | רצועת מביוס | שימוש ב-`aspect` לרצועה שטוחה, וחצי סיבוב. `fit_note` מסביר את הפער בין משטח בלי עובי לרצועה עבה |
 | `golden-ratio.recipe.json` | יחס הזהב | התאמה חלקית: מסלול סליל וקנה מידה גאומטרי, עם `fit_note` שמסביר מה יתאפשר רק במחולל עתידי |
+| `docs/examples/hypar-canopy.recipe.json` | פרבולואיד היפרבולי | המשטח הפרמטרי: משפחה ומידותיה בלבד, קליפה בעובי 12 ס"מ, בסיס על הקרקע, `fit_note` ריק |
 
 ## 6. בדיקות
 1. כל שלוש הדוגמאות עוברות את הסכמה ואת הכללים הקשיחים (בדיקת יחידה, בלי קריאה למודל).
@@ -92,4 +98,4 @@ Keep every other field unchanged.
 - **קנה מידה אנושי:** בקליפה נכנסת, רצפה רציפה ברוחב 1.2 מ' לפחות וגובה חופשי של 2.4 מ' לפחות. מעברים ברוחב 3.2 מ' ובגובה 2.6 מ' מעל הרצפה.
 - **פוזיטיב ונגטיב:** מה שהצורה סוגרת (חצר, חלל, צל) מתוכנן בדיוק כמו מה שהיא בונה, והתובנה אומרת זאת.
 
-**סבב ליטוש:** מתכון שנבנה אבל מפר כלל של קנה מידה אנושי (4, 5 או 6) נשלח לסבב אחד נוסף. אם הסבב לא משפר, נשאר המתכון הראשון. כלל 8 (קבורת החוד) הוא בחירה עיצובית, ולא מלטשים אותו (`DECISIONS.md` 83).
+**סבב ליטוש:** מתכון שנבנה אבל מפר כלל של קנה מידה אנושי (4, 5 או 6, ובמשטח 13 או 14) נשלח לסבב אחד נוסף. אם הסבב לא משפר, נשאר המתכון הראשון. כלל 8 (קבורת החוד) הוא בחירה עיצובית, ולא מלטשים אותו (`DECISIONS.md` 83).

@@ -76,7 +76,7 @@ export interface PrintReport {
   checks: PrintCheck[]
 }
 
-const fmt = (v: number, d = 1) => v.toLocaleString('he-IL', { minimumFractionDigits: d, maximumFractionDigits: d })
+export const fmt = (v: number, d = 1) => v.toLocaleString('he-IL', { minimumFractionDigits: d, maximumFractionDigits: d })
 
 /**
  * Thinnest wall of a shell, in meters: in each cross-section, the distance from every inner point to the outer
@@ -129,7 +129,7 @@ export function openEdges(m: SolidMesh): number {
 }
 
 /** Axis-aligned bounds of a mesh in its own (Y up) axes. */
-function bounds(p: Float64Array): { min: [number, number, number]; max: [number, number, number] } {
+export function bounds(p: Float64Array): { min: [number, number, number]; max: [number, number, number] } {
   const min: [number, number, number] = [Infinity, Infinity, Infinity]
   const max: [number, number, number] = [-Infinity, -Infinity, -Infinity]
   for (let i = 0; i < p.length; i += 3)

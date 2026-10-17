@@ -3,6 +3,7 @@
 import { expose, transfer } from 'comlink'
 import { build, transferables, type BuildResult } from './build'
 import { buildClosedMesh } from './sweep/closedMesh'
+import { buildSurfaceClosedMesh } from './surface/build'
 import { parseRecipe } from '../recipe/schema'
 import { exportFile, printFiles, type ExportFile, type ExportFormat, type PrintFiles } from './export'
 import type { PrintOptions } from './export/print'
@@ -21,11 +22,13 @@ const api = {
     const r = build(input)
     return transfer(r, transferables(r))
   },
-  /** Welded export mesh at export resolution. Null when the recipe is not a valid sweep. */
+  /** Welded export mesh at export resolution. Null when the recipe is not a valid sweep or surface. */
   closedMesh(input: unknown): SolidMesh | null {
     const p = parseRecipe(input)
-    if (!p.ok || p.recipe.generator.type !== 'sweep') return null
-    const m = buildClosedMesh(p.recipe, p.recipe.generator.params)
+    if (!p.ok) return null
+    const g = p.recipe.generator
+    if (g.type !== 'sweep' && g.type !== 'parametric_surface') return null
+    const m = g.type === 'sweep' ? buildClosedMesh(p.recipe, g.params) : buildSurfaceClosedMesh(p.recipe, g.params)
     return transfer(m, [m.positions.buffer as ArrayBuffer, m.indices.buffer as ArrayBuffer])
   },
 }

@@ -45,6 +45,10 @@
         {
           "if": { "properties": { "type": { "const": "sweep" } } },
           "then": { "properties": { "params": { "$ref": "#/$defs/sweep" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "parametric_surface" } } },
+          "then": { "properties": { "params": { "$ref": "#/$defs/surface" } } }
         }
       ]
     },
@@ -207,6 +211,40 @@
         "jerusalem_stone", "corten_steel", "timber_oak", "rammed_earth", "glass_clear",
         "white_marble", "red_brick", "terracotta_tiles", "basalt", "copper_patina",
         "charred_timber", "white_render", "perforated_metal"
+      ]
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family"],
+      "properties": {
+        "family": { "enum": ["hyperboloid", "hyperbolic_paraboloid", "catenoid", "helicoid", "klein_bottle", "monkey_saddle"] },
+        "waist_radius": { "type": "number", "minimum": 0.5, "maximum": 100 },
+        "end_radius": { "type": "number", "minimum": 0.5, "maximum": 150 },
+        "height": { "type": "number", "minimum": 1, "maximum": 200 },
+        "span": { "type": "number", "minimum": 1, "maximum": 200 },
+        "span2": { "type": "number", "minimum": 1, "maximum": 200 },
+        "rise": { "type": "number", "minimum": 0.5, "maximum": 100 },
+        "radius": { "type": "number", "minimum": 0.5, "maximum": 150 },
+        "pitch": { "type": "number", "minimum": 0.5, "maximum": 50 },
+        "turns": { "type": "number", "minimum": 0.25, "maximum": 10 },
+        "tube": { "type": "number", "minimum": 0.2, "maximum": 50 },
+        "resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "u_segments": { "type": "integer", "minimum": 8, "maximum": 1024 },
+            "v_segments": { "type": "integer", "minimum": 4, "maximum": 512 }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "family": { "const": "hyperboloid" } } }, "then": { "required": ["waist_radius", "end_radius", "height"] } },
+        { "if": { "properties": { "family": { "const": "hyperbolic_paraboloid" } } }, "then": { "required": ["span", "rise"] } },
+        { "if": { "properties": { "family": { "const": "catenoid" } } }, "then": { "required": ["waist_radius", "height"] } },
+        { "if": { "properties": { "family": { "const": "helicoid" } } }, "then": { "required": ["radius", "pitch", "turns"] } },
+        { "if": { "properties": { "family": { "const": "klein_bottle" } } }, "then": { "required": ["radius", "tube"] } },
+        { "if": { "properties": { "family": { "const": "monkey_saddle" } } }, "then": { "required": ["span", "rise"] } }
       ]
     },
     "sweep": {

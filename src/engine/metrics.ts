@@ -2,7 +2,7 @@
  * Derived metrics (GENERATORS.md section 2). They are computed on every build and never stored in the recipe.
  * Volumes come from Pappus' theorem, so they are exact; the mesh is checked against them in tests.
  */
-import type { Recipe, SweepParams } from '../recipe/schema'
+import type { Recipe, SurfaceFamily, SweepParams } from '../recipe/schema'
 import { outerRadius } from '../recipe/rules'
 import { DENSITY } from './materials'
 import { pathLength } from './paths'
@@ -13,11 +13,11 @@ import type { Openings } from './sweep/openings'
 import type { Range } from './types'
 
 export interface Metrics {
-  /** Outer section area, m². */
-  sectionArea: number
-  /** Centerline length, m. */
-  pathLength: number
-  /** Volume of the full solid, m³. */
+  /** Outer section area, m². Null for a parametric surface, which has no section. */
+  sectionArea: number | null
+  /** Centerline length, m. Null for a parametric surface. */
+  pathLength: number | null
+  /** Volume of the full solid, m³. A parametric surface is always a shell, so there it equals the shell volume. */
   solidVolume: number
   /** Volume of the shell after openings, m³; null in solid mode. */
   shellVolume: number | null
@@ -48,6 +48,34 @@ export interface Metrics {
   innerScale: number | null
   /** Wall thickness at the corners: the corner radius times t / a. A cusp becomes a rib (GENERATORS.md 1.5). */
   wallAtCorners: number | null
+  /** Present only when the generator is a parametric surface (GENERATORS.md 4.1). */
+  surface?: SurfaceMetrics
+}
+
+export interface SurfaceMetrics {
+  family: SurfaceFamily
+  /** Area of the mid-surface, ∫∫|S_u × S_v| du dv by numeric integration, m². */
+  midArea: number
+  /** Shell thickness, m. */
+  thickness: number
+  /** Top of the shell above the ground (y = 0), m. */
+  height: number
+  /** Plan extents along x and z, m. */
+  planWidth: number
+  planDepth: number
+  /** Inner diameter at the narrowest ring of a tower, m; null for other families. */
+  waistDiameter: number | null
+  /** Smallest principal radius of curvature of the mid-surface, m (rule 12). */
+  minCurvatureRadius: number
+  /** How deep the shell's lowest point lies below the ground, m. */
+  sinkDepth: number
+  /**
+   * The space the shell holds, m³: inside a tower from its base to its top ring, or under a saddle down to the
+   * ground. Null where the shell holds no space of its own (the ramp, the Klein bottle).
+   */
+  heldVolume: number | null
+  /** True when the surface passes through itself (the Klein bottle's immersion). */
+  selfIntersecting: boolean
 }
 
 /** ∫ s(u)² dl for s(u) = S^(u / uMax): the length that multiplies the section area in Pappus' theorem. */

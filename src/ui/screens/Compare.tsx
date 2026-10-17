@@ -8,18 +8,18 @@ import { useEffect, useMemo, useRef, useState, type ComponentRef } from 'react'
 import type { BuildSuccess } from '../../engine/build'
 import { createEngineClient, type EngineClient } from '../../engine/client'
 import { getVersion, type VersionRow, type Vec3 } from '../../data/projects'
-import { parseRecipe } from '../../recipe/schema'
+import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { BareScene } from '../../scene/BareScene'
 import { cameraPose } from '../../scene/cameras'
 import { RealisticScene } from '../../scene/RealisticScene'
 import { ltr } from '../format'
 import { metricRows, type MetricRow } from '../panels/MetricsPanel'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 import { navigate, useParam } from '../router'
 import type { Level } from '../store'
 import { TopNav } from '../TopNav'
 
-type Side = { version: VersionRow & { recipe: Record<string, unknown> }; recipe: Sweep; result: BuildSuccess }
+type Side = { version: VersionRow & { recipe: Record<string, unknown> }; recipe: Built; result: BuildSuccess }
 
 /** One camera pose shared by both windows. `by` names the window that moved it last. */
 interface SharedPose {
@@ -137,10 +137,11 @@ export function Compare() {
       const built: Side[] = []
       for (const v of versions) {
         const p = parseRecipe(v.recipe)
-        if (!p.ok || p.recipe.generator.type !== 'sweep') throw new Error('אחת הגרסאות אינה מתכון שהמנוע בונה')
+        const b = p.ok ? asBuilt(p.recipe) : null
+        if (!b) throw new Error('אחת הגרסאות אינה מתכון שהמנוע בונה')
         const out = await engine.build(v.recipe)
         if (out.status !== 'done' || !out.result.ok) throw new Error('אחת הגרסאות לא נבנתה')
-        built.push({ version: v, recipe: p.recipe as Sweep, result: out.result })
+        built.push({ version: v, recipe: b, result: out.result })
       }
       if (!live) return
       const first = built[0]!

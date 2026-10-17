@@ -32,7 +32,7 @@ import { Choice } from '../controls/Choice'
 import { Select } from '../controls/Select'
 import { Slider } from '../controls/Slider'
 import { num } from '../format'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 import { useStudio } from '../store'
 
 const QUICK: { id: QuickMoment; label: string }[] = [
@@ -79,7 +79,7 @@ const BASIS: { what: string; kind: 'computed' | 'visual' | 'illustration' | 'sca
 ]
 const KIND_HE = { computed: 'מחושב', visual: 'המחשה חזותית', illustration: 'המחשה, לא סימולציה', scale: 'קנה מידה בלבד' } as const
 
-export function RealisticPanel({ recipe, built }: { recipe: Sweep; built: Sweep }) {
+export function RealisticPanel({ recipe, built }: { recipe: Built; built: Built }) {
   const setParam = useStudio((s) => s.setParam)
   const setParams = useStudio((s) => s.setParams)
   const [copied, setCopied] = useState(false)
@@ -96,7 +96,7 @@ export function RealisticPanel({ recipe, built }: { recipe: Sweep; built: Sweep 
   const wind = windOfRecipe(real)
   const path = sunPath(site, new Date(isoAt({ ...t, hour: 12 }, site)))
   const onFront = sunOnFront(sun.bearing, orientation)
-  const ring = built.generator.params.path.type === 'circle' || built.generator.params.path.type === 'ellipse'
+  const ring = built.generator.type === 'sweep' && (built.generator.params.path.type === 'circle' || built.generator.params.path.type === 'ellipse')
   const passages = built.bare.mode === 'shell' && ring ? built.bare.openings?.passages : undefined
   const reading = readWind(wind, passages?.count ? passageBearings(passages.count, passages.start_angle_deg, orientation) : [])
   const force = beaufort(wind.speed_ms)

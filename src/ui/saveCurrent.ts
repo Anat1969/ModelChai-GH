@@ -7,7 +7,7 @@ import { clearDraft, saveOrQueue, type SaveOutcome } from '../data/offline'
 import { ensureSession } from '../data/supabase'
 import type { SaveInput, View } from '../data/projects'
 import { visualPrompt } from '../prompt/visualPrompt'
-import { parseRecipe } from '../recipe/schema'
+import { asBuilt, parseRecipe } from '../recipe/schema'
 import { cameraControl } from '../scene/BareScene'
 import { viewport } from '../scene/Viewport'
 import { useStudio } from './store'
@@ -53,6 +53,7 @@ export async function saveCurrent(note: string | null): Promise<SaveOutcome | { 
 
   const parsed = parseRecipe(recipe)
   const r = parsed.ok ? parsed.recipe : null
+  const built = r ? asBuilt(r) : null
   const nextProject = st.project ?? {
     id: crypto.randomUUID(),
     concept: st.origin?.concept ?? r?.concept.name_he ?? st.sourceName,
@@ -66,7 +67,7 @@ export async function saveCurrent(note: string | null): Promise<SaveOutcome | { 
     view: currentView(),
     note: note?.trim() || null,
     snapshot: await snapshot().catch(() => null),
-    visualPrompt: r && r.generator.type === 'sweep' ? visualPrompt(r as never).prompt : null,
+    visualPrompt: built ? visualPrompt(built).prompt : null,
   }
   const out = await saveOrQueue(input)
   if (out.status === 'failed') {

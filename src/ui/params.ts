@@ -3,44 +3,47 @@
  * Ranges follow the semantic rules where they can, so most slider positions build; the rest are caught by the
  * engine and the slider returns to the last valid value.
  */
+import { KLEIN_REACH, family, minCurvatureRadius } from '../engine/surface/families'
 import { outerRadius, symmetryOrder } from '../recipe/rules'
-import type { Recipe, SweepParams } from '../recipe/schema'
+import type { BuiltRecipe, SurfaceRecipe, SweepRecipe } from '../recipe/schema'
 import { num, percent, turnsLabel } from './format'
 
-type Sweep = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
+type Sweep = SweepRecipe
+/** A recipe the engine builds: a sweep or a parametric surface. */
+type Built = BuiltRecipe
 
-export interface SliderDef {
+export interface SliderDef<R = Sweep> {
   kind: 'slider'
   id: string
   path: string
   label: string
   why: string
-  min: (r: Sweep) => number
-  max: (r: Sweep) => number
+  min: (r: R) => number
+  max: (r: R) => number
   step: number
-  value: (r: Sweep) => number
+  value: (r: R) => number
   format: (v: number) => string
   /** Value written back to the recipe; defaults to the slider value. */
-  write?: (v: number, r: Sweep) => unknown
-  show?: (r: Sweep) => boolean
+  write?: (v: number, r: R) => unknown
+  show?: (r: R) => boolean
 }
 
-export interface ChoiceDef {
+export interface ChoiceDef<R = Sweep> {
   kind: 'choice'
   id: string
   path: string
   label: string
   why: string
   options: { value: string; label: string }[]
-  value: (r: Sweep) => string
-  show?: (r: Sweep) => boolean
+  value: (r: R) => string
+  show?: (r: R) => boolean
 }
 
-export type ParamDef = SliderDef | ChoiceDef
+export type ParamDef<R = Sweep> = SliderDef<R> | ChoiceDef<R>
 
-export interface ParamGroup {
+export interface ParamGroup<R = Sweep> {
   title: string
-  params: ParamDef[]
+  params: ParamDef<R>[]
 }
 
 const P = 'generator.params'
@@ -276,4 +279,206 @@ export function twistFormat(r: Sweep, k: number): string {
   return turnsLabel(Number.isFinite(order) ? k / order : k / 20, order)
 }
 
-export type { Sweep }
+// ---------- parametric surface (DECISIONS.md 139) ----------
+
+type S = SurfaceRecipe
+const is = (...fs: string[]) => (r: S) => fs.includes(r.generator.params.family)
+const sp = (r: S) => r.generator.params
+const thick = (r: S) => r.bare.shell?.thickness ?? 0.2
+const floor2 = (v: number) => Math.floor(v * 100) / 100
+
+/** The sliders of a parametric surface: each family's own dimensions, then the base and the shell. */
+export const SURFACE_GROUPS: ParamGroup<S>[] = [
+  {
+    title: 'גאומטריה',
+    params: [
+      {
+        kind: 'slider',
+        id: 'waist',
+        path: `${P}.waist_radius`,
+        label: 'רדיוס המותן',
+        why: 'הטבעת הצרה באמצע. ממנה הקווים הישרים נפרשים למעלה ולמטה.',
+        min: () => 0.5,
+        max: (r) => floor2(Math.min(100, (sp(r).end_radius ?? 2) - 0.1)),
+        step: 0.05,
+        value: (r) => sp(r).waist_radius ?? 1,
+        format: m(2),
+        show: is('hyperboloid'),
+      },
+      {
+        kind: 'slider',
+        id: 'end',
+        path: `${P}.end_radius`,
+        label: 'רדיוס הקצוות',
+        why: 'רוחב הטבעת למעלה ולמטה. ככל שהוא גדול מהמותן, המותן נראית צרה יותר.',
+        min: (r) => Math.ceil(((sp(r).waist_radius ?? 1) + 0.1) * 20) / 20,
+        max: (r) => Math.max(60, sp(r).end_radius ?? 0),
+        step: 0.05,
+        value: (r) => sp(r).end_radius ?? 2,
+        format: m(2),
+        show: is('hyperboloid'),
+      },
+      {
+        kind: 'slider',
+        id: 'cat-waist',
+        path: `${P}.waist_radius`,
+        label: 'רדיוס המותן',
+        why: 'הטבעת הצרה. היא קובעת גם כמה מהר המשטח נפתח כלפי הקצוות.',
+        min: (r) => Math.max(1, Math.ceil(((sp(r).height ?? 4) / 4) * 20) / 20),
+        max: () => 40,
+        step: 0.05,
+        value: (r) => sp(r).waist_radius ?? 1,
+        format: m(2),
+        show: is('catenoid'),
+      },
+      {
+        kind: 'slider',
+        id: 'height',
+        path: `${P}.height`,
+        label: 'גובה',
+        why: 'המרחק בין שתי הטבעות. בקטנואיד גובה רב פותח את הקצוות במהירות.',
+        min: () => 2,
+        max: (r) => (sp(r).family === 'catenoid' ? floor2(Math.min(120, 4 * (sp(r).waist_radius ?? 1))) : 120),
+        step: 0.1,
+        value: (r) => sp(r).height ?? 4,
+        format: m(1),
+        show: is('hyperboloid', 'catenoid'),
+      },
+      {
+        kind: 'slider',
+        id: 'span',
+        path: `${P}.span`,
+        label: 'מפתח',
+        why: 'רוחב התוכנית בכיוון אחד. מפתח גדול עם עלייה קטנה משטיח את האוכף.',
+        min: () => 4,
+        max: () => 80,
+        step: 0.5,
+        value: (r) => sp(r).span ?? 10,
+        format: m(1),
+        show: is('hyperbolic_paraboloid', 'monkey_saddle'),
+      },
+      {
+        kind: 'slider',
+        id: 'span2',
+        path: `${P}.span2`,
+        label: 'מפתח בכיוון השני',
+        why: 'רוחב התוכנית בכיוון הניצב. שווה למפתח: תוכנית ריבועית.',
+        min: () => 4,
+        max: () => 80,
+        step: 0.5,
+        value: (r) => sp(r).span2 ?? sp(r).span ?? 10,
+        format: m(1),
+        show: is('hyperbolic_paraboloid'),
+      },
+      {
+        kind: 'slider',
+        id: 'rise',
+        path: `${P}.rise`,
+        label: 'עלייה',
+        why: 'ההפרש בין הפינה הגבוהה לנמוכה. היא מכפילה את העיקול ואת הקשיחות של הקליפה.',
+        min: () => 0.5,
+        max: () => 40,
+        step: 0.1,
+        value: (r) => sp(r).rise ?? 4,
+        format: m(1),
+        show: is('hyperbolic_paraboloid', 'monkey_saddle'),
+      },
+      {
+        kind: 'slider',
+        id: 'radius',
+        path: `${P}.radius`,
+        label: 'רדיוס',
+        why: 'מהציר עד שפת הרמפה. שפה רחבה מתונה יותר לאורך הקו החיצוני.',
+        min: () => 1,
+        max: () => 40,
+        step: 0.1,
+        value: (r) => sp(r).radius ?? 4,
+        format: m(1),
+        show: is('helicoid'),
+      },
+      {
+        kind: 'slider',
+        id: 'pitch',
+        path: `${P}.pitch`,
+        label: 'פסיעה',
+        why: 'הגובה שהרמפה עולה בסיבוב אחד. היא גם הגובה החופשי בין שני סיבובים.',
+        min: (r) => Math.max(0.5, Math.ceil(Math.PI * thick(r) * 1.1 * 10) / 10),
+        max: () => 20,
+        step: 0.1,
+        value: (r) => sp(r).pitch ?? 3,
+        format: m(1),
+        show: is('helicoid'),
+      },
+      {
+        kind: 'slider',
+        id: 'turns',
+        path: `${P}.turns`,
+        label: 'מספר סיבובים',
+        why: 'כמה פעמים הרמפה מקיפה את הציר.',
+        min: () => 0.25,
+        max: () => 6,
+        step: 0.25,
+        value: (r) => sp(r).turns ?? 1,
+        format: (v) => num(v, 2),
+        show: is('helicoid'),
+      },
+      {
+        kind: 'slider',
+        id: 'klein-radius',
+        path: `${P}.radius`,
+        label: 'רדיוס הטבעת',
+        why: 'מהמרכז עד מרכז השמינייה. הטבעת חייבת להיות רחבה מהשמינייה כדי לא לחתוך את עצמה במרכז.',
+        min: (r) => Math.ceil((KLEIN_REACH * (sp(r).tube ?? 1) + thick(r) + 0.1) * 10) / 10,
+        max: () => 60,
+        step: 0.1,
+        value: (r) => sp(r).radius ?? 4,
+        format: m(1),
+        show: is('klein_bottle'),
+      },
+      {
+        kind: 'slider',
+        id: 'tube',
+        path: `${P}.tube`,
+        label: 'גודל השמינייה',
+        why: 'חצי הגובה של חתך השמינייה. השמינייה מסתובבת חצי סיבוב בהקפה, ולכן אין פנים וחוץ.',
+        min: () => 0.5,
+        max: (r) => floor2(((sp(r).radius ?? 4) - thick(r) - 0.1) / KLEIN_REACH),
+        step: 0.05,
+        value: (r) => sp(r).tube ?? 1,
+        format: m(2),
+        show: is('klein_bottle'),
+      },
+    ],
+  },
+  {
+    title: 'מיקום ומבנה',
+    params: [
+      {
+        kind: 'slider',
+        id: 'base',
+        path: 'bare.section_center_height',
+        label: 'גובה הבסיס',
+        why: 'הנקודה הנמוכה של הקליפה. ערך שלילי שוקע את הבסיס בקרקע, כמו יסוד.',
+        min: () => -5,
+        max: () => 20,
+        step: 0.1,
+        value: (r) => r.bare.section_center_height,
+        format: m(1),
+      },
+      {
+        kind: 'slider',
+        id: 'thickness',
+        path: 'bare.shell.thickness',
+        label: 'עובי הקליפה',
+        why: 'היסט לאורך הנורמל לשני צדי המשטח, ולכן העובי אחיד בכל מקום.',
+        min: () => 0.08,
+        max: (r) => Math.max(0.08, floor2(Math.min(1.5, 2 * minCurvatureRadius(family(sp(r))) * 0.95))),
+        step: 0.01,
+        value: (r) => thick(r),
+        format: m(2),
+      },
+    ],
+  },
+]
+
+export type { Sweep, Built }

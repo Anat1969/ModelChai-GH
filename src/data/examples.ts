@@ -3,8 +3,13 @@
  * state: balanced, at human scale, with no rule broken (tests/examples.test.ts, DECISIONS.md 83).
  */
 import astroid from '../../docs/examples/astroid-pavilion.recipe.json'
+import catenoid from '../../docs/examples/catenoid-pavilion.recipe.json'
 import ellipse from '../../docs/examples/elliptic-gallery.recipe.json'
+import helicoid from '../../docs/examples/helicoid-spiral-ramp.recipe.json'
 import helix from '../../docs/examples/helix-ramp.recipe.json'
+import hypar from '../../docs/examples/hypar-canopy.recipe.json'
+import hyperboloid from '../../docs/examples/hyperboloid-water-tower.recipe.json'
+import klein from '../../docs/examples/klein-bottle-pavilion.recipe.json'
 import lame from '../../docs/examples/lame-curve-ring.recipe.json'
 import pentacle from '../../docs/examples/pentacle-sculpture.recipe.json'
 import golden from '../../docs/fixtures/golden-ratio.recipe.json'
@@ -27,6 +32,12 @@ export const EXAMPLES: Example[] = (
     ['pentacle-sculpture', pentacle],
     ['helix-ramp', helix],
     ['elliptic-gallery', ellipse],
+    // Parametric surfaces (DECISIONS.md 141).
+    ['hyperboloid-water-tower', hyperboloid],
+    ['hypar-canopy', hypar],
+    ['catenoid-pavilion', catenoid],
+    ['klein-bottle-pavilion', klein],
+    ['helicoid-spiral-ramp', helicoid],
   ] as const
 ).map(([id, r]) => ({ id, recipe: r as unknown as Example['recipe'] }))
 

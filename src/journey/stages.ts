@@ -9,9 +9,10 @@
  */
 import type { Reading } from '../data/library'
 import { modelById } from '../learn/atlas'
-import type { Recipe, SweepParams } from '../recipe/schema'
+import type { BuiltRecipe } from '../recipe/schema'
 
-export type Sweep = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
+/** A recipe the engine builds: a sweep or a parametric surface. */
+export type Built = BuiltRecipe
 
 /** What the owner writes on the steps. Every field is optional: a project can start from anything. */
 export interface Journey {
@@ -49,7 +50,7 @@ export interface WorkState {
   project: { id: string; title_he: string; concept: string; created_at: string }
   journey: Journey
   /** The newest version's recipe, when there is one. */
-  recipe: Sweep | null
+  recipe: Built | null
   versions: { id: string; number: number; created_at: string; note: string | null }[]
   reading: Reading | null
   post: { short: string; body: string } | null

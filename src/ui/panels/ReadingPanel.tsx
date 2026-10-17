@@ -8,7 +8,7 @@ import { addReading, loadLibrary, readingOf, requestReading, type Reading } from
 import { ensureSession } from '../../data/supabase'
 import { figureGround } from '../../prompt/figureGround'
 import { percent } from '../format'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 import { useStudio } from '../store'
 import { metricRows } from './MetricsPanel'
 
@@ -32,7 +32,7 @@ export function ReadingText({ r }: { r: Reading }) {
   )
 }
 
-export function ReadingPanel({ recipe }: { recipe: Sweep }) {
+export function ReadingPanel({ recipe }: { recipe: Built }) {
   const result = useStudio((s) => s.result)
   const project = useStudio((s) => s.project)
   const versionId = useStudio((s) => s.versionId)

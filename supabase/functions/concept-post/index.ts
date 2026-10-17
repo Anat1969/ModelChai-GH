@@ -105,9 +105,41 @@ var SweepParams = z.strictObject({
     section_segments: int(12, 512).default(144)
   }).optional()
 });
+var SURFACE_FAMILIES = ["hyperboloid", "hyperbolic_paraboloid", "catenoid", "helicoid", "klein_bottle", "monkey_saddle"];
+var SURFACE_REQUIRED = {
+  hyperboloid: ["waist_radius", "end_radius", "height"],
+  hyperbolic_paraboloid: ["span", "rise"],
+  catenoid: ["waist_radius", "height"],
+  helicoid: ["radius", "pitch", "turns"],
+  klein_bottle: ["radius", "tube"],
+  monkey_saddle: ["span", "rise"]
+};
+var SurfaceParams = z.strictObject({
+  family: z.enum(SURFACE_FAMILIES),
+  waist_radius: num(0.5, 100).optional(),
+  end_radius: num(0.5, 150).optional(),
+  height: num(1, 200).optional(),
+  span: num(1, 200).optional(),
+  span2: num(1, 200).optional(),
+  rise: num(0.5, 100).optional(),
+  radius: num(0.5, 150).optional(),
+  pitch: num(0.5, 50).optional(),
+  turns: num(0.25, 10).optional(),
+  tube: num(0.2, 50).optional(),
+  resolution: z.strictObject({
+    u_segments: int(8, 1024).optional(),
+    v_segments: int(4, 512).optional()
+  }).optional()
+}).superRefine((p, ctx) => {
+  for (const field of SURFACE_REQUIRED[p.family]) {
+    if (p[field] === void 0) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when family is "${p.family}"` });
+    }
+  }
+});
 var Generator = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("sweep"), params: SweepParams }),
-  z.strictObject({ type: z.literal("parametric_surface"), params: z.record(z.string(), z.unknown()) }),
+  z.strictObject({ type: z.literal("parametric_surface"), params: SurfaceParams }),
   z.strictObject({ type: z.literal("sdf"), params: z.record(z.string(), z.unknown()) }),
   z.strictObject({ type: z.literal("tiling"), params: z.record(z.string(), z.unknown()) })
 ]);
@@ -246,7 +278,7 @@ function postUserMessage(input) {
   const facts = {
     concept: r.concept,
     narrative: r.narrative,
-    generator: r.generator?.params ? { type: r.generator.type, params: pick(r.generator.params, ["section", "path", "twist", "scale_along_path"]) } : r.generator,
+    generator: r.generator?.params ? { type: r.generator.type, params: pick(r.generator.params, ["section", "path", "twist", "scale_along_path", "family", "waist_radius", "end_radius", "height", "span", "span2", "rise", "radius", "pitch", "turns", "tube"]) } : r.generator,
     bare: pick(r.bare, ["mode", "section_center_height", "shell", "openings", "floor"]),
     realistic: r.realistic
   };

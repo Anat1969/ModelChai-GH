@@ -68,6 +68,21 @@ const cases: Case[] = [
   ['mobius aspect too thin', 'mobius-strip', (r) => (r.generator.params.section.aspect = 0.01), false],
   ['golden unchanged', 'golden-ratio', () => {}, true],
   ['golden turns too low', 'golden-ratio', (r) => (r.generator.params.path.turns = 0.1), false],
+  // Parametric surface (stage 6): a fixed library of families, each with its own required dimensions.
+  ['surface hyperboloid', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'hyperboloid', waist_radius: 3, end_radius: 6, height: 20 } }), true],
+  ['surface hyperboloid without end_radius', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'hyperboloid', waist_radius: 3, height: 20 } }), false],
+  ['surface hypar without span2', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'hyperbolic_paraboloid', span: 18, rise: 7 } }), true],
+  ['surface hypar without rise', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'hyperbolic_paraboloid', span: 18 } }), false],
+  ['surface catenoid', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'catenoid', waist_radius: 5, height: 7 } }), true],
+  ['surface helicoid without turns', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'helicoid', radius: 6, pitch: 3.6 } }), false],
+  ['surface klein', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'klein_bottle', radius: 8, tube: 3 } }), true],
+  ['surface monkey saddle', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'monkey_saddle', span: 18, rise: 6 } }), true],
+  ['surface unknown family', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'gyroid', span: 10 } }), false],
+  ['surface formula string', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'catenoid', waist_radius: 5, height: 7, x: 'cos(u)' } }), false],
+  ['surface height out of range', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'catenoid', waist_radius: 5, height: 300 } }), false],
+  ['surface resolution', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'catenoid', waist_radius: 5, height: 7, resolution: { u_segments: 96 } } }), true],
+  ['surface resolution too low', 'umbilic-torus', (r) => (r.generator = { type: 'parametric_surface', params: { family: 'catenoid', waist_radius: 5, height: 7, resolution: { v_segments: 2 } } }), false],
+  ['surface with sweep params', 'umbilic-torus', (r) => (r.generator.type = 'parametric_surface'), false],
 ]
 
 describe('zod ↔ JSON Schema parity', () => {
