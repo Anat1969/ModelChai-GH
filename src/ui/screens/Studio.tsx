@@ -25,6 +25,7 @@ import { ReadingPanel } from '../panels/ReadingPanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
 import { PrintPanel } from '../panels/PrintPanel'
 import { PathBar } from '../panels/PathBar'
+import { NavControls } from '../panels/NavControls'
 import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
@@ -281,6 +282,7 @@ export function Studio() {
                 </label>
               </div>
             </div>
+            <NavControls />
             <PathBar onPrint={() => openTab('print')} />
           </div>
         </div>

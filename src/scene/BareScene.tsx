@@ -5,7 +5,7 @@
 import { Grid, Line, OrbitControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, type ComponentRef } from 'react'
-import { BufferAttribute, BufferGeometry, DoubleSide, Matrix4, Vector3, type Mesh as ThreeMesh } from 'three'
+import { BufferAttribute, BufferGeometry, DoubleSide, Matrix4, Vector3, type Mesh as ThreeMesh, type PerspectiveCamera } from 'three'
 import type { BuildSuccess } from '../engine/build'
 import { sectionCut } from '../engine/sectionCut'
 import type { MeshData } from '../engine/types'
@@ -13,6 +13,7 @@ import { outerRadius } from '../recipe/rules'
 import type { Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
 import { bounds, cameraPose, peopleSpots, type Vec3 } from './cameras'
+import { between, boundingSphere, ease, frame, LIMITS, step, type NavStep, type Pose } from './navigation'
 
 export const BARE = {
   // The bare level speaks the interface's language: white, three greys and black (DECISIONS.md 78).
@@ -147,11 +148,18 @@ export function Person({ at, h, color = BARE.person, head = BARE.person }: { at:
   )
 }
 
-/** The live camera pose, read when a version is saved and written when one is opened. */
+/**
+ * The live camera pose, read when a version is saved and written when one is opened. `move` takes one
+ * navigation step from the buttons or the keyboard and animates it briefly (DECISIONS.md 110).
+ */
 export const cameraControl: {
   get: (() => { position: Vec3; target: Vec3 }) | null
   set: ((pose: { position: Vec3; target: Vec3 }) => void) | null
-} = { get: null, set: null }
+  move: ((s: NavStep | 'reset' | 'center') => void) | null
+} = { get: null, set: null, move: null }
+
+/** A click moves the camera for this long, then stops exactly on the step. */
+const MOVE_MS = 220
 
 export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
@@ -162,26 +170,82 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
   const recipeRef = useRef(recipe)
   recipeRef.current = recipe
   const { gl, invalidate } = useThree()
+  const anim = useRef(0)
+  const stage = () => gl.domElement.closest<HTMLElement>('[data-testid=stage]')
   // The pose, rounded to millimeters, on the stage element: tests read it to check that a version reopens as saved.
   const mark = () => {
-    const stage = gl.domElement.closest<HTMLElement>('[data-testid=stage]')
-    if (stage) stage.dataset.camera = JSON.stringify([...camera.position.toArray(), ...(controls.current?.target.toArray() ?? [])].map((v) => Math.round(v * 1000) / 1000))
+    const el = stage()
+    if (el) el.dataset.camera = JSON.stringify([...camera.position.toArray(), ...(controls.current?.target.toArray() ?? [])].map((v) => Math.round(v * 1000) / 1000))
+  }
+  const stop = () => {
+    cancelAnimationFrame(anim.current)
+    anim.current = 0
+    const el = stage()
+    if (el) delete el.dataset.moving
   }
   useEffect(() => {
-    const apply = (pose: { position: Vec3; target: Vec3 }) => {
+    const place = (pose: Pose) => {
       camera.position.set(...pose.position)
       controls.current?.target.set(...pose.target)
       controls.current?.update()
-      mark()
       invalidate()
     }
-    cameraControl.get = () => ({
+    const apply = (pose: Pose) => {
+      stop()
+      place(pose)
+      mark()
+    }
+    const get = (): Pose => ({
       position: camera.position.toArray() as Vec3,
       target: (controls.current?.target.toArray() ?? [0, 0, 0]) as Vec3,
     })
+    const fov = () => (camera as PerspectiveCamera).fov ?? 50
+    // Where the current move is going: a click during a move adds to its end, so quick clicks are not lost.
+    let goal: Pose | null = null
+    const glide = (to: Pose) => {
+      stop()
+      const from = get()
+      goal = to
+      const el = stage()
+      if (el) el.dataset.moving = 'true'
+      const t0 = performance.now()
+      const tick = () => {
+        const t = Math.min(1, (performance.now() - t0) / MOVE_MS)
+        if (t >= 1) return apply(to)
+        place(between(from, to, ease(t)))
+        anim.current = requestAnimationFrame(tick)
+      }
+      anim.current = requestAnimationFrame(tick)
+    }
+    const destination = (s: NavStep | 'reset' | 'center', from: Pose): Pose | null => {
+      if (s === 'reset') {
+        // Back to the chosen view; a view that is not available here falls back to eye level.
+        const pose = cameraPose(recipeRef.current, useStudio.getState().camera)
+        if (!('unavailable' in pose)) return pose
+        const fallback = cameraPose(recipeRef.current, 'eye_level_oblique')
+        return 'unavailable' in fallback ? null : fallback
+      }
+      if (s === 'center') {
+        const m = useStudio.getState().result?.meshes
+        const sphere = m ? boundingSphere([m.outer?.positions, m.inner?.positions, m.floor?.positions, m.caps?.positions]) : null
+        if (!sphere) return null
+        const aspect = (camera as PerspectiveCamera).aspect ?? 1.5
+        // What was framed, for tests: the sphere's center and radius, the field of view and the window's aspect.
+        const el = stage()
+        if (el) el.dataset.frame = JSON.stringify([...sphere.center, sphere.radius, fov(), aspect].map((v) => Math.round(v * 1000) / 1000))
+        return frame(from, sphere, fov(), aspect)
+      }
+      return step(from, s, fov())
+    }
+    cameraControl.get = get
     cameraControl.set = apply
+    cameraControl.move = (s) => {
+      const to = destination(s, anim.current && goal ? goal : get())
+      if (to) glide(to)
+    }
     return () => {
-      cameraControl.get = cameraControl.set = null
+      stop()
+      cameraControl.get = cameraControl.set = cameraControl.move = null
     }
   }, [camera, invalidate])
   useEffect(() => {
@@ -200,7 +264,24 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
     }
     cameraControl.set?.(pose)
   }, [nonce, preset, ready, camera, set])
-  return <OrbitControls ref={controls} makeDefault enableDamping={false} maxPolarAngle={Math.PI * 0.495} minDistance={0.5} maxDistance={600} onEnd={mark} />
+  // Free hands (DECISIONS.md 110): one finger or the left button orbits, two fingers, the right button or Shift
+  // with a drag pan in the screen's plane, the wheel or a pinch zooms. A drag stops any move a button started.
+  return (
+    <OrbitControls
+      ref={controls}
+      makeDefault
+      enableDamping={false}
+      enableRotate
+      enablePan
+      screenSpacePanning
+      enableZoom
+      maxPolarAngle={LIMITS.maxPolar}
+      minDistance={LIMITS.minDistance}
+      maxDistance={LIMITS.maxDistance}
+      onStart={stop}
+      onEnd={mark}
+    />
+  )
 }
 
 /** `still` drops the studio's live tools (edge tracer, moving section), for side-by-side comparison. */
