@@ -3289,3 +3289,20 @@ button.reset:disabled {
 .metric-moved li {
   margin-block-end: 3px;
 }
+.atlas-card h3,
+.model-page h3,
+.model-use h3,
+.suggest h4,
+.jw-materials .journey-name {
+  font-family: var(--f-display);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+/* Cards show the whole line at once; only the large figure draws itself. */
+.atlas-card .model-figure .mf-main,
+.jw-model .model-figure .mf-main,
+.suggest .model-figure .mf-main {
+  animation: none;
+  stroke-dashoffset: 0;
+}
