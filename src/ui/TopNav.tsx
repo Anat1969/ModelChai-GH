@@ -43,7 +43,7 @@ export function TopNav({ crumbs }: { crumbs: Crumb[] }) {
   }
   return (
     <header className="topbar">
-      <a className="brand" href="#/projects" onClick={(e) => (e.preventDefault(), navigate('projects'))} data-testid="brand" aria-label="יוצר: מתמטיקה, לדף הבית">
+      <a className="brand" href="#/home" onClick={(e) => (e.preventDefault(), navigate('home'))} data-testid="brand" aria-label="יוצר: מתמטיקה, לדף הבית">
         <img className="brand-mark" src="/icon.svg" alt="" width="26" height="26" />
         <span>יוצר: מתמטיקה</span>
       </a>

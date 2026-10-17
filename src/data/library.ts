@@ -14,7 +14,7 @@ export interface LibraryItem {
   id: string
   project_id: string
   version_id: string | null
-  kind: 'prompt' | 'image' | 'post' | 'reading' | 'still' | 'clip' | 'print' | 'dossier'
+  kind: 'prompt' | 'image' | 'post' | 'reading' | 'still' | 'clip' | 'print' | 'dossier' | 'reference' | 'photo'
   prompt_id: string | null
   distill: string | null
   body: string | null

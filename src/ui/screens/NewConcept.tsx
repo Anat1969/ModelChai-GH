@@ -9,8 +9,10 @@ import { requestRecipe, type ConceptOutcome, type ConceptProgress } from '../../
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { validateRecipe } from '../../recipe/rules'
 import { num } from '../format'
-import { navigate } from '../router'
-import { useStudio } from '../store'
+import { loadWork } from '../../data/work'
+import { navigate, useParam } from '../router'
+import { saveWhenBuilt } from '../saveCurrent'
+import { useStudio, type ProjectRef } from '../store'
 import { TopNav } from '../TopNav'
 
 type Failure = Extract<ConceptOutcome, { ok: false }>
@@ -45,6 +47,25 @@ export function NewConcept() {
   const [now, setNow] = useState(() => performance.now())
   const abort = useRef<AbortController | null>(null)
   const load = useStudio((s) => s.loadRecipe)
+  // Opened from step 3 of a project: the concept, use and place come from the steps before it (DECISIONS.md 97).
+  const projectId = useParam('p')
+  const [project, setProject] = useState<ProjectRef | null>(null)
+  useEffect(() => {
+    if (!projectId) return setProject(null)
+    void ensureSession().then(async (s) => {
+      if (s.status !== 'signed-in') return
+      try {
+        const w = await loadWork(projectId)
+        const j = w.row.journey
+        setProject({ id: w.row.id, concept: w.row.concept, title_he: w.row.title_he })
+        setConcept((c) => c || j.concept?.math || '')
+        setUse((u) => u || j.context?.use || '')
+        setContext((c) => c || j.context?.place || '')
+      } catch {
+        setProject(null)
+      }
+    })
+  }, [projectId])
 
   useEffect(() => {
     ensureSession().then(setSession, (e) => setSession({ status: 'error', message: String(e) }))
@@ -57,6 +78,12 @@ export function NewConcept() {
   }, [phase.name])
 
   const openInStudio = (recipe: unknown, startedAt: number, attempts: number, warnings: string[]) => {
+    if (project) {
+      load(recipe, `concept:${concept}`, { concept, startedAt, attempts, warnings }, { project, versionId: null, view: null, dirty: true })
+      navigate('studio')
+      void saveWhenBuilt('המתכון הראשון מהמושג')
+      return
+    }
     load(recipe, `concept:${concept}`, { concept, startedAt, attempts, warnings })
     navigate('studio')
   }
@@ -115,10 +142,17 @@ export function NewConcept() {
 
   return (
     <div className="wrap">
-      <TopNav crumbs={[{ label: 'פרויקטים', to: 'projects' }, { label: 'מושג חדש' }]} />
+      <TopNav
+        crumbs={
+          project
+            ? [{ label: 'פרויקטים', to: 'projects' }, { label: project.title_he, to: 'project', params: { p: project.id, s: 'concept' } }, { label: 'גיבוש קונספט' }]
+            : [{ label: 'פרויקטים', to: 'projects' }, { label: 'מושג חדש' }]
+        }
+      />
       <header className="screen">
         <span className="eyebrow">מתמטיקה הפוכה</span>
-        <h1>מושג חדש</h1>
+        <h1>{project ? `מושג ל${project.title_he}` : 'מושג חדש'}</h1>
+        {project && <p className="hint">שלב 03 בפרויקט. השימוש וההקשר הגיעו מהשלבים הקודמים, ואפשר לשנות אותם. המתכון נשמר בפרויקט כגרסה הראשונה.</p>}
         <p className="lead">
           מקלידים מושג מתמטי. Claude מתרגם אותו למתכון גאומטרי, המנוע בונה ממנו מודל ערום, והסטודיו נפתח לכיול. המבנה לא מצייר את
           המושג, הוא בונה אותו.
