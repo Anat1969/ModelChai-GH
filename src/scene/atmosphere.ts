@@ -2,10 +2,11 @@
  * Light, sky and fog for the realistic level (LEVELS.md 2.1, 2.2), as plain numbers and hex colors.
  * Pure, so the scene only applies what is computed here.
  */
+import type { WEATHERS } from '../recipe/schema'
 import type { Season } from './seasons'
 import { HAZE_DISTANCE } from './seasons'
 
-export type Weather = 'clear' | 'haze' | 'overcast'
+export type Weather = (typeof WEATHERS)[number]
 
 export interface Atmosphere {
   sunColor: string
@@ -24,6 +25,12 @@ export interface Atmosphere {
   fogFar: number
   /** Light temperature that was used, in kelvin, for the readout and the prompt. */
   kelvin: number
+  /** 0 dry, 1 soaked: darker ground and a sheen on the model. A visual cue, not a measure of rain. */
+  wetness: number
+  /** Snow lies on the ground and on the crowns. */
+  snowCover: boolean
+  /** What falls from the sky, drawn as streaks or flakes. */
+  precipitation: 'rain' | 'snow' | null
 }
 
 const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x))
@@ -61,9 +68,11 @@ export function atmosphere(altitude: number, weather: Weather, season: Season, e
   const clearTop = mix('#1d2a44', mix('#4a6d99', '#3d7bb8', day), dusk)
   const clearHorizon = mix('#3a3f55', mix('#f0a56a', '#d4e3ec', day), dusk)
 
+  const dry = { wetness: 0, snowCover: false, precipitation: null }
   switch (weather) {
     case 'clear':
       return {
+        ...dry,
         sunColor,
         sunIntensity: up ? 2.6 + day * 0.6 : 0,
         castShadow: up,
@@ -79,6 +88,7 @@ export function atmosphere(altitude: number, weather: Weather, season: Season, e
       }
     case 'haze':
       return {
+        ...dry,
         sunColor: mix(sunColor, '#ffd9a8', 0.35),
         sunIntensity: up ? 1.7 + day * 0.5 : 0,
         castShadow: up,
@@ -94,6 +104,7 @@ export function atmosphere(altitude: number, weather: Weather, season: Season, e
       }
     case 'overcast':
       return {
+        ...dry,
         sunColor: '#e8e8e6',
         sunIntensity: 0,
         castShadow: false,
@@ -106,6 +117,64 @@ export function atmosphere(altitude: number, weather: Weather, season: Season, e
         fogNear: far * 0.05,
         fogFar: far * 0.35,
         kelvin: 6500,
+      }
+    case 'rain':
+      // Overcast and darker, no direct sun and so no cast shadow (DECISIONS.md 57), wet ground.
+      return {
+        wetness: 1,
+        snowCover: false,
+        precipitation: 'rain',
+        sunColor: '#dfe2e4',
+        sunIntensity: 0,
+        castShadow: false,
+        shadowRadius: 0,
+        skyTop: mix('#33373d', '#7b8086', dusk),
+        skyHorizon: mix('#454a50', '#a4a8ab', dusk),
+        ambientSky: mix('#6a7077', '#c3c8cc', dusk),
+        ambientGround: mix('#3f3d39', '#86817a', dusk),
+        ambientIntensity: 0.45 + 1.05 * dusk,
+        fogNear: far * 0.03,
+        fogFar: far * 0.25,
+        kelvin: 6800,
+      }
+    case 'fog':
+      // The sun shows as a pale disc and casts a faint, very soft shadow. Visibility is a few model sizes.
+      return {
+        wetness: 0.4,
+        snowCover: false,
+        precipitation: null,
+        sunColor: mix(sunColor, '#ffffff', 0.6),
+        sunIntensity: up ? 0.5 + day * 0.5 : 0,
+        castShadow: up,
+        shadowRadius: 12,
+        skyTop: mix('#6f7477', '#d2d5d6', dusk),
+        skyHorizon: mix('#7f8487', '#e1e3e3', dusk),
+        ambientSky: mix('#8a8f93', '#e6e8e9', dusk),
+        ambientGround: mix('#5f5d58', '#b9b4ab', dusk),
+        ambientIntensity: 0.6 + 1.1 * dusk,
+        // The shortest visibility of all weathers, yet the far side of the model still shows through.
+        fogNear: Math.max(8, extent * 0.3),
+        fogFar: Math.max(far * 0.18, extent * 1.8 + 35),
+        kelvin: 6200,
+      }
+    case 'snow':
+      // Falling snow: no direct sun, a bright white ambient light reflected from the snow cover.
+      return {
+        wetness: 0,
+        snowCover: true,
+        precipitation: 'snow',
+        sunColor: '#eef1f4',
+        sunIntensity: 0,
+        castShadow: false,
+        shadowRadius: 0,
+        skyTop: mix('#5d6267', '#bfc4c8', dusk),
+        skyHorizon: mix('#6f747a', '#dde0e3', dusk),
+        ambientSky: mix('#8b9096', '#eef1f4', dusk),
+        ambientGround: mix('#8a8d90', '#e9ecee', dusk),
+        ambientIntensity: 0.6 + 1.4 * dusk,
+        fogNear: far * 0.04,
+        fogFar: far * 0.3,
+        kelvin: 7000,
       }
   }
 }

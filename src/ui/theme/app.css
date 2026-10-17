@@ -225,6 +225,50 @@ button[aria-pressed='true'] {
   margin: 0;
 }
 
+/* What is computed and what is only shown (DECISIONS.md 123). */
+.basis-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--ink);
+  font-size: 15px;
+}
+table.basis {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+table.basis th,
+table.basis td {
+  text-align: start;
+  vertical-align: top;
+  padding: var(--space-2) var(--space-1);
+  border-block-end: 1px solid var(--hairline);
+}
+table.basis th {
+  width: 38%;
+  font-weight: 600;
+}
+table.basis tr[data-kind='computed'] strong {
+  text-decoration: underline;
+}
+
+/* Words placed in the model: north and the front (DECISIONS.md 121). */
+.scene-word {
+  font-family: var(--f-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(20, 26, 27, 0.66);
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+.scene-word.front {
+  background: rgba(29, 108, 117, 0.8);
+}
+
 .tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;

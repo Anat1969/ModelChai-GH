@@ -40,6 +40,28 @@ export function sunsetAt(site: Site, when: Date): Date | null {
   return getTimes(when, site.lat, site.lon, 0, offsetMinutes(site, when)).sunset
 }
 
+export interface SunPath {
+  /** Local clock hours (e.g. 6.25 for 06:15), or null where the sun does not rise or set that day. */
+  sunrise: number | null
+  sunset: number | null
+  noon: number
+  /** Altitude at solar noon, in degrees. */
+  noonAltitude: number
+}
+
+/** The day's sun path at a site: rise, solar noon and set on the site clock, and the highest altitude. */
+export function sunPath(site: Site, when: Date): SunPath {
+  // With the site's offset, suncalc covers the civil day of the site clock.
+  const t = getTimes(when, site.lat, site.lon, 0, offsetMinutes(site, when))
+  const hour = (d: Date | null | undefined) => (d && !Number.isNaN(d.getTime()) ? localTime(d.toISOString(), site).hour : null)
+  return {
+    sunrise: hour(t.sunrise),
+    sunset: hour(t.sunset),
+    noon: hour(t.solarNoon) ?? 12,
+    noonAltitude: sunAt(site, t.solarNoon).altitude,
+  }
+}
+
 /** Sites for the location selector. Each has its Hebrew name and the full Latin name, so it can be searched. */
 export const SITES: readonly (Site & { name: string; name_he: string; full: string })[] = [
   { name: 'Ashdod', name_he: 'אשדוד', full: 'Ashdod, Israel', lat: 31.8, lon: 34.65 },

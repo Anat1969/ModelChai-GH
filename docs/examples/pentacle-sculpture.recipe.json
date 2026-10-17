@@ -46,6 +46,8 @@
     },
     "datetime": "2026-10-13T17:30:00+03:00",
     "weather": "haze",
+    "orientation_deg": 0,
+    "wind": { "from_deg": 270, "speed_ms": 6 },
     "materials": {
       "outer": "corten_steel"
     },
