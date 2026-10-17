@@ -4,8 +4,11 @@
  * An error blocks the build. A warning builds and marks the related metric in orange.
  * Interpretations where the docs leave room are recorded in docs/DECISIONS.md.
  */
+import { CURVE_PATHS, bendAxis, crossingClearance, lowestPoints, minCurvatureRadius, sectionExtent } from '../engine/paths/analysis'
+import { gcd } from '../engine/math'
+import { pathFrames } from '../engine/paths'
 import type { Recipe, SweepParams, SweepSection } from './schema'
-import { parseRecipe, type SchemaError } from './schema'
+import { CLOSED_PATH_TYPES, RING_PATH_TYPES, parseRecipe, type SchemaError } from './schema'
 
 export type Severity = 'error' | 'warning'
 
@@ -28,6 +31,11 @@ export const RULES: readonly RuleDef[] = [
   { id: 7, severity: 'error', scope: 'recipe', message: 'המעברים חופפים' },
   { id: 8, severity: 'warning', scope: 'recipe', message: 'החוד קבור עמוק, נדרש יסוד עמוק' },
   { id: 9, severity: 'error', scope: 'system', message: 'הגאומטריה ברמה הריאליסטית שונה מהרמה הערומה' },
+  { id: 10, severity: 'error', scope: 'recipe', message: 'המסלול מתעקל חד מדי לעובי החתך' },
+  { id: 11, severity: 'error', scope: 'recipe', message: 'המסלול פוגש את עצמו בהצטלבות' },
+  { id: 12, severity: 'warning', scope: 'recipe', message: 'אין גובה מלא מתחת להצטלבות' },
+  { id: 13, severity: 'error', scope: 'recipe', message: 'רגלי הקשת לא נוגעות בקרקע' },
+  { id: 14, severity: 'error', scope: 'recipe', message: 'הקשר מתפרק לכמה לולאות נפרדות' },
 ]
 
 export interface RuleIssue {
@@ -52,7 +60,8 @@ export const MAX_CUSP_BURIAL = 3
 /** Floating-point slack for boundary comparisons: 3 × 2.4 is 7.1999…, and R = 7.2 must still fail rule 2. */
 const EPS = 1e-9
 
-const CLOSED_PATHS = new Set(['circle', 'ellipse'])
+const CLOSED_PATHS = new Set<string>(CLOSED_PATH_TYPES)
+const RING_PATHS = new Set<string>(RING_PATH_TYPES)
 
 const round = (x: number, digits = 3) => Math.round(x * 10 ** digits) / 10 ** digits
 
@@ -127,10 +136,14 @@ function sweepIssues(recipe: Recipe, g: SweepParams): RuleIssue[] {
     }
   }
 
-  // 2. The path radius must exceed the section's outer radius.
-  if (path.type !== 'line') {
+  // 2. The path radius must exceed the section's outer radius. On a torus knot the strand passes R − r from
+  // the axis, so that is the radius that must clear it.
+  if (RING_PATHS.has(path.type) || path.type === 'helix') {
     const R = path.type === 'ellipse' ? Math.min(path.R!, path.R2!) : path.R!
     if (!(R > rOut + EPS)) out.push(issue(2, `${P}.path.R`, R, `R > ${round(rOut)}`))
+  }
+  if (path.type === 'torus_knot' && !(path.R! - path.r! > rOut + EPS)) {
+    out.push(issue(2, `${P}.path.R`, path.R! - path.r!, `R − r > ${round(rOut)}`))
   }
 
   // 3–6. Shell. The inner wall is the section scaled by k = (a − t) / a (GENERATORS.md 1.5).
@@ -144,7 +157,9 @@ function sweepIssues(recipe: Recipe, g: SweepParams): RuleIssue[] {
 
       // 5–6 use the deltoid's closed form: with the cusp down the inner top sits at 1.5(a − t).
       const floor = bare.floor ?? { level: 0, type: 'chord' as const }
-      if (section.curve === 'deltoid' && floor.type === 'chord') {
+      // Paths whose section tilts (lemniscate, knot, arch) have no floor plane, so no floor rule either.
+      const flat = !CURVE_PATHS.has(path.type) || path.type === 'wave'
+      if (section.curve === 'deltoid' && floor.type === 'chord' && flat) {
         const half = 1.5 * (a - t)
         const level = floor.level
         const gap = h0 - level
@@ -159,9 +174,9 @@ function sweepIssues(recipe: Recipe, g: SweepParams): RuleIssue[] {
     }
   }
 
-  // 7. Passages must not overlap.
+  // 7. Passages must not overlap. Passages open a ring to its courtyard, so they exist on rings only.
   const passages = bare.openings?.passages
-  if (passages && passages.count > 0 && closed) {
+  if (passages && passages.count > 0 && RING_PATHS.has(path.type)) {
     const perimeter = path.type === 'ellipse' ? ellipsePerimeter(path.R!, path.R2!) : 2 * Math.PI * path.R!
     const used = passages.count * passages.width
     if (!(used < 0.8 * perimeter - EPS)) {
@@ -169,12 +184,52 @@ function sweepIssues(recipe: Recipe, g: SweepParams): RuleIssue[] {
     }
   }
 
-  // 8. Cusp burial depth.
-  const burial = rOut - h0
-  if (burial > MAX_CUSP_BURIAL + EPS) {
-    out.push(issue(8, 'bare.section_center_height', burial, `outer radius − section_center_height ≤ ${MAX_CUSP_BURIAL}`))
+  // 8. Cusp burial depth. The new paths rise and fall, so their depth is measured on the surface itself.
+  if (CURVE_PATHS.has(path.type)) {
+    out.push(...curvePathIssues(g, h0, rOut))
+  } else {
+    const burial = rOut - h0
+    if (burial > MAX_CUSP_BURIAL + EPS) {
+      out.push(issue(8, 'bare.section_center_height', burial, `outer radius − section_center_height ≤ ${MAX_CUSP_BURIAL}`))
+    }
   }
 
+  return out
+}
+
+/**
+ * Rules of the paths written as curves (DECISIONS.md 130–134). Rule 14 first: a knot that falls apart into
+ * separate loops has no single curve to measure.
+ */
+function curvePathIssues(g: SweepParams, h0: number, rOut: number): RuleIssue[] {
+  const out: RuleIssue[] = []
+  const path = g.path
+  if (path.type === 'torus_knot' && gcd(path.p!, path.q!) !== 1) {
+    out.push(issue(14, `${P}.path.q`, gcd(path.p!, path.q!), 'gcd(p, q) = 1'))
+    return out
+  }
+
+  // 10. The path must not bend tighter than the section reaches on the inside of the bend.
+  const bend = sectionExtent(g, bendAxis(path), rOut)
+  const rho = minCurvatureRadius(pathFrames(path, h0, 720))
+  if (!(rho > bend + EPS)) {
+    const field = path.type === 'wave' ? 'path.wavelength' : path.type === 'arch' ? 'path.height' : 'path.R'
+    out.push(issue(10, `${P}.${field}`, rho, `smallest radius of curvature > ${round(bend)}`))
+  }
+
+  // 11–12. Where the path crosses itself, one branch passes over the other with room to stand under it.
+  const gap = crossingClearance(g, h0, rOut)
+  if (gap !== null) {
+    const field = path.type === 'lemniscate' ? 'path.cross_height' : 'path.r'
+    if (!(gap > EPS)) out.push(issue(11, `${P}.${field}`, gap, 'clearance between the branches > 0'))
+    else if (gap < MIN_CLEAR_HEIGHT - EPS) out.push(issue(12, `${P}.${field}`, gap, `clearance between the branches ≥ ${MIN_CLEAR_HEIGHT}`))
+  }
+
+  // 13 and 8: the arch stands on its feet; nothing goes deeper than a foundation.
+  const low = lowestPoints(g, h0)
+  if (path.type === 'arch' && low.ends > 1e-6) out.push(issue(13, 'bare.section_center_height', low.ends, 'lowest point of the feet ≤ 0'))
+  const burial = -low.surface
+  if (burial > MAX_CUSP_BURIAL + EPS) out.push(issue(8, 'bare.section_center_height', burial, `depth below the ground ≤ ${MAX_CUSP_BURIAL}`))
   return out
 }
 

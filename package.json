@@ -10,7 +10,7 @@
     "typecheck": "tsc -b",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "vite build && node tests/e2e/studio.e2e.mjs && node tests/e2e/concept-replay.e2e.mjs && node tests/e2e/realistic.e2e.mjs && node tests/e2e/projects.e2e.mjs && node tests/e2e/dossier.e2e.mjs && node tests/e2e/journey.e2e.mjs && node tests/e2e/print.e2e.mjs && node tests/e2e/video.e2e.mjs && node tests/e2e/navigation.e2e.mjs && node tests/e2e/environment.e2e.mjs",
+    "e2e": "vite build && node tests/e2e/studio.e2e.mjs && node tests/e2e/concept-replay.e2e.mjs && node tests/e2e/realistic.e2e.mjs && node tests/e2e/projects.e2e.mjs && node tests/e2e/dossier.e2e.mjs && node tests/e2e/journey.e2e.mjs && node tests/e2e/print.e2e.mjs && node tests/e2e/video.e2e.mjs && node tests/e2e/navigation.e2e.mjs && node tests/e2e/environment.e2e.mjs && node tests/e2e/paths.e2e.mjs",
     "e2e:reference": "node tests/e2e/reference-metrics.mjs",
     "build:function": "node scripts/build-function.mjs",
     "integration": "vite build && node tests/e2e/concepts.integration.mjs"

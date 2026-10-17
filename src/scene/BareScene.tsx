@@ -248,6 +248,15 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
       cameraControl.get = cameraControl.set = cameraControl.move = null
     }
   }, [camera, invalidate])
+  const waitingFor = useRef<string | null>(null)
+  const placePreset = () => {
+    const pose = cameraPose(recipeRef.current, useStudio.getState().camera)
+    if ('unavailable' in pose) {
+      set('notice', { tone: 'info', title: 'נקודת המבט הזאת לא זמינה כאן', lines: [{ text: pose.unavailable }], action: 'הבנתי' })
+      return
+    }
+    cameraControl.set?.(pose)
+  }
   useEffect(() => {
     if (!ready) return
     // A saved view wins over the preset once: the version reopens exactly as it was looked at.
@@ -257,13 +266,22 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
       set('pendingView', null)
       return
     }
-    const pose = cameraPose(recipeRef.current, preset)
-    if ('unavailable' in pose) {
-      set('notice', { tone: 'info', title: 'נקודת המבט הזאת לא זמינה כאן', lines: [{ text: pose.unavailable }], action: 'הבנתי' })
+    // A recipe just loaded is built a moment later: until then the model on screen is the previous one, and its
+    // bounds would frame the new model wrongly. Wait for the new model (DECISIONS.md 130). A second request while
+    // waiting (a view chosen, or a recipe that never builds) is placed at once.
+    const loaded = (useStudio.getState().recipe as { meta?: { id?: string } } | null)?.meta?.id
+    if (loaded && loaded !== recipeRef.current.meta.id && waitingFor.current !== loaded) {
+      waitingFor.current = loaded
       return
     }
-    cameraControl.set?.(pose)
-  }, [nonce, preset, ready, camera, set])
+    waitingFor.current = null
+    placePreset()
+  }, [nonce, preset, ready, camera, set]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ready || waitingFor.current === null || recipe.meta.id !== waitingFor.current) return
+    waitingFor.current = null
+    placePreset()
+  }, [recipe, ready]) // eslint-disable-line react-hooks/exhaustive-deps
   // Free hands (DECISIONS.md 110): one finger or the left button orbits, two fingers, the right button or Shift
   // with a drag pan in the screen's plane, the wheel or a pinch zooms. A drag stops any move a button started.
   return (

@@ -2,6 +2,11 @@
  * Welded mesh for export and volume checks. One vertex per grid point; the last row wraps to the first
  * shifted by round(M · turns_per_lap) mod M (GENERATORS.md 1.4). Open paths get end caps: a fan for a solid,
  * an annulus for a shell. Without openings the result is watertight.
+ *
+ * With `reveals`, every opening is closed around its rim by a reveal: a strip from the rim of the hole in the
+ * outer wall to the rim of the same hole in the inner wall (GENERATORS.md 1.6, DECISIONS.md 133). The holes are
+ * decided once from the outer wall, so the two rims run through the same grid points and the strip is a ring of
+ * quads between them. The body stays watertight with its openings, which is what the print needs.
  */
 import type { Recipe, SweepParams } from '../../recipe/schema'
 import { signedVolume } from '../math'
@@ -9,13 +14,18 @@ import type { SolidMesh } from '../types'
 import { computeOpenings } from './openings'
 import { createSetup, exportResolution, globalCol, innerScale, nextRow, recipeResolution, surfaceGrid, type SweepSetup } from './setup'
 
-export function buildClosedMesh(recipe: Recipe, params: SweepParams, opts: { withOpenings?: boolean } = {}): SolidMesh {
+export function buildClosedMesh(recipe: Recipe, params: SweepParams, opts: { withOpenings?: boolean; reveals?: boolean } = {}): SolidMesh {
   const s = createSetup(recipe, params, exportResolution(recipeResolution(params)))
   const { rows, M, arcs, q, frames } = s
   const outer = surfaceGrid(s, 1)
   const kIn = innerScale(recipe, params)
   const inner = kIn === null ? null : surfaceGrid(s, kIn)
-  const holes = opts.withOpenings === false ? null : computeOpenings(recipe, s, outer).holes
+  let holes = opts.withOpenings === false ? null : computeOpenings(recipe, s, outer).holes
+  if (holes && opts.reveals && !frames.closed) {
+    // Next to an end cap the reveal would lie on the cap itself: keep one row of wall at each end.
+    holes = holes.slice()
+    for (const i of [0, rows - 2]) holes.fill(0, i * arcs * q, (i + 1) * arcs * q)
+  }
 
   const grids = inner ? [outer, inner] : [outer]
   const perGrid = rows * M
@@ -49,6 +59,7 @@ export function buildClosedMesh(recipe: Recipe, params: SweepParams, opts: { wit
     orient(tris, positions, s, base, n === 1)
     for (const v of tris) out.push(v)
   })
+  if (holes && inner && opts.reveals) for (const v of revealStrips(out, perGrid, M, rows, frames.closed)) out.push(v)
 
   if (!frames.closed) {
     for (const end of [0, rows - 1]) {
@@ -68,6 +79,38 @@ export function buildClosedMesh(recipe: Recipe, params: SweepParams, opts: { wit
     }
   }
   return { positions, indices: Uint32Array.from(out) }
+}
+
+/**
+ * Reveals for the openings. The outer wall (vertices below perGrid) is open exactly along the rims of its holes,
+ * plus, on an open path, along its two end rows, which the caps close. Each rim edge a→b of the outer wall gets
+ * the quad b, a, a′, b′ to the same edge of the inner wall (x′ = x + perGrid). The inner wall runs the other way
+ * round (it faces the section center), so it holds b′→a′, and the quad meets both walls edge to edge.
+ */
+function revealStrips(tris: number[], perGrid: number, M: number, rows: number, closed: boolean): number[] {
+  const nOuter = perGrid
+  const key = (a: number, b: number) => a * nOuter + b
+  const directed = new Set<number>()
+  const outerTris = tris.length
+  for (let t = 0; t < outerTris; t += 3) {
+    if (tris[t]! >= nOuter) continue
+    for (let e = 0; e < 3; e++) directed.add(key(tris[t + e]!, tris[t + ((e + 1) % 3)]!))
+  }
+  const endRow = (v: number) => {
+    const row = Math.floor(v / M)
+    return row === 0 || row === rows - 1
+  }
+  const out: number[] = []
+  for (let t = 0; t < outerTris; t += 3) {
+    if (tris[t]! >= nOuter) continue
+    for (let e = 0; e < 3; e++) {
+      const a = tris[t + e]!, b = tris[t + ((e + 1) % 3)]!
+      if (directed.has(key(b, a))) continue
+      if (!closed && endRow(a) && endRow(b)) continue
+      out.push(b, a, a + perGrid, b, a + perGrid, b + perGrid)
+    }
+  }
+  return out
 }
 
 function triNormalDot(tris: number[], p: Float64Array, d: [number, number, number], from: [number, number, number] | null): number {

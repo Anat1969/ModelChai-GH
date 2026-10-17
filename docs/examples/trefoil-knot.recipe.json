@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "trefoil-knot",
+    "created_at": "2026-10-17T12:00:00+03:00",
+    "source": "manual",
+    "notes": "Example: balanced default state"
+  },
+  "concept": {
+    "name": "Trefoil knot",
+    "name_he": "קשר תלתן",
+    "use": "פסל סביבתי",
+    "context_hint": "חוף ים"
+  },
+  "generator": {
+    "type": "sweep",
+    "params": {
+      "section": {
+        "curve": "circle",
+        "a": 0.9
+      },
+      "path": {
+        "type": "torus_knot",
+        "R": 12,
+        "r": 5,
+        "p": 2,
+        "q": 3
+      },
+      "twist": {
+        "turns_per_lap": 0,
+        "initial_angle_deg": 0
+      },
+      "scale_along_path": 1
+    }
+  },
+  "bare": {
+    "mode": "solid",
+    "section_center_height": 5.7,
+    "highlight": [
+      "path"
+    ]
+  },
+  "realistic": {
+    "site": {
+      "lat": 31.8,
+      "lon": 34.65,
+      "name": "Ashdod"
+    },
+    "datetime": "2026-09-20T17:00:00+03:00",
+    "weather": "clear",
+    "orientation_deg": 0,
+    "wind": { "from_deg": 270, "speed_ms": 5 },
+    "materials": {
+      "outer": "corten_steel"
+    },
+    "context": {
+      "preset": "coastal_dunes",
+      "vegetation": "dune_shrubs_low",
+      "people": 8
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "התלתן על החוף",
+    "insight": "צינור אחד סגור עובר שלוש פעמים מעל ומתחת לעצמו, ובכל הצטלבות נשאר מתחתיו מעבר בגובה מלא. מי שהולך בין הזרועות רואה את הים דרך שלוש לולאות, ומגלה שהן קו אחד שאי אפשר להתיר.",
+    "maxim": "שלוש לולאות, קו אחד.",
+    "fit_note": null
+  }
+}
