@@ -120,7 +120,10 @@ export function CollectionScreen() {
                 פתיחה בסטודיו
               </button>
             )}
-            <button type="button" className="primary" onClick={() => navigate('dossier', { p: data.project.id })} data-testid="open-dossier">
+            <button type="button" className="primary" onClick={() => navigate('project', { p: data.project.id })} data-testid="open-work">
+              מסלול העבודה
+            </button>
+            <button type="button" onClick={() => navigate('dossier', { p: data.project.id })} data-testid="open-dossier">
               מסמך הפרויקט
             </button>
             <button type="button" onClick={() => navigate('library', { p: data.project.id })}>

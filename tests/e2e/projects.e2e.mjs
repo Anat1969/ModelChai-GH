@@ -294,7 +294,7 @@ try {
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   check('"העתקת קישור" copies this page\'s address', copied.endsWith('#/new'), copied)
   await page.click('[data-testid=brand]')
-  await page.waitForFunction(() => location.hash === '#/projects')
+  await page.waitForFunction(() => location.hash === '#/home')
   check('the app\'s name leads home', true)
 
   // ---------- version 1: edited geometry, realistic level, an orbited camera ----------

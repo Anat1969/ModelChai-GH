@@ -106,3 +106,19 @@ export async function anchorVersion(note: string): Promise<Anchor> {
   const cur = useStudio.getState()
   return { ok: true, projectId: cur.project!.id, versionId: cur.versionId!, savedVersion }
 }
+
+/**
+ * The first version of a project that started on the work path (DECISIONS.md 97): saved as soon as the engine
+ * has built the recipe once, so the project holds its recipe without waiting for a manual save.
+ */
+export async function saveWhenBuilt(note: string, timeoutMs = 60000): Promise<boolean> {
+  const t0 = Date.now()
+  while (!useStudio.getState().validRecipe) {
+    if (Date.now() - t0 > timeoutMs) return false
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  // One frame on screen, so the version keeps a picture.
+  await new Promise((r) => setTimeout(r, 400))
+  const out = await saveCurrent(note)
+  return out.status === 'saved' || out.status === 'queued'
+}

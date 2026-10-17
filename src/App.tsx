@@ -7,6 +7,9 @@ import { Connect } from './ui/screens/Connect'
 import { LibraryScreen } from './ui/screens/LibraryScreen'
 import { CollectionScreen } from './ui/screens/Collection'
 import { DossierScreen } from './ui/screens/Dossier'
+import { Home } from './ui/screens/Home'
+import { Workspace } from './ui/screens/Workspace'
+import { ArticleScreen } from './ui/screens/Article'
 import { Projects } from './ui/screens/Projects'
 import { Studio } from './ui/screens/Studio'
 import { useStudio } from './ui/store'
@@ -30,6 +33,9 @@ export function App() {
     window.addEventListener('online', flush)
     return () => window.removeEventListener('online', flush)
   }, [])
+  if (route === 'project') return <Workspace />
+  if (route === 'article') return <ArticleScreen />
+  if (route === 'projects') return <Projects />
   if (route === 'studio') return <Studio />
   if (route === 'new') return <NewConcept />
   if (route === 'compare') return <Compare />
@@ -37,5 +43,5 @@ export function App() {
   if (route === 'collection') return <CollectionScreen />
   if (route === 'dossier') return <DossierScreen />
   if (route === 'connect') return <Connect />
-  return <Projects />
+  return <Home />
 }

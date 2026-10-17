@@ -39,6 +39,9 @@ function ProjectCard({ p }: { p: ProjectSummary }) {
               פתיחה בסטודיו
             </button>
           )}
+          <button type="button" onClick={() => navigate('project', { p: p.id })} data-testid="open-work">
+            מסלול העבודה
+          </button>
           <button type="button" onClick={() => navigate('collection', { p: p.id })} data-testid="open-collection">
             קולקציה
           </button>

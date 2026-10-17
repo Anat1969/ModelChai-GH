@@ -4,7 +4,7 @@
  * real headings so Word's navigation pane shows the structure. No DOM: it runs in the browser and in tests.
  */
 import { AlignmentType, Document, HeadingLevel, ImageRun, Packer, PageBreak, Paragraph, TextRun, type ParagraphChild } from 'docx'
-import type { Dossier, DossierImage } from './content'
+import type { Dossier } from './content'
 
 export interface ImageBytes {
   data: Uint8Array
@@ -12,15 +12,15 @@ export interface ImageBytes {
   height: number
 }
 
-const FONT = { ascii: 'Arial', hAnsi: 'Arial', cs: 'Arial', eastAsia: 'Arial' }
-const GRAY = '4A4A4A'
+export const FONT = { ascii: 'Arial', hAnsi: 'Arial', cs: 'Arial', eastAsia: 'Arial' }
+export const GRAY = '4A4A4A'
 /** Text width of A4 with 2 cm margins, in pixels at 96 dpi. */
-const FULL = 642
+export const FULL = 642
 
 /** Word has no isolates: a range "4.65–7.80" inside them is written in words, so it reads right in a Hebrew line. */
 export const plain = (text: string) => text.replace(/\u2066([^\u2069]*)\u2069/g, (_, inner: string) => inner.replace(/^([\d.,]+)–([\d.,]+)$/, '$1 עד $2')).replace(/[\u2066-\u2069]/g, '')
 
-function run(text: string, o: { size?: number; bold?: boolean; color?: string; italics?: boolean } = {}) {
+export function run(text: string, o: { size?: number; bold?: boolean; color?: string; italics?: boolean } = {}) {
   const size = (o.size ?? 11) * 2
   return new TextRun({
     text: plain(text),
@@ -36,7 +36,7 @@ function run(text: string, o: { size?: number; bold?: boolean; color?: string; i
   })
 }
 
-function para(
+export function para(
   children: ParagraphChild[] | string,
   o: { size?: number; bold?: boolean; color?: string; after?: number; heading?: (typeof HeadingLevel)[keyof typeof HeadingLevel]; center?: boolean; pageBreak?: boolean } = {},
 ) {
@@ -50,12 +50,12 @@ function para(
   })
 }
 
-const h1 = (text: string, pageBreak = true) => para([run(text, { size: 22, bold: true })], { heading: HeadingLevel.HEADING_1, after: 240, pageBreak })
-const h2 = (text: string) => para([run(text, { size: 15, bold: true })], { heading: HeadingLevel.HEADING_2, after: 80 })
-const note = (text: string) => para([run(text, { size: 10, color: GRAY, italics: true })], { after: 120 })
-const pair = (label: string, value: string) => para([run(`${label}: `, { bold: true }), run(value)], { after: 100 })
+export const h1 = (text: string, pageBreak = true) => para([run(text, { size: 22, bold: true })], { heading: HeadingLevel.HEADING_1, after: 240, pageBreak })
+export const h2 = (text: string) => para([run(text, { size: 15, bold: true })], { heading: HeadingLevel.HEADING_2, after: 80 })
+export const note = (text: string) => para([run(text, { size: 10, color: GRAY, italics: true })], { after: 120 })
+export const pair = (label: string, value: string) => para([run(`${label}: `, { bold: true }), run(value)], { after: 100 })
 
-function image(img: DossierImage | null | undefined, bytes: Map<string, ImageBytes>, width: number): ParagraphChild | null {
+export function image(img: { id: string } | null | undefined, bytes: Map<string, ImageBytes>, width: number): ParagraphChild | null {
   const b = img ? bytes.get(img.id) : undefined
   if (!b) return null
   return new ImageRun({ type: 'jpg', data: b.data, transformation: { width, height: Math.round((width * b.height) / b.width) } })
