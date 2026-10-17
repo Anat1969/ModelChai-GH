@@ -19,5 +19,8 @@ export default defineConfig({
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   test: {
     include: ['tests/**/*.test.ts'],
+    // The print and surface tests build full meshes; under the whole suite's load a few take 3–5 s each, so the
+    // default 5 s limit failed them now and then. Speed is checked by their own timing assertions, not by this.
+    testTimeout: 30000,
   },
 })
