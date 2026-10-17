@@ -9,7 +9,7 @@ import { ensureSession, type SessionState } from '../../data/supabase'
 import { loadWork, saveArticle, type Work } from '../../data/work'
 import { loadImages, type LoadedImage } from '../../dossier/images'
 import { paginate } from '../../journey/paginate'
-import { articleFileName, buildArticle, type Article, type ArticleEdits, type ArticleSection, type SectionKey } from '../../journey/article'
+import { articleFileName, articleMaterials, buildArticle, SECTION_KEYS, type Article, type ArticleEdits, type ArticleSection, type SectionKey } from '../../journey/article'
 import { projectName, stageById, type WorkImage } from '../../journey/stages'
 import { download } from '../download'
 import { engine } from '../engine'
@@ -30,10 +30,11 @@ interface Block {
 }
 
 function Fig({ img, loaded }: { img: WorkImage; loaded: Map<string, LoadedImage> }) {
-  const src = loaded.get(img.id)?.dataUrl
+  const l = loaded.get(img.id)
+  // The image keeps its own proportions; width and height are set before it decodes, so the page is measured right.
   return (
     <figure className="ar-fig">
-      {src ? <img src={src} alt={img.caption} /> : <div className="ar-fig-empty">התמונה נטענת</div>}
+      {l ? <img src={l.dataUrl} alt={img.caption} width={l.width} height={l.height} style={{ aspectRatio: `${l.width} / ${l.height}` }} /> : <div className="ar-fig-empty">התמונה נטענת</div>}
       <figcaption>{img.caption}</figcaption>
     </figure>
   )
@@ -314,6 +315,20 @@ export function ArticleScreen() {
         el.style.zoom = zoom
       }
     })
+  /** Claude drafts a continuous article from the same materials; it becomes the edit, which the owner keeps editing. */
+  const draft = () =>
+    run('draft', async () => {
+      if (editedCount && !confirm(`הטיוטה של Claude תחליף את ${editedCount} החלקים שנערכו. להמשיך?`)) return 'הטיוטה בוטלה.'
+      const { draftArticle } = await import('../../data/partner')
+      const out = await draftArticle(articleMaterials(article!), article!.title)
+      if (!out.ok) throw new Error(out.error)
+      const sections: Record<string, string> = {}
+      for (const k of SECTION_KEYS) if (out[k]?.trim()) sections[k] = out[k].trim()
+      persist({ sections, drafted: new Date().toISOString() })
+      setMode('edit')
+      return `Claude ניסח ${Object.keys(sections).length} חלקים מחומרי הפרויקט. אפשר לערוך כל אחד, או לחזור לטקסט מהחומרים.`
+    })
+
   const exportDocx = () =>
     run('docx', async () => {
       const { articleDocx } = await import('../../journey/docx')
@@ -367,7 +382,14 @@ export function ArticleScreen() {
                   עריכה
                 </button>
               </div>
-              <p className="hint">{editedCount ? `${editedCount} חלקים נערכו ידנית.` : 'כל הטקסט מורכב מהחומרים של השלבים.'}</p>
+              <p className="hint">{editedCount ? `${editedCount} חלקים נערכו${edits.drafted ? ', מטיוטה של Claude' : ''}.` : 'כל הטקסט מורכב מהחומרים של השלבים.'}</p>
+            </section>
+            <section>
+              <h2>מאמר מגובש</h2>
+              <button type="button" onClick={draft} disabled={!!busy} data-testid="article-draft">
+                {busy === 'draft' ? 'Claude כותב' : 'טיוטה רציפה מ-Claude'}
+              </button>
+              <p className="hint">Claude מחבר את חומרי השלבים למאמר רציף, בלי להוסיף עובדות. חלק בלי חומרים נשאר ריק ומסומן. אחרי הטיוטה עורכים לפני הייצוא.</p>
             </section>
             <section>
               <h2>ייצוא</h2>

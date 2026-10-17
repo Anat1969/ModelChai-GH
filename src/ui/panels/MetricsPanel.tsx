@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from 'react'
 import type { Metrics } from '../../engine/metrics'
+import { changes, infoOf, type Change } from '../metricMeaning'
 import { DENSITY, MATERIAL_LOOK } from '../../engine/materials'
 import type { RuleIssue } from '../../recipe/rules'
 import { meters, num, percent, range } from '../format'
@@ -63,13 +65,47 @@ export function metricRows(m: Metrics, r: Sweep): MetricRow[] {
   return out
 }
 
+/**
+ * Metrics that explain themselves (DECISIONS.md 106): each one opens to say what it measures, what it teaches and
+ * how it helps decide. When a parameter moves, a line on top says which metrics moved and what that means in form,
+ * space and use, until the next change.
+ */
 export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; issues: RuleIssue[]; recipe: Sweep }) {
+  const rows = metricRows(metrics, recipe)
+  const prev = useRef<MetricRow[] | null>(null)
+  const [moved, setMoved] = useState<Change[]>([])
+  useEffect(() => {
+    if (prev.current) {
+      const c = changes(prev.current, rows)
+      if (c.length) setMoved(c)
+    }
+    prev.current = rows
+  }, [metrics]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <section className="panel" aria-labelledby="metrics-title">
       <h2 id="metrics-title">מדדים</h2>
+      {moved.length > 0 && (
+        <div className="metric-moved" role="status" data-testid="metric-moved">
+          <strong>מה השתנה בשינוי האחרון</strong>
+          <ul>
+            {moved.slice(0, 4).map((c) => (
+              <li key={c.key}>
+                <span className="num">
+                  {c.label}: {c.from} ← {c.to}
+                </span>{' '}
+                {c.meaning}
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="quiet" onClick={() => setMoved([])}>
+            הסתרה
+          </button>
+        </div>
+      )}
       <dl className="metrics">
-        {metricRows(metrics, recipe).map((row) => {
+        {rows.map((row) => {
           const hit = issues.filter((i) => row.rules?.includes(i.rule))
+          const info = infoOf(row.key)
           return (
             <div key={row.key} className={hit.length ? 'warn' : undefined}>
               <dt>{row.label}</dt>
@@ -81,13 +117,30 @@ export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; is
                   {i.message}
                 </span>
               ))}
+              {info && (
+                <details className="metric-why" data-testid="metric-why">
+                  <summary>מה זה אומר</summary>
+                  <p>
+                    <strong>מודד: </strong>
+                    {info.measures}
+                  </p>
+                  <p>
+                    <strong>לומדים: </strong>
+                    {info.learn}
+                  </p>
+                  <p>
+                    <strong>להחלטה: </strong>
+                    {info.decide}
+                  </p>
+                </details>
+              )}
             </div>
           )
         })}
       </dl>
       <p className="hint">
-        נפח לפי משפט פאפוס: שטח החתך כפול אורך מסלול המרכז. בקליפה: ההפרש בין החתך החיצוני לפנימי, פחות הפתחים. המשקל לפי צפיפות
-        משוערת של החומר, לבדיקת סדר גודל בלבד.
+        מחושב מהגאומטריה: נפח לפי משפט פאפוס, שטח החתך כפול אורך מסלול המרכז. בקליפה: ההפרש בין החתך החיצוני לפנימי, פחות הפתחים.
+        המשקל לפי צפיפות משוערת של החומר, לבדיקת סדר גודל בלבד.
       </p>
     </section>
   )

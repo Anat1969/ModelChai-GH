@@ -212,6 +212,11 @@ export function Studio() {
     setTab(t)
     if (t === 'scene') set('level', 'realistic')
   }
+  // A step of the work path can open the studio on its tool, e.g. ?tab=print (DECISIONS.md 103).
+  const tabParam = useParam('tab')
+  useEffect(() => {
+    if (tabParam && SIDE_TABS.some((x) => x.id === tabParam)) openTab(tabParam as SideTab)
+  }, [tabParam]) // eslint-disable-line react-hooks/exhaustive-deps
   const title = recipe?.narrative.name_he ?? 'יוצר: מתמטיקה'
 
   const baseline = useStudio((s) => s.baseline)
@@ -224,7 +229,7 @@ export function Studio() {
       <TopNav
         crumbs={[
           { label: 'פרויקטים', to: 'projects' },
-          { label: project?.title_he ?? recipe?.concept.name_he ?? 'מתכון' },
+          project ? { label: project.title_he, to: 'project', params: { p: project.id } } : { label: recipe?.concept.name_he ?? 'מתכון' },
           { label: 'סטודיו' },
         ]}
       />

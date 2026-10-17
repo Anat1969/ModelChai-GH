@@ -8,6 +8,7 @@ import { listProjects, type ProjectSummary } from '../../data/projects'
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { createProject } from '../../data/work'
 import { STAGES } from '../../journey/stages'
+import { MODELS } from '../../learn/atlas'
 import { EmailLogin } from '../panels/EmailLogin'
 import { navigate } from '../router'
 import { TopNav } from '../TopNav'
@@ -18,6 +19,7 @@ const OUTCOMES = [
   { title: 'מודל שאפשר למדוד', text: 'מבנה שהמושג המתמטי הוא הלוגיקה שלו, עם קנה מידה, גובה חופשי, משקל, ואור של מקום ושעה.' },
   { title: 'המחשה', text: 'פרומפט שנגזר מהמודל, והתמונה שנוצרה ממנו, עם הסבר איך היא מבטאת את הרעיון ואיך היא חוזרת אל המבנה.' },
   { title: 'מבנה פיזי', text: 'קובץ הדפסה סגור, בקנה מידה ובעובי דופן שעומדים במדפסת, ותיעוד של המודל המודפס.' },
+  { title: 'סרטון', text: 'מבטים שבוחרים ומסדרים, ממצב ערום שמבהיר את הגאומטריה אל המבנה בחומר ובמקום.' },
   { title: 'מאמר לתערוכה', text: 'כל הטקסטים והתמונות של הפרויקט, ערוכים לסיפור אחד מהרעיון ועד התוצאה. PDF להצגה ו-Word לעריכה.' },
 ]
 
@@ -48,7 +50,7 @@ export function Home() {
       const s = session?.status === 'signed-in' ? session : await ensureSession()
       if (s.status !== 'signed-in') throw new Error('אין חיבור לחשבון')
       const id = await createProject({ title, idea })
-      navigate('project', { p: id, s: 'idea' })
+      navigate('project', { p: id, s: 'discover' })
     } catch (e) {
       setStatus(`הפרויקט לא נוצר: ${e instanceof Error ? e.message : String(e)}. אפשר לנסות שוב.`)
       setBusy(false)
@@ -60,12 +62,21 @@ export function Home() {
       <TopNav crumbs={[{ label: 'בית' }]} />
 
       <section className="home-hero" aria-labelledby="home-title">
-        <span className="eyebrow">מתמטיקה הפוכה</span>
-        <h1 id="home-title">ממושג מתמטי למבנה שאפשר לגעת בו</h1>
+        <span className="eyebrow">מתמטיקה הפוכה · מרחב ללמידה וליצירה</span>
+        <h1 id="home-title">מושגים מתמטיים שפותחים אפשרויות אדריכליות</h1>
         <p className="lead">
-          לא מסבירים מתמטיקה בעזרת מבנים, אלא בונים מבנים שהמתמטיקה היא הלוגיקה שלהם. כאן מתחילים מרעיון, מגבשים אותו למושג, בונים ממנו מודל, יוצרים המחשה, מדפיסים, ומתעדים, עד מאמר אחד שמציג את
-          הפרויקט בתערוכה.
+          מכירים מודל מתמטי, מבינים את ה־DNA שלו ומה הוא עושה לתנועה ולשימוש, מחברים אותו למקום ולהשראה, ובונים ממנו מודל, המחשה, דגם מודפס, סרטון ומאמר לתערוכה. Claude שותף לחקירה: מציע מושגים, מסביר את הבחירה, מציג חלופות ופותח ידע.
         </p>
+        <div className="home-doors">
+          <button type="button" className="home-door" onClick={() => navigate('learn')} data-testid="door-learn">
+            <strong>לגלות מושג</strong>
+            <span>{MODELS.length} מודלים: מה כל אחד פותח, ולמה</span>
+          </button>
+          <button type="button" className="home-door" onClick={() => navigate('learn', { mode: 'need' })} data-testid="door-need">
+            <strong>יש לי צורך</strong>
+            <span>כניסה לעיר, גשר, הצללה: אילו מושגים משרתים אותו</span>
+          </button>
+        </div>
         <p className="hint">אפשר להתחיל מחומרים חלקיים ולהשלים תוך כדי. מה שחסר מסומן בכל שלב, ולא עוצר את ההתקדמות.</p>
       </section>
 
@@ -81,7 +92,7 @@ export function Home() {
           aria-labelledby="new-title"
         >
           <h2 id="new-title">פרויקט חדש</h2>
-          <p className="hint">שלב 01. מספיק שם או משפט אחד. כל השאר אפשר להוסיף אחר כך.</p>
+          <p className="hint">מספיק שם או משפט אחד. הפרויקט נפתח בשלב הלמידה, וכל השאר אפשר להוסיף אחר כך.</p>
           <div className="field">
             <label htmlFor="new-name">שם הפרויקט</label>
             <input id="new-name" value={title} maxLength={80} onChange={(e) => setTitle(e.currentTarget.value)} placeholder="למשל: שער הים" data-testid="home-title" />
@@ -93,9 +104,6 @@ export function Home() {
           <div className="toolbar compact">
             <button type="submit" className="primary" disabled={busy || (!title.trim() && !idea.trim())} data-testid="home-start">
               {busy ? 'פותח' : 'התחלת פרויקט'}
-            </button>
-            <button type="button" onClick={() => navigate('new')}>
-              להתחיל ממושג מתמטי
             </button>
           </div>
           {status && (
@@ -142,7 +150,7 @@ export function Home() {
             <li key={s.id}>
               <span className="num">{s.num}</span>
               <strong>{s.title}</strong>
-              <span>{s.goal}</span>
+              <span>{s.doing}</span>
               <small>{s.yields}</small>
             </li>
           ))}

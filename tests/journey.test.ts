@@ -2,10 +2,10 @@
 import { Packer } from 'docx'
 import { strFromU8, unzipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { buildArticle } from '../src/journey/article'
+import { articleMaterials, buildArticle } from '../src/journey/article'
 import { articleDocument } from '../src/journey/docx'
 import { paginate } from '../src/journey/paginate'
-import { doneCount, nextStage, projectName, STAGES, stageStatus, type WorkState } from '../src/journey/stages'
+import { doneCount, fieldValue, nextStage, projectName, STAGES, stageById, stageStatus, withField, type WorkState } from '../src/journey/stages'
 import { parseRecipe } from '../src/recipe/schema'
 import { fixture } from './helpers'
 
@@ -33,9 +33,12 @@ function full(): WorkState {
   return {
     ...empty(),
     journey: {
+      discover: { saved: ['umbilic_torus', 'mobius'], learned: 'קצה אחד יכול להקיף שלוש פעמים.' },
       idea: { title: 'שער הים', idea: 'מבנה שמחבר את העיר לים.', intent: 'לעצור רגע לפני המים.', question: 'האם קו אחד יכול להיות גם פנים וגם חוץ?' },
       context: { place: 'אשדוד (Ashdod, Israel)', use: 'ביתן ציבורי', inspiration: 'הגלים שחוזרים אל עצמם.' },
-      concept: { why: 'לטורוס הטבורי יש קצה אחד.' },
+      concept: { model: 'umbilic_torus', why: 'לטורוס הטבורי יש קצה אחד.', statement: 'שער שהוא קו אחד.' },
+      environment: { decisions: 'אבן ירושלמית, צהרי חורף.' },
+      production: { video: 'מעבר כניסה מהחוף.' },
       illustration: { expresses: 'הקצה האחד נראה כקו של אור.', translates: 'הקו הופך לשביל.' },
       form: { decisions: "עובי 1 מ', שלושה מעברים." },
       physical: { notes: 'החודים דרשו עיבוי.' },
@@ -49,32 +52,23 @@ function full(): WorkState {
     references: [pic('r1')],
     stills: { bare: [pic('b1')], realistic: [pic('re1')], render: [pic('h1')] },
     print: '1:324, 150 מ"מ',
+    hasClip: true,
     photos: [pic('ph1')],
     metrics: [{ label: 'קוטר חיצוני', value: "50.4 מ'" }],
   }
 }
 
 describe('work path', () => {
-  it('has nine steps in the order of the work', () => {
-    expect(STAGES.map((s) => s.title)).toEqual([
-      'רעיון וכוונה',
-      'הקשר והשראה',
-      'גיבוש קונספט',
-      'כתיבת פרומפט',
-      'יצירת תמונה והמחשה',
-      'פיתוח צורני וחומרי',
-      'תרגום למבנה פיזי',
-      'תיעוד התוצאה',
-      'עריכה לתערוכה',
-    ])
-    for (const s of STAGES) expect(s.goal && s.leans && s.yields && s.fields.length).toBeTruthy()
+  it('has nine steps in the order of the work, from learning to the exhibition', () => {
+    expect(STAGES.map((s) => s.title)).toEqual(['למידה וגילוי', 'בחירת מושג והבנתו', 'חיבור להקשר ולשימוש', 'השראה וקונספט', 'פיתוח המודל', 'בחינת חומרים וסביבה', 'המחשה', 'הכנה לייצור ולהצגה', 'תיעוד לתערוכה'])
+    for (const s of STAGES) expect(s.doing && s.learning && s.leans && s.yields && s.fields.length, s.id).toBeTruthy()
   })
 
-  it('a new project shows what is missing on every step, and starts from the first', () => {
+  it('a new project shows what is missing on every step, and starts from learning', () => {
     const w = empty()
-    expect(STAGES.map((s) => stageStatus(s.id, w).state)).toEqual(['empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty', 'empty'])
-    expect(stageStatus('idea', w).missing).toEqual(['הרעיון', 'הכוונה'])
-    expect(nextStage(w).id).toBe('idea')
+    expect(STAGES.map((s) => stageStatus(s.id, w).state).every((x) => x === 'empty')).toBe(true)
+    expect(stageStatus('context', w).missing).toEqual(['הרעיון', 'הכוונה', 'מקום או שימוש'])
+    expect(nextStage(w).id).toBe('discover')
     expect(doneCount(w)).toBe(0)
   })
 
@@ -84,31 +78,39 @@ describe('work path', () => {
     expect(doneCount(w)).toBe(9)
   })
 
-  it('an old project made from a concept already counts its recipe, views and print', () => {
-    const w = { ...full(), journey: {} }
-    expect(stageStatus('concept', w)).toMatchObject({ state: 'partial', missing: ['למה המושג הזה'] })
-    expect(stageStatus('form', w).have).toContain('מבט קפוא, ערום או ריאליסטי')
-    expect(stageStatus('physical', w).have).toContain('קובץ הדפסה')
-    expect(nextStage(w).id).toBe('idea')
+  it('an old project keeps its text and counts its recipe, views and print', () => {
+    const w = { ...full(), journey: { idea: { idea: 'רעיון ישן', intent: 'כוונה' }, form: { decisions: 'החלטות' } } }
+    expect(stageStatus('concept', w)).toMatchObject({ state: 'partial', have: ['מושג נבחר'] })
+    expect(stageStatus('model', w).state).toBe('done')
+    expect(stageStatus('production', w).have).toContain('קובץ הדפסה')
+    expect(stageById('idea')!.id).toBe('context')
+    expect(stageById('form')!.id).toBe('model')
     expect(projectName(w)).toBe(w.recipe!.narrative.name_he)
+  })
+
+  it('reads and writes fields by their place in the journey', () => {
+    const j = withField({}, 'concept.statement', 'קונספט')
+    expect(fieldValue(j, 'concept.statement')).toBe('קונספט')
+    expect(fieldValue(j, 'idea.idea')).toBe('')
   })
 
   it('an image uploaded without its prompt marks the prompt as missing', () => {
     const w = { ...full(), prompts: [{ id: 'x', distill: 'תמונה שהועלתה בלי פרומפט', body: '', created_at: '2026-10-17T09:00:00Z', images: [pic('i2')] }] }
-    expect(stageStatus('prompt', w).missing).toEqual(['נוסח הפרומפט של תמונה שהועלתה בלי פרומפט'])
-    expect(stageStatus('illustration', w).state).toBe('done')
+    expect(stageStatus('illustration', w).missing).toEqual(['נוסח הפרומפט של תמונה שהועלתה בלי פרומפט'])
   })
 })
 
 describe('exhibition article', () => {
-  it('tells the story in the order of the work, from the idea to the result', () => {
+  it('tells the development in order: concept, knowledge, context, inspiration, image, model, choices, production, result', () => {
     const a = buildArticle(full())
-    expect(a.sections.map((s) => s.heading)).toEqual(['הרעיון', 'המקום וההשראה', 'המושג המתמטי', 'מהמילים לתמונה', 'ההמחשה', 'הצורה והחומר', 'המבנה הפיזי', 'התוצאה', 'במשפט אחד'])
+    expect(a.sections.map((s) => s.heading)).toEqual(['המושג המתמטי', 'הידע שנלמד', 'ההקשר והשימוש', 'ההשראה והקונספט', 'מהמילים לתמונה', 'המודל', 'חומר וסביבה', 'לייצור ולהצגה', 'התוצאה', 'במשפט אחד'])
     expect(a.gaps).toEqual([])
     expect(a.cover?.id).toBe('h1')
-    expect(a.sections[0]!.paras).toEqual(['מבנה שמחבר את העיר לים.', 'הכוונה: לעצור רגע לפני המים.', 'השאלה: האם קו אחד יכול להיות גם פנים וגם חוץ?'])
-    expect(a.sections.find((s) => s.key === 'illustration')!.figures.map((f) => f.id)).toEqual(['i1'])
-    expect(a.sections.find((s) => s.key === 'documentation')!.figures.map((f) => f.id)).toEqual(['ph1'])
+    expect(a.sections[0]!.paras[0]).toBe('המושג: טורוס טבורי (Umbilic torus).')
+    expect(a.sections[0]!.paras.join(' ')).toContain('ה־DNA שלו')
+    expect(a.sections.find((s) => s.key === 'context')!.paras.join(' ')).toContain('למה המושג מתאים לביתן')
+    expect(a.sections.find((s) => s.key === 'image')!.figures.map((f) => f.id)).toEqual(['i1'])
+    expect(a.sections.find((s) => s.key === 'result')!.figures.map((f) => f.id)).toEqual(['ph1'])
     expect(a.byline).toBe('ענת')
   })
 
@@ -117,23 +119,27 @@ describe('exhibition article', () => {
     expect(a.sections.every((s) => s.paras.length === 0 && s.figures.length === 0)).toBe(true)
     expect(a.title).toBe('שער הים')
     const stages = new Set(a.gaps.map((g) => g.stage))
-    for (const id of ['idea', 'context', 'concept', 'prompt', 'illustration', 'form', 'physical', 'documentation', 'exhibition']) expect(stages.has(id as never)).toBe(true)
+    for (const id of STAGES.map((s) => s.id)) expect(stages.has(id), id).toBe(true)
   })
 
   it('an edit replaces the composed text and answers its text gaps, not its missing images', () => {
-    const w = { ...full(), journey: { ...full().journey, illustration: {} } }
-    w.prompts = []
-    const a = buildArticle(w, { sections: { illustration: 'ההמחשה בעיניי.\n\nפסקה שנייה.' } })
-    const s = a.sections.find((x) => x.key === 'illustration')!
+    const w = { ...full(), journey: { ...full().journey, illustration: {} }, prompts: [] }
+    const s = buildArticle(w, { sections: { image: 'ההמחשה בעיניי.\n\nפסקה שנייה.' } }).sections.find((x) => x.key === 'image')!
     expect(s.edited).toBe(true)
     expect(s.paras).toEqual(['ההמחשה בעיניי.', 'פסקה שנייה.'])
-    expect(s.gaps.map((g) => g.text)).toEqual(['תמונה שנוצרה מהפרומפט'])
+    expect(s.gaps.map((g) => g.text)).toEqual(['פרומפט שמור', 'תמונה שנוצרה מהפרומפט'])
   })
 
-  it('an emptied section stays empty until the edit is undone', () => {
-    const a = buildArticle(full(), { sections: { idea: '' } })
-    expect(a.sections[0]).toMatchObject({ edited: true, paras: [] })
-    expect(buildArticle(full(), {}).sections[0]!.edited).toBe(false)
+  it('edits made under the earlier keys still land', () => {
+    const a = buildArticle(full(), { sections: { idea: 'נוסח ישן', illustration: 'המחשה ישנה' } })
+    expect(a.sections.find((s) => s.key === 'context')!.paras).toEqual(['נוסח ישן'])
+    expect(a.sections.find((s) => s.key === 'image')!.paras).toEqual(['המחשה ישנה'])
+  })
+
+  it('gives Claude every section\'s materials, and nothing for an empty one', () => {
+    const m = articleMaterials(buildArticle(empty()))
+    expect(Object.values(m).every((v) => v === '')).toBe(true)
+    expect(articleMaterials(buildArticle(full())).concept).toContain('טורוס טבורי')
   })
 
   it('becomes a right-to-left Word file without the gap marks', async () => {
@@ -141,7 +147,7 @@ describe('exhibition article', () => {
     expect(a.gaps.length).toBeGreaterThan(0)
     const xml = strFromU8(unzipSync(new Uint8Array(await Packer.toBuffer(articleDocument(a, new Map()))))['word/document.xml']!)
     expect(xml).toContain('<w:bidi/>')
-    expect(xml).toContain('01 הרעיון')
+    expect(xml).toContain('01 המושג המתמטי')
     expect(xml).toContain('מבנה שמחבר את העיר לים.')
     expect(xml).not.toContain('חסר')
   })
