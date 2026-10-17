@@ -910,6 +910,35 @@ textarea.code {
   align-items: center;
   gap: 10px;
 }
+/* ---------- navigation under the model (DECISIONS.md 110) ---------- */
+.navbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.navbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.navbar-row .seg {
+  display: inline-grid;
+  background: var(--white);
+}
+.navbar-row button {
+  padding-inline: 10px;
+}
+.navhelp {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 .work-metrics .panel {
   padding: 10px 12px;
   gap: 8px;
@@ -1059,6 +1088,7 @@ legend {
     width: min(100cqw, calc((100cqh - var(--under-model, 172px)) * 1.5));
   }
   .work-center-inner > .viewbar,
+  .work-center-inner > .navbar,
   .work-center-inner > .pathbar {
     width: min(100cqw, calc((100cqh - var(--under-model, 172px)) * 1.5));
     min-width: min(100%, 620px);
