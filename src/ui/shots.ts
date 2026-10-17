@@ -1,9 +1,11 @@
 /**
  * The views chosen for the clip (DECISIONS.md 116), kept per project on this device: the plan under
  * `mathcreator-shots:<project id or draft>` as small JSON, and the thumbnails apart under
- * `mathcreator-shot-thumbs:<…>`, so the plan stays small enough to be saved with the project later.
+ * `mathcreator-shot-thumbs:<…>`. The plan of a saved project also goes to the server (DECISIONS.md 128), and a
+ * device that has none takes it from there.
  */
 import { create } from 'zustand'
+import { loadShots, saveShots } from '../data/shots'
 import { EMPTY_PLAN, parsePlan, serializePlan, shotsKey, shotsReducer, thumbsKey, type ShotAction, type ShotPlan } from '../capture/shots'
 
 interface ShotsState extends ShotPlan {
@@ -45,7 +47,18 @@ export function getShots(projectId: string | null): ShotPlan | null {
   return parsePlan(read(shotsKey(projectId)))
 }
 
-function persist(s: ShotsState) {
+let upload: ReturnType<typeof setTimeout> | null = null
+/** Sends the plan a moment after the last change; a failure leaves the device copy, sent with the next change. */
+function send(s: ShotsState) {
+  if (!s.projectId) return
+  const id = s.projectId
+  const plan = { shots: s.shots, levels: s.levels }
+  if (upload) clearTimeout(upload)
+  upload = setTimeout(() => void saveShots(id, plan).catch(() => {}), 800)
+}
+
+function persist(s: ShotsState, toServer = true) {
+  if (toServer) send(s)
   write(shotsKey(s.projectId), s.shots.length || s.levels !== EMPTY_PLAN.levels ? serializePlan(s) : null)
   const kept = Object.fromEntries(s.shots.filter((x) => s.thumbs[x.id]).map((x) => [x.id, s.thumbs[x.id]!]))
   write(thumbsKey(s.projectId), Object.keys(kept).length ? JSON.stringify(kept) : null)
@@ -78,6 +91,14 @@ export const useShots = create<ShotsState>((set, get) => ({
       write(thumbsKey(null), null)
     }
     set({ ...(plan ?? EMPTY_PLAN), projectId, thumbs })
-    persist(get())
+    persist(get(), !!plan)
+    // Nothing on this device: the views chosen on another one.
+    if (!plan && projectId)
+      void loadShots(projectId).then((remote) => {
+        const now = get()
+        if (!remote || now.projectId !== projectId || now.shots.length) return
+        set({ ...remote })
+        persist(get(), false)
+      })
   },
 }))

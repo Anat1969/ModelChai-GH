@@ -24,7 +24,7 @@ export interface Journey {
   form?: { decisions?: string }
   environment?: { decisions?: string }
   physical?: { scale?: string; material?: string; notes?: string }
-  production?: { video?: string }
+  production?: { video?: string; link?: string }
   documentation?: { result?: string; lessons?: string }
   exhibition?: { title?: string; subtitle?: string; author?: string; venue?: string }
 }
@@ -200,6 +200,7 @@ export const STAGES: StageDef[] = [
       { path: 'physical.material', label: 'חומר וייצור', hint: 'למשל PLA לבן, הדפסת FDM.' },
       { path: 'physical.notes', label: 'מה למדנו מהמעבר לפיזי', hint: 'מה עבד, מה תוקן, מה הפתיע.', long: true },
       { path: 'production.video', label: 'הסרטון', hint: 'מה הסרטון מראה, ובאיזה סדר.', long: true },
+      { path: 'production.link', label: 'קישור לסרטון', hint: 'כתובת שבה הסרטון מתפרסם (YouTube, Vimeo, Drive). בפלייר היא הופכת לקוד QR.' },
     ],
   },
   {

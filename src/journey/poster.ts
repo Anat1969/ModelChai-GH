@@ -123,7 +123,7 @@ export function buildPoster(w: WorkState, e: PosterEdits = {}): Poster {
 
   const images = posterImages(w)
   const image = images.find((i) => i.id === e.imageId) ?? images[0] ?? null
-  const video = /^https?:\/\//.test(t(j.production?.video)) ? t(j.production?.video) : null
+  const video = [j.production?.link, j.production?.video].map(t).find((v) => /^https?:\/\/\S+$/.test(v)) ?? null
 
   if (!image) gaps.push('תמונה: צילום של התוצאה, הדמיה או מבט ריאליסטי מהסטודיו')
   if (!maxim) gaps.push('משפט אחד שמסכם את הרעיון: בשלב 2, או כאן')

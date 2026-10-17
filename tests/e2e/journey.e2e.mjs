@@ -388,6 +388,7 @@ await page.waitForSelector('[data-testid=step][data-stage=production]')
 await type('f-physical-scale', '1:324, הצלע הארוכה 15 ס"מ')
 await type('f-physical-notes', 'החודים דרשו עיבוי של הדופן.')
 await type('f-production-video', 'מעבר כניסה מהחוף אל החצר.')
+await type('f-production-link', 'https://example.org/clip')
 await page.click('[data-testid=next-stage]')
 await page.waitForSelector('[data-testid=step][data-stage=exhibition]')
 await page.setInputFiles('[data-testid=upload-photo]', pngFile('stage2-umbilic-eye-level.png'))
@@ -455,10 +456,11 @@ const flyer = await page.evaluate(() => ({
   t2: document.querySelector('.pf-t2')?.textContent,
   items: document.querySelectorAll('.pf-list li').length,
   line: !!document.querySelector('.pf-line path'),
+  qr: !!document.querySelector('.pf-qr-code svg'),
   label: document.querySelector('.pf-label')?.textContent,
   acc: getComputedStyle(document.querySelector('.pf-page')).getPropertyValue('--acc'),
 }))
-check('the flyer stands on the project: title, the model line over the image, four properties of the model', flyer.t1 && flyer.t2 && flyer.items === 4 && flyer.line && !!flyer.label, JSON.stringify(flyer))
+check('the flyer stands on the project: title, the model line over the image, four properties of the model, a code to the video', flyer.t1 && flyer.t2 && flyer.items === 4 && flyer.line && flyer.qr && !!flyer.label, JSON.stringify(flyer))
 await page.fill('[data-testid=pf-verse]', 'קו אחד\nמקיף שלוש פעמים\nוחוזר אל הים')
 check('a rewritten part is kept on the project', await until(() => project()?.article?.poster?.verse?.startsWith('קו אחד')))
 await page.screenshot({ path: shots + 'journey-flyer-screen.png' })

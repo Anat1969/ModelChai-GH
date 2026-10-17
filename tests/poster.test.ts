@@ -30,7 +30,7 @@ describe('flyer', () => {
       context: { place: 'אשדוד (Ashdod, Israel)' },
       concept: { model: 'umbilic_torus', statement: 'שער שהוא קו אחד. ועוד משפט.' },
       exhibition: { author: 'ענת' },
-      production: { video: 'https://example.org/v.mp4' },
+      production: { link: 'https://example.org/v.mp4' },
     }
     w.stills.render = [pic('h1')]
     const p = buildPoster(w)
