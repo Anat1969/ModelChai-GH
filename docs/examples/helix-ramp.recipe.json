@@ -49,6 +49,8 @@
     },
     "datetime": "2026-11-20T15:30:00+02:00",
     "weather": "clear",
+    "orientation_deg": 30,
+    "wind": { "from_deg": 315, "speed_ms": 4 },
     "materials": {
       "outer": "rammed_earth"
     },

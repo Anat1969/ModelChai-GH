@@ -9,6 +9,7 @@ import type { Recipe, SweepParams } from '../recipe/schema'
 import { CONTEXTS, VEGETATION, type ContextId, type VegetationId } from '../scene/contexts/layout'
 import { seasonOf } from '../scene/seasons'
 import { clockLabel, dateLabel, localTime, siteWords, sunAt } from '../scene/sun'
+import { SIDE_HE, beaufort, compassWord, orientationOf, sideOfFront, windOfRecipe } from '../scene/wind'
 import { num, turnsLabel } from '../ui/format'
 
 type Sweep = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
@@ -102,20 +103,21 @@ function contextPart(r: Sweep): PromptPart {
   return { slot: 'context', text: `${c.name_he}${where}: ${c.ground_he}, ${c.elements_he}`, sources: ['realistic.context.preset', 'realistic.site.name'] }
 }
 
-const WINDS = ['צפון', 'צפון-מזרח', 'מזרח', 'דרום-מזרח', 'דרום', 'דרום-מערב', 'מערב', 'צפון-מערב']
-export const windOf = (bearing: number) => WINDS[Math.round(bearing / 45) % 8]!
+export const windOf = compassWord
 
 function lightPart(r: Sweep): PromptPart {
   const site = r.realistic.site
   const t = localTime(r.realistic.datetime, site)
   const sun = sunAt(site, new Date(r.realistic.datetime))
-  const sources = ['realistic.datetime', 'realistic.site.lat', 'realistic.site.lon']
-  if (sun.altitude <= 0) return { slot: 'light', text: `אחרי השקיעה, בשעה ${clockLabel(t.hour)}, אור דמדומים בלי שמש ישירה`, sources }
+  const sources = ['realistic.datetime', 'realistic.site.lat', 'realistic.site.lon', 'realistic.orientation_deg']
+  const o = orientationOf(r.realistic)
+  const facing = `החזית פונה ל${windOf(o)}`
+  if (sun.altitude <= 0) return { slot: 'light', text: `אחרי השקיעה, בשעה ${clockLabel(t.hour)}, אור דמדומים בלי שמש ישירה, ${facing}`, sources }
   const height = sun.altitude < 15 ? 'שמש נמוכה' : sun.altitude < 45 ? 'שמש בגובה בינוני' : 'שמש גבוהה'
   const shadow = sun.altitude < 15 ? ', צללים ארוכים' : sun.altitude > 60 ? ', צללים קצרים מתחת למבנה' : ''
   return {
     slot: 'light',
-    text: `${height} מה${windOf(sun.bearing)}, ${num(sun.altitude, 0)}° מעל האופק, בשעה ${clockLabel(t.hour)}${shadow}`,
+    text: `${height} מה${windOf(sun.bearing)}, ${num(sun.altitude, 0)}° מעל האופק, בשעה ${clockLabel(t.hour)}${shadow}, ${facing}, השמש ${SIDE_HE[sideOfFront(sun.bearing - o)]}`,
     sources,
   }
 }
@@ -130,10 +132,20 @@ function seasonPart(r: Sweep): PromptPart {
   return { slot: 'season', text: words.join(', '), sources: ['realistic.datetime', 'realistic.context.vegetation'] }
 }
 
-const WEATHER_WORDS = { clear: 'שמיים בהירים, צל חד', haze: 'אובך חם, צל רך ומפוזר', overcast: 'שמיים מעוננים ואפורים, אור רך בלי צל ישיר' } as const
+const WEATHER_WORDS = {
+  clear: 'שמיים בהירים, צל חד',
+  haze: 'אובך חם, צל רך ומפוזר',
+  overcast: 'שמיים מעוננים ואפורים, אור רך בלי צל ישיר',
+  rain: 'גשם יורד, קרקע רטובה ומבריקה, שמיים כהים בלי צל ישיר',
+  fog: 'ערפל סמיך, אור חלבי וצל רך מאוד, הרקע נבלע בערפל',
+  snow: 'שלג יורד, שלג על הקרקע ועל הצמחייה, אור לבן רך בלי צל',
+} as const
 
 function weatherPart(r: Sweep): PromptPart {
-  return { slot: 'weather', text: WEATHER_WORDS[r.realistic.weather], sources: ['realistic.weather'] }
+  const w = windOfRecipe(r.realistic)
+  const b = beaufort(w.speed_ms)
+  const wind = b.force === 0 ? 'בלי רוח' : `${b.name_he} מה${windOf(w.from_deg)}, ${num(w.speed_ms, 0)} מ' לשנייה (בופור ${b.force})`
+  return { slot: 'weather', text: `${WEATHER_WORDS[r.realistic.weather]}, ${wind}`, sources: ['realistic.weather', 'realistic.wind'] }
 }
 
 function peoplePart(r: Sweep): PromptPart | null {

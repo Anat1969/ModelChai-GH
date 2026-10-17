@@ -151,9 +151,9 @@ describe('atmosphere.ts', () => {
 describe('contexts: the footprint stays clear', () => {
   const fp: Footprint = { x: 0, z: 0, radius: 26.6 }
   it.each(Object.values(CONTEXTS))('$id: no plant or element inside the footprint and its margin, ground flat there', (def) => {
-    const plants = scatterPlants(VEGETATION[def.vegetation], fp, 7)
+    const plants = scatterPlants(VEGETATION[def.vegetation], fp, 7, def.id)
     const el = contextElements(def.id, fp, 7)
-    const all = [...plants, ...el.facades, ...el.planters, ...el.benches, ...el.hills]
+    const all = [...plants, ...Object.values(el).flat()]
     for (const p of all) expect(Math.hypot(p.x - fp.x, p.z - fp.z)).toBeGreaterThan(fp.radius + MARGIN)
     const h = groundHeight(def, fp)
     for (let a = 0; a < 6.28; a += 0.3) for (const r of [0, fp.radius * 0.5, fp.radius, fp.radius + MARGIN]) expect(h(r * Math.cos(a), r * Math.sin(a))).toBe(0)
@@ -219,6 +219,11 @@ describe('visual prompt (LEVELS.md 2.6)', () => {
     ['realistic.site.lat', 29.55],
     ['realistic.context.vegetation', 'olive_trees'],
     ['realistic.weather', 'haze'],
+    ['realistic.weather', 'rain'],
+    ['realistic.orientation_deg', 180],
+    ['realistic.wind', { from_deg: 90, speed_ms: 12 }],
+    ['realistic.materials.outer', 'basalt'],
+    ['realistic.context.preset', 'river_bank'],
     ['realistic.context.people', 2],
     ['realistic.camera.preset', 'aerial'],
     ['realistic.camera.height', 3],

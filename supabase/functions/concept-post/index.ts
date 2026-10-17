@@ -18,9 +18,41 @@ var MATERIALS = [
   "corten_steel",
   "timber_oak",
   "rammed_earth",
-  "glass_clear"
+  "glass_clear",
+  "white_marble",
+  "red_brick",
+  "terracotta_tiles",
+  "basalt",
+  "copper_patina",
+  "charred_timber",
+  "white_render",
+  "perforated_metal"
 ];
 var Material = z.enum(MATERIALS);
+var WEATHERS = ["clear", "haze", "overcast", "rain", "fog", "snow"];
+var CONTEXT_PRESETS = [
+  "coastal_dunes",
+  "urban_plaza",
+  "desert_loess",
+  "park_lawn",
+  "waterfront",
+  "urban_gateway",
+  "forest_edge",
+  "rocky_slope",
+  "snow_field",
+  "river_bank"
+];
+var VEGETATIONS = [
+  "none",
+  "dune_shrubs_low",
+  "olive_trees",
+  "lawn_and_trees",
+  "desert_acacia",
+  "pine_forest",
+  "riverside_trees",
+  "garrigue"
+];
+var DEFAULT_WIND = { from_deg: 270, speed_ms: 5 };
 var SECTION_CURVES = ["deltoid", "hypocycloid", "circle", "polygon", "superellipse"];
 var PATH_TYPES = ["circle", "ellipse", "helix", "line"];
 var SweepSection = z.strictObject({
@@ -117,15 +149,22 @@ var Realistic = z.strictObject({
     name: z.string().max(80).optional()
   }),
   datetime: dateTime,
-  weather: z.enum(["clear", "haze", "overcast"]),
+  weather: z.enum(WEATHERS),
+  // Compass rotation of the model, clockwise from north. Its front (the bare level's −z side) faces this bearing.
+  orientation_deg: int(0, 359).default(0),
+  wind: z.strictObject({
+    // Where the wind blows from, as a compass bearing (270 = from the west).
+    from_deg: int(0, 359),
+    speed_ms: num(0, 40)
+  }).default({ ...DEFAULT_WIND }),
   materials: z.strictObject({
     outer: Material,
     inner: Material.optional(),
     floor: Material.optional()
   }),
   context: z.strictObject({
-    preset: z.enum(["coastal_dunes", "urban_plaza", "desert_loess", "park_lawn", "waterfront"]),
-    vegetation: z.enum(["none", "dune_shrubs_low", "olive_trees", "lawn_and_trees", "desert_acacia"]).optional(),
+    preset: z.enum(CONTEXT_PRESETS),
+    vegetation: z.enum(VEGETATIONS).optional(),
     people: int(0, 40).optional()
   }),
   camera: z.strictObject({

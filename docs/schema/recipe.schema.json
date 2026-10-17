@@ -131,7 +131,18 @@
           }
         },
         "datetime": { "type": "string", "format": "date-time" },
-        "weather": { "enum": ["clear", "haze", "overcast"] },
+        "weather": { "enum": ["clear", "haze", "overcast", "rain", "fog", "snow"] },
+        "orientation_deg": { "type": "integer", "minimum": 0, "maximum": 359, "default": 0 },
+        "wind": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from_deg", "speed_ms"],
+          "default": { "from_deg": 270, "speed_ms": 5 },
+          "properties": {
+            "from_deg": { "type": "integer", "minimum": 0, "maximum": 359 },
+            "speed_ms": { "type": "number", "minimum": 0, "maximum": 40 }
+          }
+        },
         "materials": {
           "type": "object",
           "additionalProperties": false,
@@ -147,8 +158,18 @@
           "additionalProperties": false,
           "required": ["preset"],
           "properties": {
-            "preset": { "enum": ["coastal_dunes", "urban_plaza", "desert_loess", "park_lawn", "waterfront"] },
-            "vegetation": { "enum": ["none", "dune_shrubs_low", "olive_trees", "lawn_and_trees", "desert_acacia"] },
+            "preset": {
+              "enum": [
+                "coastal_dunes", "urban_plaza", "desert_loess", "park_lawn", "waterfront",
+                "urban_gateway", "forest_edge", "rocky_slope", "snow_field", "river_bank"
+              ]
+            },
+            "vegetation": {
+              "enum": [
+                "none", "dune_shrubs_low", "olive_trees", "lawn_and_trees", "desert_acacia",
+                "pine_forest", "riverside_trees", "garrigue"
+              ]
+            },
             "people": { "type": "integer", "minimum": 0, "maximum": 40 }
           }
         },
@@ -183,7 +204,9 @@
     "material": {
       "enum": [
         "polished_concrete_light", "concrete_matte", "polished_concrete_grey",
-        "jerusalem_stone", "corten_steel", "timber_oak", "rammed_earth", "glass_clear"
+        "jerusalem_stone", "corten_steel", "timber_oak", "rammed_earth", "glass_clear",
+        "white_marble", "red_brick", "terracotta_tiles", "basalt", "copper_patina",
+        "charred_timber", "white_render", "perforated_metal"
       ]
     },
     "sweep": {

@@ -1,5 +1,5 @@
 import type { Metrics } from '../../engine/metrics'
-import { MATERIAL_LOOK } from '../../engine/materials'
+import { DENSITY, MATERIAL_LOOK } from '../../engine/materials'
 import type { RuleIssue } from '../../recipe/rules'
 import { meters, num, percent, range } from '../format'
 import type { Sweep } from '../params'
@@ -54,7 +54,9 @@ export function metricRows(m: Metrics, r: Sweep): MetricRow[] {
   }
   if (shell) out.push({ key: 'openingFraction', label: 'פתחים מתוך המעטפת', value: percent(m.openingFraction), raw: m.openingFraction })
   out.push({ key: 'volume', label: `${material}, ${shell ? 'קליפה' : 'גוש מלא'}`, value: `${num(m.volume, 0)} מ"ק`, raw: m.volume })
-  out.push({ key: 'weight', label: 'משקל משוער', value: `${num(m.weight, 0)} טון`, raw: m.weight })
+  // The weight follows the material on screen: a material change does not rebuild, so the build's weight may be stale.
+  const weight = m.volume * DENSITY[r.realistic.materials.outer]
+  out.push({ key: 'weight', label: 'משקל משוער', value: `${num(weight, 0)} טון`, raw: weight })
   if (shell) out.push({ key: 'saving', label: 'חיסכון לעומת גוש', value: percent(1 - m.volume / m.solidVolume), raw: 1 - m.volume / m.solidVolume })
   out.push({ key: 'envelopeArea', label: 'שטח מעטפת', value: `${num(m.envelopeArea, 0)} מ"ר`, raw: m.envelopeArea })
   out.push({ key: 'cuspBurial', label: 'עומק החוד בקרקע', value: meters(m.cuspBurial, 2), raw: m.cuspBurial, rules: [8] })

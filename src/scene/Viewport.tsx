@@ -23,6 +23,7 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
   const traceStatus = useStudio((s) => s.traceStatus)
   const tracing = useStudio((s) => s.tracing)
   const recording = useStudio((s) => s.recording)
+  const showWind = useStudio((s) => s.showWind)
   const rows = result ? result.curves.path.length / 3 : 1
 
   return (
@@ -73,6 +74,11 @@ export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep
         <div className="stage-empty" role="status">
           בונה את המודל מהמתכון
         </div>
+      )}
+      {level === 'realistic' && showWind && !recording && (
+        <span className="stage-status" role="note" data-testid="wind-overlay">
+          המחשה, לא סימולציה: הקווים מראים כיוון ועוצמה, לא זרימה מחושבת סביב הצורה
+        </span>
       )}
       {recording && (
         <span className="stage-status" role="status" data-testid="recording-status">

@@ -134,7 +134,18 @@ var recipe_schema_default = {
           }
         },
         datetime: { type: "string", format: "date-time" },
-        weather: { enum: ["clear", "haze", "overcast"] },
+        weather: { enum: ["clear", "haze", "overcast", "rain", "fog", "snow"] },
+        orientation_deg: { type: "integer", minimum: 0, maximum: 359, default: 0 },
+        wind: {
+          type: "object",
+          additionalProperties: false,
+          required: ["from_deg", "speed_ms"],
+          default: { from_deg: 270, speed_ms: 5 },
+          properties: {
+            from_deg: { type: "integer", minimum: 0, maximum: 359 },
+            speed_ms: { type: "number", minimum: 0, maximum: 40 }
+          }
+        },
         materials: {
           type: "object",
           additionalProperties: false,
@@ -150,8 +161,32 @@ var recipe_schema_default = {
           additionalProperties: false,
           required: ["preset"],
           properties: {
-            preset: { enum: ["coastal_dunes", "urban_plaza", "desert_loess", "park_lawn", "waterfront"] },
-            vegetation: { enum: ["none", "dune_shrubs_low", "olive_trees", "lawn_and_trees", "desert_acacia"] },
+            preset: {
+              enum: [
+                "coastal_dunes",
+                "urban_plaza",
+                "desert_loess",
+                "park_lawn",
+                "waterfront",
+                "urban_gateway",
+                "forest_edge",
+                "rocky_slope",
+                "snow_field",
+                "river_bank"
+              ]
+            },
+            vegetation: {
+              enum: [
+                "none",
+                "dune_shrubs_low",
+                "olive_trees",
+                "lawn_and_trees",
+                "desert_acacia",
+                "pine_forest",
+                "riverside_trees",
+                "garrigue"
+              ]
+            },
             people: { type: "integer", minimum: 0, maximum: 40 }
           }
         },
@@ -190,7 +225,15 @@ var recipe_schema_default = {
         "corten_steel",
         "timber_oak",
         "rammed_earth",
-        "glass_clear"
+        "glass_clear",
+        "white_marble",
+        "red_brick",
+        "terracotta_tiles",
+        "basalt",
+        "copper_patina",
+        "charred_timber",
+        "white_render",
+        "perforated_metal"
       ]
     },
     sweep: {
@@ -468,6 +511,8 @@ Defaults when the user gives no detail:
 - realistic.datetime: the timestamp's date at 17:00 local time.
 - realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "3:2".
 - realistic.context.preset: choose the one closest to the user's context hint; otherwise coastal_dunes.
+- realistic.weather: clear, unless the concept or the context calls for haze, overcast, rain, fog or snow.
+- realistic.orientation_deg: 0. realistic.wind: from_deg 270, speed_ms 5 (the afternoon sea breeze), unless the context implies another wind.
 - meta.source: "claude". meta.created_at: the timestamp given in the user message.
 
 Style for Hebrew fields: natural, precise, professional Hebrew. Not flowery. No emoji.
@@ -489,9 +534,41 @@ var MATERIALS = [
   "corten_steel",
   "timber_oak",
   "rammed_earth",
-  "glass_clear"
+  "glass_clear",
+  "white_marble",
+  "red_brick",
+  "terracotta_tiles",
+  "basalt",
+  "copper_patina",
+  "charred_timber",
+  "white_render",
+  "perforated_metal"
 ];
 var Material = z.enum(MATERIALS);
+var WEATHERS = ["clear", "haze", "overcast", "rain", "fog", "snow"];
+var CONTEXT_PRESETS = [
+  "coastal_dunes",
+  "urban_plaza",
+  "desert_loess",
+  "park_lawn",
+  "waterfront",
+  "urban_gateway",
+  "forest_edge",
+  "rocky_slope",
+  "snow_field",
+  "river_bank"
+];
+var VEGETATIONS = [
+  "none",
+  "dune_shrubs_low",
+  "olive_trees",
+  "lawn_and_trees",
+  "desert_acacia",
+  "pine_forest",
+  "riverside_trees",
+  "garrigue"
+];
+var DEFAULT_WIND = { from_deg: 270, speed_ms: 5 };
 var SECTION_CURVES = ["deltoid", "hypocycloid", "circle", "polygon", "superellipse"];
 var PATH_TYPES = ["circle", "ellipse", "helix", "line"];
 var SweepSection = z.strictObject({
@@ -588,15 +665,22 @@ var Realistic = z.strictObject({
     name: z.string().max(80).optional()
   }),
   datetime: dateTime,
-  weather: z.enum(["clear", "haze", "overcast"]),
+  weather: z.enum(WEATHERS),
+  // Compass rotation of the model, clockwise from north. Its front (the bare level's −z side) faces this bearing.
+  orientation_deg: int(0, 359).default(0),
+  wind: z.strictObject({
+    // Where the wind blows from, as a compass bearing (270 = from the west).
+    from_deg: int(0, 359),
+    speed_ms: num(0, 40)
+  }).default({ ...DEFAULT_WIND }),
   materials: z.strictObject({
     outer: Material,
     inner: Material.optional(),
     floor: Material.optional()
   }),
   context: z.strictObject({
-    preset: z.enum(["coastal_dunes", "urban_plaza", "desert_loess", "park_lawn", "waterfront"]),
-    vegetation: z.enum(["none", "dune_shrubs_low", "olive_trees", "lawn_and_trees", "desert_acacia"]).optional(),
+    preset: z.enum(CONTEXT_PRESETS),
+    vegetation: z.enum(VEGETATIONS).optional(),
     people: int(0, 40).optional()
   }),
   camera: z.strictObject({
