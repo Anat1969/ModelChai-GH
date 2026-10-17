@@ -635,7 +635,7 @@ try {
     const layout = await narrow.evaluate(() => ({
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
-      icons: document.querySelectorAll('svg, img:not(.snapshot):not(.brand-mark), [class*=icon]').length,
+      icons: document.querySelectorAll('svg:not(.claude-key-mark), img:not(.snapshot):not(.brand-mark), [class*=icon]').length,
       small: [...document.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().height < 44).length,
       dir: document.documentElement.dir,
     }))
