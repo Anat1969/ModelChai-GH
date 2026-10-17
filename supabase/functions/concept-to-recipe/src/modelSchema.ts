@@ -87,6 +87,29 @@ export function countOptional(node: unknown): number {
   return n
 }
 
+/**
+ * Each path type needs its own fields (the if/then in the recipe schema), and together they are 13 optional
+ * fields, more than the compiler allows. The path becomes one closed object per type with every field it needs
+ * required and nothing else, so the model sees exactly what each path takes (DECISIONS.md 130).
+ */
+function splitPath(recipeSchema: Json, s: Json) {
+  const original = ((recipeSchema.$defs as Json).sweep as Json).properties as Json
+  const path = original.path as Json
+  const props = (((s.$defs as Json).sweep as Json).properties as Json).path as Json
+  const fields = props.properties as Json
+  const variants = (path.allOf as Json[]).map((c) => {
+    const type = (((c.if as Json).properties as Json).type as Json).const as string
+    const required = (c.then as Json).required as string[]
+    return {
+      type: 'object',
+      properties: { type: { type: 'string', const: type }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
+      required: ['type', ...required],
+      additionalProperties: false,
+    }
+  })
+  ;(((s.$defs as Json).sweep as Json).properties as Json).path = { anyOf: variants }
+}
+
 export function modelSchema(recipeSchema: Json, generators: string[]): Json {
   const s = clean(recipeSchema) as Json
   for (const [path, field] of NOT_FOR_MODEL) {
@@ -96,6 +119,7 @@ export function modelSchema(recipeSchema: Json, generators: string[]): Json {
     const node = path.reduce<Json>((o, k) => o[k] as Json, s)
     node.required = [...new Set([...((node.required as string[]) ?? []), ...fields])]
   }
+  splitPath(recipeSchema, s)
   const props = s.properties as Json
   const gen = props.generator as Json
   const genProps = gen.properties as Json

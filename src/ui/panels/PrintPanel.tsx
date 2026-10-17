@@ -204,7 +204,14 @@ export function PrintPanel() {
             ))}
           </ul>
           {r.bodyNote && <p className="hint">{r.bodyNote}</p>}
-          {r.openingsDropped && <p className="hint">הפתחים לא נכללים בקובץ: בלי המשקופים שסוגרים את השפות שלהם הגוף לא אטום. הם יחזרו כשהמשקופים ייבנו.</p>}
+          {r.openingsNote && (
+            <p className="hint" data-testid="print-openings" data-cut={r.openingsCut}>
+              {r.openingsNote}
+            </p>
+          )}
+          <p className="print-orientation" data-testid="print-orientation" data-down={r.orientation.down}>
+            <strong>כיוון הדפסה מומלץ:</strong> {r.orientation.label}. <span className="why">{r.orientation.reason}</span>
+          </p>
           <div className="toolbar">
             <button type="button" className="primary" onClick={() => download(state.files.threeMf.bytes as BlobPart, state.files.threeMf.mime, state.files.threeMf.filename)} data-testid="print-3mf">
               הורדת 3MF

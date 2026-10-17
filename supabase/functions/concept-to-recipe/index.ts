@@ -264,18 +264,30 @@ var recipe_schema_default = {
           additionalProperties: false,
           required: ["type"],
           properties: {
-            type: { enum: ["circle", "ellipse", "helix", "line"] },
+            type: { enum: ["circle", "ellipse", "helix", "line", "lemniscate", "torus_knot", "wave", "arch"] },
             R: { type: "number", minimum: 0.5, maximum: 300 },
             R2: { type: "number", minimum: 0.5, maximum: 300 },
             pitch: { type: "number", minimum: 0.5, maximum: 100 },
             turns: { type: "number", minimum: 0.25, maximum: 20 },
-            length: { type: "number", minimum: 1, maximum: 1e3 }
+            length: { type: "number", minimum: 1, maximum: 1e3 },
+            r: { type: "number", minimum: 0.3, maximum: 100 },
+            p: { type: "integer", minimum: 1, maximum: 12 },
+            q: { type: "integer", minimum: 1, maximum: 12 },
+            cross_height: { type: "number", minimum: 0, maximum: 40 },
+            amplitude: { type: "number", minimum: 0.1, maximum: 100 },
+            wavelength: { type: "number", minimum: 1, maximum: 1e3 },
+            span: { type: "number", minimum: 1, maximum: 300 },
+            height: { type: "number", minimum: 0.5, maximum: 200 }
           },
           allOf: [
             { if: { properties: { type: { const: "circle" } } }, then: { required: ["R"] } },
             { if: { properties: { type: { const: "ellipse" } } }, then: { required: ["R", "R2"] } },
             { if: { properties: { type: { const: "helix" } } }, then: { required: ["R", "pitch", "turns"] } },
-            { if: { properties: { type: { const: "line" } } }, then: { required: ["length"] } }
+            { if: { properties: { type: { const: "line" } } }, then: { required: ["length"] } },
+            { if: { properties: { type: { const: "lemniscate" } } }, then: { required: ["R", "cross_height"] } },
+            { if: { properties: { type: { const: "torus_knot" } } }, then: { required: ["R", "r", "p", "q"] } },
+            { if: { properties: { type: { const: "wave" } } }, then: { required: ["length", "amplitude", "wavelength"] } },
+            { if: { properties: { type: { const: "arch" } } }, then: { required: ["span", "height"] } }
           ]
         },
         twist: {
@@ -478,6 +490,10 @@ Path geometry (the engine's axes: y is up, the ground is the xz plane):
 - circle and ellipse are horizontal rings on the ground plane.
 - helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
 - line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
+- lemniscate (R, cross_height) is Bernoulli's figure eight on the ground: R is the distance from the center to the tip of each loop. A built path cannot meet itself in a point, so the branch through the crossing rises by cross_height and passes over the other like a bridge. Use it for walks with two courtyards, and set fit_note to say the branches do not meet in one point.
+- torus_knot (R, r, p, q) winds p times around the vertical axis and q times around a torus of radii R and r; p = 2, q = 3 is the trefoil. It is a closed path that passes over and under itself. p and q must share no factor. The lowest strand's center is at section_center_height - r.
+- wave (length, amplitude, wavelength) is a sine along the ground on the z axis, swinging amplitude to each side: promenades, colonnades, long benches. Its section stays upright, so shells have a floor.
+- arch (span, height) is a catenary in the vertical xy plane, the shape in which force flows in pure compression. Its feet stand span apart at section_center_height, which must be at most 0 so they touch the ground; the apex is height above them. The section's x axis runs across the arch (its depth), its y axis is the rib's thickness: a superellipse with a low aspect makes a vault.
 
 The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
 - Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
@@ -488,17 +504,23 @@ Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
 - Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.
 - Shell: thickness must be smaller than a.
-- Passages must not overlap: count * width < 0.8 * 2 * pi * R.
+- Passages must not overlap: count * width < 0.8 * 2 * pi * R. Passages exist on circle and ellipse rings only.
+- The path must not bend tighter than the section reaches into the bend (the smallest radius of curvature exceeds the section's half-width there): wave: wavelength^2 / (4 pi^2 amplitude); lemniscate: R / 3; arch: the catenary's c at the apex.
+- Where a lemniscate or a torus knot crosses itself, the branches must not touch: cross_height (or the strand distance of the knot) exceeds the section's height on both branches.
+- Arch: section_center_height <= 0, so the feet touch the ground.
+- Torus knot: p and q share no factor, and R - r exceeds the section's outer radius.
 
 Soft rules (allowed, but prefer to satisfy):
 - Continuous floor in enterable shells: section_center_height - floor.level < 1.5 * (a - thickness) for a deltoid.
 - Clear height in enterable shells: section_center_height + 1.5 * (a - thickness) - floor.level >= 2.4 for a deltoid.
 - Shell wall thickness at most 0.4 * a.
-- Cusp burial depth (outer radius - section_center_height) at most 3 m.
+- Cusp burial depth (outer radius - section_center_height) at most 3 m. On lemniscate, torus_knot, wave and arch, the depth of the surface below the ground at most 3 m.
+- Under a crossing of a lemniscate or a torus knot, at least 2.4 m free between the branches, so people pass under the bridge standing.
 
 Ranges the schema enforces after you answer (stay inside them):
 - section.a 0.1-20, cusps 3-8, sides 3-12, exponent 0.3-8, aspect 0.03-1.
-- path.R and R2 0.5-300, pitch 0.5-100, turns 0.25-20, length 1-1000.
+- path.R and R2 0.5-300, pitch 0.5-100, turns 0.25-20, length 1-1000, r 0.3-100, p and q integers 1-12, cross_height 0-40, amplitude 0.1-100, wavelength 1-1000, span 1-300, height 0.5-200.
+- Each path takes only its own fields: circle R; ellipse R, R2; helix R, pitch, turns; line length; lemniscate R, cross_height; torus_knot R, r, p, q; wave length, amplitude, wavelength; arch span, height.
 - twist.turns_per_lap -4 to 4. scale_along_path 0.1-5.
 - section_center_height -20 to 60. shell.thickness 0.08-1.5. floor.level -10 to 30.
 - passages.count 0-12, width 0.9-12, height 2.1-8. slots.count 0-96, width_fraction 0.05-0.8, duty 0.1-0.9.
@@ -520,6 +542,56 @@ Style for Hebrew fields: natural, precise, professional Hebrew. Not flowery. No 
 Examples of correct recipes follow.
 {{FIXTURES}}
 `;
+
+// src/engine/math.ts
+var TAU = Math.PI * 2;
+function gcd(a, b) {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b) [a, b] = [b, a % b];
+  return a;
+}
+
+// src/engine/sections/index.ts
+var cuspsOf = (s) => s.curve === "deltoid" ? 3 : s.cusps ?? 3;
+function sectionPoint(s, t, k = 1) {
+  const A = s.a * k;
+  let x;
+  let y;
+  switch (s.curve) {
+    case "deltoid":
+    case "hypocycloid": {
+      const n = cuspsOf(s);
+      x = A * ((n - 1) * Math.cos(t) + Math.cos((n - 1) * t));
+      y = A * ((n - 1) * Math.sin(t) - Math.sin((n - 1) * t));
+      break;
+    }
+    case "circle":
+      x = A * Math.cos(t);
+      y = A * Math.sin(t);
+      break;
+    case "polygon": {
+      const m = s.sides ?? 3;
+      const f = (t / TAU * m % m + m) % m;
+      const j = Math.floor(f);
+      const w = f - j;
+      const a0 = TAU * j / m;
+      const a1 = TAU * (j + 1) / m;
+      x = A * ((1 - w) * Math.cos(a0) + w * Math.cos(a1));
+      y = A * ((1 - w) * Math.sin(a0) + w * Math.sin(a1));
+      break;
+    }
+    case "superellipse": {
+      const q = 2 / (s.exponent ?? 2);
+      const c = Math.cos(t);
+      const sn = Math.sin(t);
+      x = A * Math.sign(c) * Math.abs(c) ** q;
+      y = A * Math.sign(sn) * Math.abs(sn) ** q;
+      break;
+    }
+  }
+  return [x, y * s.aspect];
+}
 
 // src/recipe/schema.ts
 import { z } from "npm:zod@4.6.7";
@@ -570,7 +642,19 @@ var VEGETATIONS = [
 ];
 var DEFAULT_WIND = { from_deg: 270, speed_ms: 5 };
 var SECTION_CURVES = ["deltoid", "hypocycloid", "circle", "polygon", "superellipse"];
-var PATH_TYPES = ["circle", "ellipse", "helix", "line"];
+var PATH_TYPES = ["circle", "ellipse", "helix", "line", "lemniscate", "torus_knot", "wave", "arch"];
+var CLOSED_PATH_TYPES = ["circle", "ellipse", "lemniscate", "torus_knot"];
+var RING_PATH_TYPES = ["circle", "ellipse"];
+var PATH_REQUIRED = {
+  circle: ["R"],
+  ellipse: ["R", "R2"],
+  helix: ["R", "pitch", "turns"],
+  line: ["length"],
+  lemniscate: ["R", "cross_height"],
+  torus_knot: ["R", "r", "p", "q"],
+  wave: ["length", "amplitude", "wavelength"],
+  arch: ["span", "height"]
+};
 var SweepSection = z.strictObject({
   curve: z.enum(SECTION_CURVES),
   a: num(0.1, 20),
@@ -594,15 +678,17 @@ var SweepPath = z.strictObject({
   R2: num(0.5, 300).optional(),
   pitch: num(0.5, 100).optional(),
   turns: num(0.25, 20).optional(),
-  length: num(1, 1e3).optional()
+  length: num(1, 1e3).optional(),
+  r: num(0.3, 100).optional(),
+  p: int(1, 12).optional(),
+  q: int(1, 12).optional(),
+  cross_height: num(0, 40).optional(),
+  amplitude: num(0.1, 100).optional(),
+  wavelength: num(1, 1e3).optional(),
+  span: num(1, 300).optional(),
+  height: num(0.5, 200).optional()
 }).superRefine((p, ctx) => {
-  const required = {
-    circle: ["R"],
-    ellipse: ["R", "R2"],
-    helix: ["R", "pitch", "turns"],
-    line: ["length"]
-  };
-  for (const field of required[p.type]) {
+  for (const field of PATH_REQUIRED[p.type]) {
     if (p[field] === void 0) {
       ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when path type is "${p.type}"` });
     }
@@ -725,6 +811,378 @@ function parseRecipe(input) {
   };
 }
 
+// src/engine/paths/index.ts
+var isClosedPath = (p) => CLOSED_PATH_TYPES.includes(p.type);
+function catenaryC(span, height) {
+  let lo = Math.log(span * 1e-4), hi = Math.log(span * 1e4);
+  for (let n = 0; n < 200; n++) {
+    const mid = (lo + hi) / 2;
+    const c = Math.exp(mid);
+    const h = c * (Math.cosh(span / (2 * c)) - 1);
+    if (h > height) lo = mid;
+    else hi = mid;
+  }
+  return Math.exp((lo + hi) / 2);
+}
+function curveOf(p, h0) {
+  switch (p.type) {
+    case "lemniscate": {
+      const a = p.R, ch = p.cross_height;
+      return {
+        closed: true,
+        uMax: TAU,
+        point(u) {
+          const s = Math.sin(u), c = Math.cos(u), d = 1 + s * s;
+          return [a * c / d, h0 + ch * (1 + s) / 2, a * s * c / d];
+        },
+        deriv(u) {
+          const s = Math.sin(u), c = Math.cos(u), d = 1 + s * s;
+          return [-a * s * (3 - s * s) / (d * d), ch * c / 2, a * ((c * c - s * s) * d - 2 * s * s * c * c) / (d * d)];
+        }
+      };
+    }
+    case "torus_knot": {
+      const R = p.R, r = p.r, P2 = p.p, Q = p.q;
+      return {
+        closed: true,
+        uMax: TAU,
+        point(u) {
+          const rho = R + r * Math.cos(Q * u);
+          return [rho * Math.cos(P2 * u), h0 + r * Math.sin(Q * u), rho * Math.sin(P2 * u)];
+        },
+        deriv(u) {
+          const rho = R + r * Math.cos(Q * u), dRho = -r * Q * Math.sin(Q * u);
+          const c = Math.cos(P2 * u), s = Math.sin(P2 * u);
+          return [dRho * c - rho * P2 * s, r * Q * Math.cos(Q * u), dRho * s + rho * P2 * c];
+        }
+      };
+    }
+    case "wave": {
+      const A = p.amplitude, k = TAU / p.wavelength, L = p.length;
+      return {
+        closed: false,
+        uMax: L,
+        point: (u) => [A * Math.sin(k * u), h0, u],
+        deriv: (u) => [A * k * Math.cos(k * u), 0, 1]
+      };
+    }
+    case "arch": {
+      const c = catenaryC(p.span, p.height);
+      const L = 2 * c * Math.sinh(p.span / (2 * c));
+      return {
+        closed: false,
+        uMax: L,
+        point(u) {
+          const sg = u - L / 2;
+          return [c * Math.asinh(sg / c), h0 + p.height + c - Math.hypot(c, sg), 0];
+        },
+        deriv(u) {
+          const sg = u - L / 2, w = Math.hypot(c, sg);
+          return [c / w, -sg / w, 0];
+        }
+      };
+    }
+    default:
+      return null;
+  }
+}
+var MAX_ROWS = 6144;
+function pathSegments(p, perLap) {
+  switch (p.type) {
+    case "helix":
+      return Math.max(8, Math.round(perLap * p.turns));
+    case "torus_knot":
+      return Math.min(MAX_ROWS, perLap * Math.max(p.p, p.q));
+    case "wave":
+      return Math.min(MAX_ROWS, Math.max(perLap, Math.round(perLap * p.length / p.wavelength / 3)));
+    case "lemniscate":
+      return Math.ceil(perLap / 4) * 4;
+    default:
+      return perLap;
+  }
+}
+var set = (arr, i, x, y, z2) => {
+  arr[3 * i] = x;
+  arr[3 * i + 1] = y;
+  arr[3 * i + 2] = z2;
+};
+function pathFrames(p, h0, perLap) {
+  const curve = curveOf(p, h0);
+  if (curve) return curveFrames(p, curve, pathSegments(p, perLap));
+  const segs = pathSegments(p, perLap);
+  const closed = p.type === "circle" || p.type === "ellipse";
+  const rows = closed ? segs : segs + 1;
+  const uMax = p.type === "helix" ? TAU * p.turns : p.type === "line" ? p.length : TAU;
+  const lapLength = p.type === "line" ? p.length : TAU;
+  const u = new Float64Array(rows);
+  const C = new Float64Array(3 * rows);
+  const N = new Float64Array(3 * rows);
+  const B = new Float64Array(3 * rows);
+  for (let i = 0; i < rows; i++) u[i] = uMax * i / segs;
+  switch (p.type) {
+    case "circle":
+      for (let i = 0; i < rows; i++) {
+        const c = Math.cos(u[i]), s = Math.sin(u[i]);
+        set(C, i, p.R * c, h0, p.R * s);
+        set(N, i, c, 0, s);
+        set(B, i, 0, 1, 0);
+      }
+      break;
+    case "ellipse":
+      for (let i = 0; i < rows; i++) {
+        const c = Math.cos(u[i]), s = Math.sin(u[i]);
+        set(C, i, p.R * c, h0, p.R2 * s);
+        const nx = p.R2 * c, nz = p.R * s, L = Math.hypot(nx, nz);
+        set(N, i, nx / L, 0, nz / L);
+        set(B, i, 0, 1, 0);
+      }
+      break;
+    case "line":
+      for (let i = 0; i < rows; i++) {
+        set(C, i, 0, h0, u[i]);
+        set(N, i, 1, 0, 0);
+        set(B, i, 0, 1, 0);
+      }
+      break;
+    case "helix":
+      helixFrames(p.R, p.pitch, h0, u, C, N, B);
+      break;
+  }
+  return { rows, closed, u, lapLength, uMax, horizontalFrames: p.type !== "helix", C, N, B };
+}
+function curveFrames(p, curve, segs) {
+  const closed = curve.closed;
+  const rows = closed ? segs : segs + 1;
+  const uMax = curve.uMax;
+  const u = new Float64Array(rows);
+  const C = new Float64Array(3 * rows);
+  const T = new Float64Array(3 * rows);
+  const N = new Float64Array(3 * rows);
+  const B = new Float64Array(3 * rows);
+  let holonomy;
+  for (let i = 0; i < rows; i++) {
+    u[i] = uMax * i / segs;
+    const c = curve.point(u[i]);
+    const d = curve.deriv(u[i]);
+    const L = Math.hypot(d[0], d[1], d[2]);
+    set(C, i, c[0], c[1], c[2]);
+    set(T, i, d[0] / L, d[1] / L, d[2] / L);
+  }
+  if (p.type === "torus_knot") {
+    const o = Math.hypot(C[0], C[2]);
+    const r = [C[0] / o, 0, C[2] / o];
+    const dot = r[0] * T[0] + r[2] * T[2];
+    const n = [r[0] - dot * T[0], -dot * T[1], r[2] - dot * T[2]];
+    const nl = Math.hypot(...n);
+    set(N, 0, n[0] / nl, n[1] / nl, n[2] / nl);
+    propagateRMF(C, T, N, rows);
+    holonomy = closeRMF(C, T, N, u, uMax, rows);
+  } else {
+    for (let i = 0; i < rows; i++) {
+      const o = 3 * i;
+      if (p.type === "arch") {
+        set(N, i, 0, 0, -1);
+      } else {
+        const nx = T[o + 2], nz = -T[o], nl = Math.hypot(nx, nz);
+        set(N, i, nx / nl, 0, nz / nl);
+      }
+    }
+  }
+  crossInto(T, N, B, rows);
+  return { rows, closed, u, lapLength: closed ? TAU : uMax, uMax, horizontalFrames: p.type === "wave", C, N, B, holonomy };
+}
+function crossInto(T, N, B, rows) {
+  for (let i = 0; i < rows; i++) {
+    const o = 3 * i;
+    const tx = T[o], ty = T[o + 1], tz = T[o + 2];
+    const nx = N[o], ny = N[o + 1], nz = N[o + 2];
+    B[o] = ty * nz - tz * ny;
+    B[o + 1] = tz * nx - tx * nz;
+    B[o + 2] = tx * ny - ty * nx;
+  }
+}
+function reflectStep(c0, t0, n0, c1, t1) {
+  const v1x = c1[0] - c0[0], v1y = c1[1] - c0[1], v1z = c1[2] - c0[2];
+  const c1n = v1x * v1x + v1y * v1y + v1z * v1z;
+  const rd = 2 / c1n * (v1x * n0[0] + v1y * n0[1] + v1z * n0[2]);
+  const rLx = n0[0] - rd * v1x, rLy = n0[1] - rd * v1y, rLz = n0[2] - rd * v1z;
+  const td = 2 / c1n * (v1x * t0[0] + v1y * t0[1] + v1z * t0[2]);
+  const tLx = t0[0] - td * v1x, tLy = t0[1] - td * v1y, tLz = t0[2] - td * v1z;
+  const v2x = t1[0] - tLx, v2y = t1[1] - tLy, v2z = t1[2] - tLz;
+  const c2 = v2x * v2x + v2y * v2y + v2z * v2z;
+  const r2 = c2 < 1e-30 ? 0 : 2 / c2 * (v2x * rLx + v2y * rLy + v2z * rLz);
+  return [rLx - r2 * v2x, rLy - r2 * v2y, rLz - r2 * v2z];
+}
+var at = (a, i) => [a[3 * i], a[3 * i + 1], a[3 * i + 2]];
+function propagateRMF(C, T, N, rows) {
+  for (let i = 0; i + 1 < rows; i++) {
+    const n = reflectStep(at(C, i), at(T, i), at(N, i), at(C, i + 1), at(T, i + 1));
+    set(N, i + 1, n[0], n[1], n[2]);
+  }
+}
+function closeRMF(C, T, N, u, uMax, rows) {
+  const last = rows - 1;
+  const nEnd = reflectStep(at(C, last), at(T, last), at(N, last), at(C, 0), at(T, 0));
+  const n0 = at(N, 0), t0 = at(T, 0);
+  const cx = nEnd[1] * n0[2] - nEnd[2] * n0[1], cy = nEnd[2] * n0[0] - nEnd[0] * n0[2], cz = nEnd[0] * n0[1] - nEnd[1] * n0[0];
+  const alpha = Math.atan2(cx * t0[0] + cy * t0[1] + cz * t0[2], nEnd[0] * n0[0] + nEnd[1] * n0[1] + nEnd[2] * n0[2]);
+  for (let i = 1; i < rows; i++) {
+    const beta = alpha * u[i] / uMax;
+    const t = at(T, i), n = at(N, i);
+    const bx = t[1] * n[2] - t[2] * n[1], by = t[2] * n[0] - t[0] * n[2], bz = t[0] * n[1] - t[1] * n[0];
+    const c = Math.cos(beta), s = Math.sin(beta);
+    set(N, i, n[0] * c + bx * s, n[1] * c + by * s, n[2] * c + bz * s);
+  }
+  return alpha;
+}
+function helixFrames(R, pitch, h0, u, C, N, B) {
+  const rows = u.length;
+  const rise = pitch / TAU;
+  const T = new Float64Array(3 * rows);
+  for (let i = 0; i < rows; i++) {
+    const c = Math.cos(u[i]), s = Math.sin(u[i]);
+    C[3 * i] = R * c;
+    C[3 * i + 1] = h0 + rise * u[i];
+    C[3 * i + 2] = R * s;
+    const tx = -R * s, ty = rise, tz = R * c, L = Math.hypot(tx, ty, tz);
+    T[3 * i] = tx / L;
+    T[3 * i + 1] = ty / L;
+    T[3 * i + 2] = tz / L;
+  }
+  N[0] = 1;
+  N[1] = 0;
+  N[2] = 0;
+  propagateRMF(C, T, N, rows);
+  crossInto(T, N, B, rows);
+}
+
+// src/engine/paths/analysis.ts
+var CURVE_PATHS = /* @__PURE__ */ new Set(["lemniscate", "torus_knot", "wave", "arch"]);
+function bendAxis(p) {
+  return p.type === "arch" ? "B" : p.type === "torus_knot" ? "any" : "N";
+}
+function crossAxis(p) {
+  return p.type === "lemniscate" ? "B" : "any";
+}
+function sectionExtent(g, axis, rOut) {
+  const maxScale = isClosedPath(g.path) ? 1 : Math.max(1, g.scale_along_path);
+  if (axis === "any" || g.twist.turns_per_lap !== 0) return rOut * maxScale;
+  const th = g.twist.initial_angle_deg * Math.PI / 180;
+  const c = Math.cos(th), s = Math.sin(th);
+  let ext = 0;
+  for (let j = 0; j < 720; j++) {
+    const [x, y] = sectionPoint(g.section, TAU * j / 720);
+    ext = Math.max(ext, Math.abs(axis === "N" ? x * c - y * s : x * s + y * c));
+  }
+  return ext * maxScale;
+}
+function minCurvatureRadius(f) {
+  const { C, rows, closed } = f;
+  let best = Infinity;
+  for (let i = closed ? 0 : 1; i < (closed ? rows : rows - 1); i++) {
+    const a = 3 * ((i - 1 + rows) % rows), b = 3 * i, c = 3 * ((i + 1) % rows);
+    const ux = C[a] - C[b], uy = C[a + 1] - C[b + 1], uz = C[a + 2] - C[b + 2];
+    const vx = C[c] - C[b], vy = C[c + 1] - C[b + 1], vz = C[c + 2] - C[b + 2];
+    const wx = C[c] - C[a], wy = C[c + 1] - C[a + 1], wz = C[c + 2] - C[a + 2];
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+    const cross = Math.hypot(cx, cy, cz);
+    if (cross < 1e-15) continue;
+    const r = Math.hypot(ux, uy, uz) * Math.hypot(vx, vy, vz) * Math.hypot(wx, wy, wz) / (2 * cross);
+    if (r < best) best = r;
+  }
+  return best;
+}
+function closestApproach(p, h0, exclude, samples = 600) {
+  const curve = curveOf(p, h0);
+  if (!curve || !curve.closed) return null;
+  const n = samples;
+  const P2 = new Float64Array(3 * n);
+  const s = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) P2.set(curve.point(curve.uMax * i / n), 3 * i);
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    s[i + 1] = s[i] + Math.hypot(P2[3 * j] - P2[3 * i], P2[3 * j + 1] - P2[3 * i + 1], P2[3 * j + 2] - P2[3 * i + 2]);
+  }
+  const L = s[n];
+  const far = (i, j) => {
+    const d2 = Math.abs(s[i] - s[j]);
+    return Math.min(d2, L - d2) > exclude;
+  };
+  const D = new Float64Array(n * n).fill(Infinity);
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++) {
+      if (i === j || !far(i, j)) continue;
+      D[i * n + j] = Math.hypot(P2[3 * j] - P2[3 * i], P2[3 * j + 1] - P2[3 * i + 1], P2[3 * j + 2] - P2[3 * i + 2]);
+    }
+  let best = Infinity, bi = -1, bj = -1;
+  for (let i = 0; i < n; i++)
+    for (let j = i + 1; j < n; j++) {
+      const d2 = D[i * n + j];
+      if (!(d2 < best)) continue;
+      let local = true;
+      for (let di = -1; di <= 1 && local; di++)
+        for (let dj = -1; dj <= 1; dj++) {
+          if (!di && !dj) continue;
+          const e = D[(i + di + n) % n * n + (j + dj + n) % n];
+          if (e === Infinity || e < d2) {
+            local = false;
+            break;
+          }
+        }
+      if (local) best = d2, bi = i, bj = j;
+    }
+  if (bi < 0) return null;
+  let u1 = curve.uMax * bi / n, u2 = curve.uMax * bj / n;
+  const dist = (a, b) => {
+    const x2 = curve.point(a), y2 = curve.point(b);
+    return Math.hypot(x2[0] - y2[0], x2[1] - y2[1], x2[2] - y2[2]);
+  };
+  let d = dist(u1, u2);
+  for (let step = curve.uMax / n; step > 1e-9; step /= 2) {
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const [a, b] of [[step, 0], [-step, 0], [0, step], [0, -step], [step, step], [-step, -step], [step, -step], [-step, step]]) {
+        const e = dist(u1 + a, u2 + b);
+        if (e < d - 1e-12) {
+          d = e;
+          u1 += a;
+          u2 += b;
+          moved = true;
+        }
+      }
+    }
+  }
+  const x = curve.point(u1), y = curve.point(u2);
+  return { distance: d, u: [u1, u2], at: [(x[0] + y[0]) / 2, (x[1] + y[1]) / 2, (x[2] + y[2]) / 2] };
+}
+function crossingClearance(g, h0, rOut) {
+  if (g.path.type !== "lemniscate" && g.path.type !== "torus_knot") return null;
+  const ext = sectionExtent(g, crossAxis(g.path), rOut);
+  const c = closestApproach(g.path, h0, Math.max(Math.PI * rOut, 1));
+  return c ? c.distance - 2 * ext : null;
+}
+function lowestPoints(g, h0) {
+  const f = pathFrames(g.path, h0, 180);
+  const sTotal = f.closed ? 1 : g.scale_along_path;
+  const theta0 = g.twist.initial_angle_deg * Math.PI / 180;
+  const sec = Array.from({ length: 120 }, (_, j) => sectionPoint(g.section, TAU * j / 120));
+  let surface = Infinity, ends = Infinity;
+  for (let i = 0; i < f.rows; i++) {
+    const u = f.u[i];
+    const th = theta0 + TAU * g.twist.turns_per_lap * u / f.lapLength;
+    const k = sTotal ** (u / f.uMax);
+    const c = Math.cos(th) * k, s = Math.sin(th) * k;
+    const ny = f.N[3 * i + 1], by = f.B[3 * i + 1];
+    let low = Infinity;
+    for (const [x, y] of sec) low = Math.min(low, (x * c - y * s) * ny + (x * s + y * c) * by);
+    low += f.C[3 * i + 1];
+    surface = Math.min(surface, low);
+    if (!f.closed && (i === 0 || i === f.rows - 1)) ends = Math.min(ends, low);
+  }
+  return { surface, ends };
+}
+
 // src/recipe/rules.ts
 var RULES = [
   { id: 1, severity: "error", scope: "recipe", message: "החתך לא נסגר על עצמו בסוף ההקפה" },
@@ -735,13 +1193,19 @@ var RULES = [
   { id: 6, severity: "warning", scope: "recipe", message: "יש קטע שבו לא עומדים בגובה מלא" },
   { id: 7, severity: "error", scope: "recipe", message: "המעברים חופפים" },
   { id: 8, severity: "warning", scope: "recipe", message: "החוד קבור עמוק, נדרש יסוד עמוק" },
-  { id: 9, severity: "error", scope: "system", message: "הגאומטריה ברמה הריאליסטית שונה מהרמה הערומה" }
+  { id: 9, severity: "error", scope: "system", message: "הגאומטריה ברמה הריאליסטית שונה מהרמה הערומה" },
+  { id: 10, severity: "error", scope: "recipe", message: "המסלול מתעקל חד מדי לעובי החתך" },
+  { id: 11, severity: "error", scope: "recipe", message: "המסלול פוגש את עצמו בהצטלבות" },
+  { id: 12, severity: "warning", scope: "recipe", message: "אין גובה מלא מתחת להצטלבות" },
+  { id: 13, severity: "error", scope: "recipe", message: "רגלי הקשת לא נוגעות בקרקע" },
+  { id: 14, severity: "error", scope: "recipe", message: "הקשר מתפרק לכמה לולאות נפרדות" }
 ];
 var INTEGER_TOLERANCE = 1e-3;
 var MIN_CLEAR_HEIGHT = 2.4;
 var MAX_CUSP_BURIAL = 3;
 var EPS = 1e-9;
-var CLOSED_PATHS = /* @__PURE__ */ new Set(["circle", "ellipse"]);
+var CLOSED_PATHS = new Set(CLOSED_PATH_TYPES);
+var RING_PATHS = new Set(RING_PATH_TYPES);
 var round = (x, digits = 3) => Math.round(x * 10 ** digits) / 10 ** digits;
 function symmetryOrder(s) {
   const base = (() => {
@@ -775,7 +1239,7 @@ function outerRadius(s) {
       return s.a * Math.max(1, 2 ** (0.5 - 1 / (s.exponent ?? 2)));
   }
 }
-function ellipsePerimeter(r1, r2) {
+function ellipsePerimeter2(r1, r2) {
   const h = ((r1 - r2) / (r1 + r2)) ** 2;
   return Math.PI * (r1 + r2) * (1 + 3 * h / (10 + Math.sqrt(4 - 3 * h)));
 }
@@ -799,9 +1263,12 @@ function sweepIssues(recipe, g) {
       out.push(issue(1, `${P}.twist.turns_per_lap`, k, `turns_per_lap × ${order} is an integer`));
     }
   }
-  if (path.type !== "line") {
+  if (RING_PATHS.has(path.type) || path.type === "helix") {
     const R = path.type === "ellipse" ? Math.min(path.R, path.R2) : path.R;
     if (!(R > rOut + EPS)) out.push(issue(2, `${P}.path.R`, R, `R > ${round(rOut)}`));
+  }
+  if (path.type === "torus_knot" && !(path.R - path.r > rOut + EPS)) {
+    out.push(issue(2, `${P}.path.R`, path.R - path.r, `R − r > ${round(rOut)}`));
   }
   if (bare.mode === "shell" && bare.shell) {
     const t = bare.shell.thickness;
@@ -811,7 +1278,8 @@ function sweepIssues(recipe, g) {
     } else {
       if (t > 0.4 * a + EPS) out.push(issue(4, "bare.shell.thickness", t, `thickness ≤ ${round(0.4 * a)}`));
       const floor = bare.floor ?? { level: 0, type: "chord" };
-      if (section.curve === "deltoid" && floor.type === "chord") {
+      const flat = !CURVE_PATHS.has(path.type) || path.type === "wave";
+      if (section.curve === "deltoid" && floor.type === "chord" && flat) {
         const half = 1.5 * (a - t);
         const level = floor.level;
         const gap = h0 - level;
@@ -826,17 +1294,46 @@ function sweepIssues(recipe, g) {
     }
   }
   const passages = bare.openings?.passages;
-  if (passages && passages.count > 0 && closed) {
-    const perimeter = path.type === "ellipse" ? ellipsePerimeter(path.R, path.R2) : 2 * Math.PI * path.R;
+  if (passages && passages.count > 0 && RING_PATHS.has(path.type)) {
+    const perimeter = path.type === "ellipse" ? ellipsePerimeter2(path.R, path.R2) : 2 * Math.PI * path.R;
     const used = passages.count * passages.width;
     if (!(used < 0.8 * perimeter - EPS)) {
       out.push(issue(7, "bare.openings.passages.count", used, `count × width < ${round(0.8 * perimeter)}`));
     }
   }
-  const burial = rOut - h0;
-  if (burial > MAX_CUSP_BURIAL + EPS) {
-    out.push(issue(8, "bare.section_center_height", burial, `outer radius − section_center_height ≤ ${MAX_CUSP_BURIAL}`));
+  if (CURVE_PATHS.has(path.type)) {
+    out.push(...curvePathIssues(g, h0, rOut));
+  } else {
+    const burial = rOut - h0;
+    if (burial > MAX_CUSP_BURIAL + EPS) {
+      out.push(issue(8, "bare.section_center_height", burial, `outer radius − section_center_height ≤ ${MAX_CUSP_BURIAL}`));
+    }
   }
+  return out;
+}
+function curvePathIssues(g, h0, rOut) {
+  const out = [];
+  const path = g.path;
+  if (path.type === "torus_knot" && gcd(path.p, path.q) !== 1) {
+    out.push(issue(14, `${P}.path.q`, gcd(path.p, path.q), "gcd(p, q) = 1"));
+    return out;
+  }
+  const bend = sectionExtent(g, bendAxis(path), rOut);
+  const rho = minCurvatureRadius(pathFrames(path, h0, 720));
+  if (!(rho > bend + EPS)) {
+    const field = path.type === "wave" ? "path.wavelength" : path.type === "arch" ? "path.height" : "path.R";
+    out.push(issue(10, `${P}.${field}`, rho, `smallest radius of curvature > ${round(bend)}`));
+  }
+  const gap = crossingClearance(g, h0, rOut);
+  if (gap !== null) {
+    const field = path.type === "lemniscate" ? "path.cross_height" : "path.r";
+    if (!(gap > EPS)) out.push(issue(11, `${P}.${field}`, gap, "clearance between the branches > 0"));
+    else if (gap < MIN_CLEAR_HEIGHT - EPS) out.push(issue(12, `${P}.${field}`, gap, `clearance between the branches ≥ ${MIN_CLEAR_HEIGHT}`));
+  }
+  const low = lowestPoints(g, h0);
+  if (path.type === "arch" && low.ends > 1e-6) out.push(issue(13, "bare.section_center_height", low.ends, "lowest point of the feet ≤ 0"));
+  const burial = -low.surface;
+  if (burial > MAX_CUSP_BURIAL + EPS) out.push(issue(8, "bare.section_center_height", burial, `depth below the ground ≤ ${MAX_CUSP_BURIAL}`));
   return out;
 }
 function checkRules(recipe) {
@@ -1056,6 +1553,23 @@ var NOT_FOR_MODEL = [
   [["$defs", "sweep"], "resolution"],
   [["properties", "meta"], "parent_id"]
 ];
+function splitPath(recipeSchema, s) {
+  const original = recipeSchema.$defs.sweep.properties;
+  const path = original.path;
+  const props = s.$defs.sweep.properties.path;
+  const fields = props.properties;
+  const variants = path.allOf.map((c) => {
+    const type = c.if.properties.type.const;
+    const required = c.then.required;
+    return {
+      type: "object",
+      properties: { type: { type: "string", const: type }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
+      required: ["type", ...required],
+      additionalProperties: false
+    };
+  });
+  s.$defs.sweep.properties.path = { anyOf: variants };
+}
 function modelSchema(recipeSchema, generators) {
   const s = clean(recipeSchema);
   for (const [path, field] of NOT_FOR_MODEL) {
@@ -1065,6 +1579,7 @@ function modelSchema(recipeSchema, generators) {
     const node = path.reduce((o, k) => o[k], s);
     node.required = [.../* @__PURE__ */ new Set([...node.required ?? [], ...fields])];
   }
+  splitPath(recipeSchema, s);
   const props = s.properties;
   const gen = props.generator;
   const genProps = gen.properties;
