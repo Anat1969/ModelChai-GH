@@ -25,6 +25,9 @@ import { ReadingPanel } from '../panels/ReadingPanel'
 import { LibraryPanel } from '../panels/LibraryPanel'
 import { PrintPanel } from '../panels/PrintPanel'
 import { PathBar } from '../panels/PathBar'
+import { VideoPanel } from '../panels/VideoPanel'
+import { useShots } from '../shots'
+import { stopPreview } from '../clipRun'
 import { navigate, useParam } from '../router'
 
 const CAMERAS: { id: CameraPreset; label: string }[] = [
@@ -34,10 +37,11 @@ const CAMERAS: { id: CameraPreset; label: string }[] = [
   { id: 'courtyard', label: 'מהחצר' },
 ]
 
-type SideTab = 'shape' | 'scene' | 'reading' | 'save' | 'print' | 'library'
+type SideTab = 'shape' | 'scene' | 'video' | 'reading' | 'save' | 'print' | 'library'
 const SIDE_TABS: { id: SideTab; label: string }[] = [
   { id: 'shape', label: 'צורה' },
   { id: 'scene', label: 'סביבה' },
+  { id: 'video', label: 'סרטון' },
   { id: 'reading', label: 'פרשנות' },
   { id: 'save', label: 'שמירה' },
   { id: 'print', label: 'הדפסה' },
@@ -185,6 +189,12 @@ export function Studio() {
     }
   }, [])
 
+  // The views chosen for the clip belong to the project open now (DECISIONS.md 116).
+  const projectId = project?.id ?? null
+  useEffect(() => useShots.getState().switchProject(projectId), [projectId])
+  // A preview does not outlive the studio.
+  useEffect(() => () => stopPreview(), [])
+
   const recipe = useMemo(() => asSweep(raw), [raw])
   // The scene follows the last built recipe, so figures and the section plane always match the mesh on screen.
   const built = useMemo(() => asSweep(validRaw), [validRaw])
@@ -281,7 +291,7 @@ export function Studio() {
                 </label>
               </div>
             </div>
-            <PathBar onPrint={() => openTab('print')} />
+            <PathBar onPrint={() => openTab('print')} onVideo={() => openTab('video')} />
           </div>
         </div>
 
@@ -327,6 +337,7 @@ export function Studio() {
                 <RealisticPanel recipe={recipe} built={shown} />
               </>
             )}
+            {tab === 'video' && <VideoPanel built={shown} />}
             {tab === 'reading' && recipe && <ReadingPanel recipe={recipe} />}
             {tab === 'save' && (
               <>

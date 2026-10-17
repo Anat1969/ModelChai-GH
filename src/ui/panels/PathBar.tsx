@@ -3,39 +3,55 @@
  * abstract to the object. 01 and 02 are the two levels; the clip passes from one to the other; then the
  * visualization and the print. One status line under the steps carries every outcome.
  */
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { navigate } from '../router'
 import { useStudio } from '../store'
+import { useShots } from '../shots'
 import { ClipControl } from './ClipControl'
 import { FreezeControl } from './FreezeControl'
 import { PathSlot } from './pathSlot'
-import { CLIP, clipPhases } from '../../capture/clip'
+import { clipPhases, QUARTER } from '../../capture/clip'
+import { buildPath } from '../../capture/path'
+import { planSeconds } from '../../capture/shots'
 import { num } from '../format'
 
-const PHASES = clipPhases()
-
-/** Step 04 in time: what each second of the clip shows. The marker follows the frames being drawn. */
+/**
+ * Step 04 in time: what each second of the clip shows, and where the chosen views fall (DECISIONS.md 116).
+ * The marker follows the frames being drawn, or the preview as it plays.
+ */
 function ClipTimeline() {
   const progress = useStudio((s) => s.clipProgress)
+  const shots = useShots((s) => s.shots)
+  const levels = useShots((s) => s.levels)
+  const { seconds, phases, ticks } = useMemo(() => {
+    const seconds = shots.length ? planSeconds(shots) : QUARTER.seconds
+    const ticks = shots.length > 1 && seconds > 0 ? buildPath(shots).keyAt.map((t) => (100 * t) / seconds) : []
+    return { seconds, phases: clipPhases(levels, seconds), ticks }
+  }, [shots, levels])
+  const motion = shots.length ? `המצלמה עוברת בין ${shots.length} מבטים שנבחרו` : `המצלמה מסתובבת ${QUARTER.turnDeg}° סביב המודל`
+  const s1 = (v: number) => num(v, v % 1 ? 1 : 0)
   return (
-    <div className="cliptime" data-testid="cliptime">
+    <div className="cliptime" data-testid="cliptime" data-seconds={seconds}>
       <span className="cliptime-title">
-        <span className="step-num">04</span> מסלול הסרטון, {CLIP.seconds} שניות:
+        <span className="step-num">04</span> מסלול הסרטון, <span className="num">{s1(seconds)}</span> שניות:
       </span>
-      <div className="cliptime-bar" role="img" aria-label={`${PHASES.map((p) => `${p.label} ${num(p.seconds, 0)} שניות`).join(', ')}, והמצלמה מסתובבת ${CLIP.turnDeg} מעלות`}>
-        {PHASES.map((p) => (
+      <div className="cliptime-bar" role="img" aria-label={`${phases.map((p) => `${p.label} ${s1(p.seconds)} שניות`).join(', ')}. ${motion}`}>
+        {phases.map((p) => (
           <span key={p.id} className={`cliptime-part ${p.id}`} style={{ flexGrow: p.seconds }} data-seconds={p.seconds}>
-            {p.label} <span className="num">{num(p.seconds, 0)} ש'</span>
+            {p.label} <span className="num">{s1(p.seconds)} ש'</span>
           </span>
         ))}
-        {progress !== null && <i className="cliptime-marker" style={{ insetInlineStart: `${progress}%` }} />}
+        {ticks.map((x, i) => (
+          <i key={i} className="cliptime-key" style={{ insetInlineStart: `${x}%` }} title={`מבט ${i + 1}`} />
+        ))}
+        {progress !== null && <i className="cliptime-marker" data-testid="cliptime-marker" data-progress={progress.toFixed(1)} style={{ insetInlineStart: `${progress}%` }} />}
       </div>
-      <span className="cliptime-turn">המצלמה מסתובבת {CLIP.turnDeg}° סביב המודל</span>
+      <span className="cliptime-turn">{motion}</span>
     </div>
   )
 }
 
-export function PathBar({ onPrint }: { onPrint: () => void }) {
+export function PathBar({ onPrint, onVideo }: { onPrint: () => void; onVideo?: () => void }) {
   const level = useStudio((s) => s.level)
   const set = useStudio((s) => s.set)
   const project = useStudio((s) => s.project)
@@ -61,7 +77,7 @@ export function PathBar({ onPrint }: { onPrint: () => void }) {
             <FreezeControl />
           </li>
           <li data-step="clip">
-            <ClipControl />
+            <ClipControl onViews={onVideo} />
           </li>
           <li data-step="render">
             <FreezeControl mode="render" />
