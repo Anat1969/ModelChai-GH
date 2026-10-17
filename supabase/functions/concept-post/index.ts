@@ -54,7 +54,17 @@ var VEGETATIONS = [
 ];
 var DEFAULT_WIND = { from_deg: 270, speed_ms: 5 };
 var SECTION_CURVES = ["deltoid", "hypocycloid", "circle", "polygon", "superellipse"];
-var PATH_TYPES = ["circle", "ellipse", "helix", "line"];
+var PATH_TYPES = ["circle", "ellipse", "helix", "line", "lemniscate", "torus_knot", "wave", "arch"];
+var PATH_REQUIRED = {
+  circle: ["R"],
+  ellipse: ["R", "R2"],
+  helix: ["R", "pitch", "turns"],
+  line: ["length"],
+  lemniscate: ["R", "cross_height"],
+  torus_knot: ["R", "r", "p", "q"],
+  wave: ["length", "amplitude", "wavelength"],
+  arch: ["span", "height"]
+};
 var SweepSection = z.strictObject({
   curve: z.enum(SECTION_CURVES),
   a: num(0.1, 20),
@@ -78,15 +88,17 @@ var SweepPath = z.strictObject({
   R2: num(0.5, 300).optional(),
   pitch: num(0.5, 100).optional(),
   turns: num(0.25, 20).optional(),
-  length: num(1, 1e3).optional()
+  length: num(1, 1e3).optional(),
+  r: num(0.3, 100).optional(),
+  p: int(1, 12).optional(),
+  q: int(1, 12).optional(),
+  cross_height: num(0, 40).optional(),
+  amplitude: num(0.1, 100).optional(),
+  wavelength: num(1, 1e3).optional(),
+  span: num(1, 300).optional(),
+  height: num(0.5, 200).optional()
 }).superRefine((p, ctx) => {
-  const required = {
-    circle: ["R"],
-    ellipse: ["R", "R2"],
-    helix: ["R", "pitch", "turns"],
-    line: ["length"]
-  };
-  for (const field of required[p.type]) {
+  for (const field of PATH_REQUIRED[p.type]) {
     if (p[field] === void 0) {
       ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when path type is "${p.type}"` });
     }
@@ -105,9 +117,41 @@ var SweepParams = z.strictObject({
     section_segments: int(12, 512).default(144)
   }).optional()
 });
+var SURFACE_FAMILIES = ["hyperboloid", "hyperbolic_paraboloid", "catenoid", "helicoid", "klein_bottle", "monkey_saddle"];
+var SURFACE_REQUIRED = {
+  hyperboloid: ["waist_radius", "end_radius", "height"],
+  hyperbolic_paraboloid: ["span", "rise"],
+  catenoid: ["waist_radius", "height"],
+  helicoid: ["radius", "pitch", "turns"],
+  klein_bottle: ["radius", "tube"],
+  monkey_saddle: ["span", "rise"]
+};
+var SurfaceParams = z.strictObject({
+  family: z.enum(SURFACE_FAMILIES),
+  waist_radius: num(0.5, 100).optional(),
+  end_radius: num(0.5, 150).optional(),
+  height: num(1, 200).optional(),
+  span: num(1, 200).optional(),
+  span2: num(1, 200).optional(),
+  rise: num(0.5, 100).optional(),
+  radius: num(0.5, 150).optional(),
+  pitch: num(0.5, 50).optional(),
+  turns: num(0.25, 10).optional(),
+  tube: num(0.2, 50).optional(),
+  resolution: z.strictObject({
+    u_segments: int(8, 1024).optional(),
+    v_segments: int(4, 512).optional()
+  }).optional()
+}).superRefine((p, ctx) => {
+  for (const field of SURFACE_REQUIRED[p.family]) {
+    if (p[field] === void 0) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when family is "${p.family}"` });
+    }
+  }
+});
 var Generator = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("sweep"), params: SweepParams }),
-  z.strictObject({ type: z.literal("parametric_surface"), params: z.record(z.string(), z.unknown()) }),
+  z.strictObject({ type: z.literal("parametric_surface"), params: SurfaceParams }),
   z.strictObject({ type: z.literal("sdf"), params: z.record(z.string(), z.unknown()) }),
   z.strictObject({ type: z.literal("tiling"), params: z.record(z.string(), z.unknown()) })
 ]);
@@ -246,7 +290,7 @@ function postUserMessage(input) {
   const facts = {
     concept: r.concept,
     narrative: r.narrative,
-    generator: r.generator?.params ? { type: r.generator.type, params: pick(r.generator.params, ["section", "path", "twist", "scale_along_path"]) } : r.generator,
+    generator: r.generator?.params ? { type: r.generator.type, params: pick(r.generator.params, ["section", "path", "twist", "scale_along_path", "family", "waist_radius", "end_radius", "height", "span", "span2", "rise", "radius", "pitch", "turns", "tube"]) } : r.generator,
     bare: pick(r.bare, ["mode", "section_center_height", "shell", "openings", "floor"]),
     realistic: r.realistic
   };

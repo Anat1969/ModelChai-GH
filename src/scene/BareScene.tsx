@@ -10,7 +10,7 @@ import type { BuildSuccess } from '../engine/build'
 import { sectionCut } from '../engine/sectionCut'
 import type { MeshData } from '../engine/types'
 import { outerRadius } from '../recipe/rules'
-import type { Sweep } from '../ui/params'
+import type { Built, Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
 import { bounds, cameraPose, peopleSpots, type Vec3 } from './cameras'
 import { between, boundingSphere, ease, frame, LIMITS, step, type NavStep, type Pose } from './navigation'
@@ -161,7 +161,7 @@ export const cameraControl: {
 /** A click moves the camera for this long, then stops exactly on the step. */
 const MOVE_MS = 220
 
-export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
+export function CameraRig({ recipe, ready }: { recipe: Built; ready: boolean }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
   const { camera } = useThree()
   const nonce = useStudio((s) => s.cameraNonce)
@@ -248,6 +248,15 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
       cameraControl.get = cameraControl.set = cameraControl.move = null
     }
   }, [camera, invalidate])
+  const waitingFor = useRef<string | null>(null)
+  const placePreset = () => {
+    const pose = cameraPose(recipeRef.current, useStudio.getState().camera)
+    if ('unavailable' in pose) {
+      set('notice', { tone: 'info', title: 'נקודת המבט הזאת לא זמינה כאן', lines: [{ text: pose.unavailable }], action: 'הבנתי' })
+      return
+    }
+    cameraControl.set?.(pose)
+  }
   useEffect(() => {
     if (!ready) return
     // A saved view wins over the preset once: the version reopens exactly as it was looked at.
@@ -257,13 +266,22 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
       set('pendingView', null)
       return
     }
-    const pose = cameraPose(recipeRef.current, preset)
-    if ('unavailable' in pose) {
-      set('notice', { tone: 'info', title: 'נקודת המבט הזאת לא זמינה כאן', lines: [{ text: pose.unavailable }], action: 'הבנתי' })
+    // A recipe just loaded is built a moment later: until then the model on screen is the previous one, and its
+    // bounds would frame the new model wrongly. Wait for the new model (DECISIONS.md 130). A second request while
+    // waiting (a view chosen, or a recipe that never builds) is placed at once.
+    const loaded = (useStudio.getState().recipe as { meta?: { id?: string } } | null)?.meta?.id
+    if (loaded && loaded !== recipeRef.current.meta.id && waitingFor.current !== loaded) {
+      waitingFor.current = loaded
       return
     }
-    cameraControl.set?.(pose)
-  }, [nonce, preset, ready, camera, set])
+    waitingFor.current = null
+    placePreset()
+  }, [nonce, preset, ready, camera, set]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!ready || waitingFor.current === null || recipe.meta.id !== waitingFor.current) return
+    waitingFor.current = null
+    placePreset()
+  }, [recipe, ready]) // eslint-disable-line react-hooks/exhaustive-deps
   // Free hands (DECISIONS.md 110): one finger or the left button orbits, two fingers, the right button or Shift
   // with a drag pan in the screen's plane, the wheel or a pinch zooms. A drag stops any move a button started.
   return (
@@ -285,7 +303,7 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
 }
 
 /** `still` drops the studio's live tools (edge tracer, moving section), for side-by-side comparison. */
-export function BareScene({ result, recipe, rows, still = false }: { result: BuildSuccess | null; recipe: Sweep; rows: number; still?: boolean }) {
+export function BareScene({ result, recipe, rows, still = false }: { result: BuildSuccess | null; recipe: Built; rows: number; still?: boolean }) {
   const showEdges = useStudio((s) => s.showEdges)
   const showPeople = useStudio((s) => s.showPeople)
   const sectionOn = useStudio((s) => s.sectionOn)
@@ -344,7 +362,8 @@ export function BareScene({ result, recipe, rows, still = false }: { result: Bui
           {!still && <Tracer result={result} rows={rows} />}
         </>
       )}
-      {sectionOn && !still && <SectionPlane recipe={recipe} />}
+      {/* The moving section belongs to the sweep: a surface has no section to cut (DECISIONS.md 139). */}
+      {sectionOn && !still && recipe.generator.type === 'sweep' && <SectionPlane recipe={recipe as Sweep} />}
       {people.map((p, i) => (
         <Person key={i} at={p.at} h={p.h} />
       ))}

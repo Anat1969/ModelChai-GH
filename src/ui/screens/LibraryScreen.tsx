@@ -6,10 +6,9 @@ import { useEffect, useState } from 'react'
 import { projectWithLatest } from '../../data/library'
 import type { ProjectRow } from '../../data/projects'
 import { ensureSession, type SessionState } from '../../data/supabase'
-import { parseRecipe } from '../../recipe/schema'
+import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { EmailLogin } from '../panels/EmailLogin'
 import { LibraryView, type LibrarySource } from '../panels/LibraryView'
-import type { Sweep } from '../params'
 import { navigate, useParam } from '../router'
 import { TopNav } from '../TopNav'
 
@@ -29,7 +28,8 @@ export function LibraryScreen() {
         const { project, latest } = await projectWithLatest(projectId)
         setProject(project)
         const p = latest ? parseRecipe(latest.recipe) : null
-        setSource(p?.ok && p.recipe.generator.type === 'sweep' ? { recipe: p.recipe as Sweep, versionId: latest!.id } : null)
+        const recipe = p?.ok ? asBuilt(p.recipe) : null
+        setSource(recipe ? { recipe, versionId: latest!.id } : null)
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e))
       }

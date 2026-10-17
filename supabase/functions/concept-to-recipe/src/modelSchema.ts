@@ -2,7 +2,11 @@
  * The recipe JSON Schema reshaped for structured outputs. The API compiles a subset of JSON Schema: no
  * numeric or length constraints, no if/then, no uniqueItems, and every object closed. Those constraints are
  * not lost: the full schema and the semantic rules run on every answer, and failures go to the repair loop.
- * The generator is narrowed to the generators the app offers, so `params` is the sweep definition itself.
+ * The generator is narrowed to the generators the app offers, so `params` is the sweep definition, or the
+ * parametric surface definition when the surface is offered. The surface's dimensions are each optional in the
+ * contract (a family needs only its own); here they are all required and nullable, which costs no optional
+ * fields, and the model writes null for the ones its family does not use. `dropNullSurfaceFields` removes them
+ * before validation (DECISIONS.md 142).
  */
 const DROP = new Set([
   '$schema', '$id', 'minimum', 'maximum', 'exclusiveMinimum', 'exclusiveMaximum', 'multipleOf',
@@ -70,6 +74,7 @@ const ALWAYS_FILL: [path: string[], fields: string[]][] = [
 /** Fields the model never needs to write: engine resolution, and the parent of a brand-new recipe. */
 const NOT_FOR_MODEL: [path: string[], field: string][] = [
   [['$defs', 'sweep'], 'resolution'],
+  [['$defs', 'surface'], 'resolution'],
   [['properties', 'meta'], 'parent_id'],
 ]
 
@@ -87,6 +92,29 @@ export function countOptional(node: unknown): number {
   return n
 }
 
+/**
+ * Each path type needs its own fields (the if/then in the recipe schema), and together they are 13 optional
+ * fields, more than the compiler allows. The path becomes one closed object per type with every field it needs
+ * required and nothing else, so the model sees exactly what each path takes (DECISIONS.md 130).
+ */
+function splitPath(recipeSchema: Json, s: Json) {
+  const original = ((recipeSchema.$defs as Json).sweep as Json).properties as Json
+  const path = original.path as Json
+  const props = (((s.$defs as Json).sweep as Json).properties as Json).path as Json
+  const fields = props.properties as Json
+  const variants = (path.allOf as Json[]).map((c) => {
+    const type = (((c.if as Json).properties as Json).type as Json).const as string
+    const required = (c.then as Json).required as string[]
+    return {
+      type: 'object',
+      properties: { type: { type: 'string', const: type }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
+      required: ['type', ...required],
+      additionalProperties: false,
+    }
+  })
+  ;(((s.$defs as Json).sweep as Json).properties as Json).path = { anyOf: variants }
+}
+
 export function modelSchema(recipeSchema: Json, generators: string[]): Json {
   const s = clean(recipeSchema) as Json
   for (const [path, field] of NOT_FOR_MODEL) {
@@ -96,12 +124,35 @@ export function modelSchema(recipeSchema: Json, generators: string[]): Json {
     const node = path.reduce<Json>((o, k) => o[k] as Json, s)
     node.required = [...new Set([...((node.required as string[]) ?? []), ...fields])]
   }
+  splitPath(recipeSchema, s)
   const props = s.properties as Json
   const gen = props.generator as Json
   const genProps = gen.properties as Json
   genProps.type = { type: 'string', enum: generators }
-  // Only the sweep generator exists in the MVP; its params are the sweep definition.
-  genProps.params = { $ref: '#/$defs/sweep' }
+  const defs = s.$defs as Json
+  const surface = defs.surface as Json
+  if (generators.includes('parametric_surface')) {
+    // Every dimension required and nullable: no optional fields, and the family decides which carry numbers.
+    const props = surface.properties as Json
+    for (const k of Object.keys(props)) if (k !== 'family') props[k] = { anyOf: [props[k], { type: 'null' }] }
+    surface.required = Object.keys(props)
+    genProps.params = generators.includes('sweep') ? { anyOf: [{ $ref: '#/$defs/sweep' }, { $ref: '#/$defs/surface' }] } : { $ref: '#/$defs/surface' }
+  } else {
+    delete defs.surface
+    genProps.params = { $ref: '#/$defs/sweep' }
+  }
   delete gen.allOf
   return s
+}
+
+/**
+ * The model writes null for the surface dimensions its family does not use; the contract wants them absent.
+ * Applied to every answer before validation. Other nulls (fit_note, parent_id) belong to the contract and stay.
+ */
+export function dropNullSurfaceFields(value: unknown): unknown {
+  const g = (value as { generator?: { type?: unknown; params?: unknown } } | null)?.generator
+  if (!g || g.type !== 'parametric_surface' || !g.params || typeof g.params !== 'object') return value
+  const params = g.params as Record<string, unknown>
+  for (const k of Object.keys(params)) if (params[k] === null) delete params[k]
+  return value
 }

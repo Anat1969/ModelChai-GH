@@ -13,12 +13,12 @@ import { ensureSession, type SessionState } from '../../data/supabase'
 import { buildDossier, dossierFileName, type Dossier, type DossierImage, type DossierStage, type JourneyStep, type Rung } from '../../dossier/content'
 import { loadImages, type LoadedImage } from '../../dossier/images'
 import { figureGround } from '../../prompt/figureGround'
-import { parseRecipe } from '../../recipe/schema'
+import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { download } from '../download'
 import { engine } from '../engine'
 import { EmailLogin } from '../panels/EmailLogin'
 import { metricRows } from '../panels/MetricsPanel'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 import { navigate, useParam } from '../router'
 import { TopNav } from '../TopNav'
 
@@ -255,7 +255,7 @@ export function DossierPages({ d, loaded }: { d: Dossier; loaded: Map<string, Lo
 interface Source {
   collection: Collection
   library: Library
-  recipe: Sweep
+  recipe: Built
   metrics: { label: string; value: string }[]
   fg: { label: string; value: string; why: string }[]
 }
@@ -283,11 +283,11 @@ export function DossierScreen() {
       const [collection, library, docs] = await Promise.all([loadCollection(projectId), loadLibrary(projectId), listDossiers(projectId)])
       setSaved(docs)
       const parsed = collection.latest ? parseRecipe(collection.latest.recipe) : null
-      if (!parsed?.ok || parsed.recipe.generator.type !== 'sweep') {
+      const recipe = parsed?.ok ? asBuilt(parsed.recipe) : null
+      if (!recipe) {
         setError('בפרויקט עוד אין גרסה שאפשר לבנות ממנה מסמך. שומרים גרסה בסטודיו, ואז חוזרים לכאן.')
         return
       }
-      const recipe = parsed.recipe as Sweep
       let metrics: Source['metrics'] = []
       let fg: Source['fg'] = []
       const built = await engine.build(recipe).catch(() => null)

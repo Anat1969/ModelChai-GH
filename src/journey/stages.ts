@@ -9,9 +9,10 @@
  */
 import type { Reading } from '../data/library'
 import { modelById } from '../learn/atlas'
-import type { Recipe, SweepParams } from '../recipe/schema'
+import type { BuiltRecipe } from '../recipe/schema'
 
-export type Sweep = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
+/** A recipe the engine builds: a sweep or a parametric surface. */
+export type Built = BuiltRecipe
 
 /** What the owner writes on the steps. Every field is optional: a project can start from anything. */
 export interface Journey {
@@ -24,7 +25,7 @@ export interface Journey {
   form?: { decisions?: string }
   environment?: { decisions?: string }
   physical?: { scale?: string; material?: string; notes?: string }
-  production?: { video?: string }
+  production?: { video?: string; link?: string }
   documentation?: { result?: string; lessons?: string }
   exhibition?: { title?: string; subtitle?: string; author?: string; venue?: string }
 }
@@ -49,7 +50,7 @@ export interface WorkState {
   project: { id: string; title_he: string; concept: string; created_at: string }
   journey: Journey
   /** The newest version's recipe, when there is one. */
-  recipe: Sweep | null
+  recipe: Built | null
   versions: { id: string; number: number; created_at: string; note: string | null }[]
   reading: Reading | null
   post: { short: string; body: string } | null
@@ -200,6 +201,7 @@ export const STAGES: StageDef[] = [
       { path: 'physical.material', label: 'חומר וייצור', hint: 'למשל PLA לבן, הדפסת FDM.' },
       { path: 'physical.notes', label: 'מה למדנו מהמעבר לפיזי', hint: 'מה עבד, מה תוקן, מה הפתיע.', long: true },
       { path: 'production.video', label: 'הסרטון', hint: 'מה הסרטון מראה, ובאיזה סדר.', long: true },
+      { path: 'production.link', label: 'קישור לסרטון', hint: 'כתובת שבה הסרטון מתפרסם (YouTube, Vimeo, Drive). בפלייר היא הופכת לקוד QR.' },
     ],
   },
   {

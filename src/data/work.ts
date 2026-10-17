@@ -5,8 +5,8 @@
  * versions, frozen views, prompts and their images, the reading, the post, the print file.
  */
 import type { ArticleEdits } from '../journey/article'
-import type { Journey, Sweep, WorkImage, WorkState } from '../journey/stages'
-import { parseRecipe } from '../recipe/schema'
+import type { Journey, WorkImage, WorkState } from '../journey/stages'
+import { asBuilt, parseRecipe } from '../recipe/schema'
 import { loadCollection, type Collection } from './collection'
 import { fail, LIBRARY_BUCKET, imageProblem, loadLibrary, userId, type Library, type LibraryItem } from './library'
 import { DataError, type ProjectRow } from './projects'
@@ -63,7 +63,7 @@ const img = (i: LibraryItem, caption: string): WorkImage => ({ id: i.id, src: i.
 
 export function workState(row: ProjectWork, c: Collection, lib: Library, references: LibraryItem[], photos: LibraryItem[]): WorkState {
   const parsed = c.latest ? parseRecipe(c.latest.recipe) : null
-  const recipe = parsed?.ok && parsed.recipe.generator.type === 'sweep' ? (parsed.recipe as Sweep) : null
+  const recipe = parsed?.ok ? asBuilt(parsed.recipe) : null
   const numberOf = (id: string | null) => c.versions.find((v) => v.id === id)?.number
   const stillsOn = (stage: string) =>
     c.stills

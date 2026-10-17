@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "hypar-canopy",
+    "created_at": "2026-10-17T12:00:00+03:00",
+    "source": "manual",
+    "notes": "Example: balanced default state, parametric surface"
+  },
+  "concept": {
+    "name": "Hyperbolic paraboloid",
+    "name_he": "פרבולואיד היפרבולי",
+    "use": "גגון הצללה",
+    "context_hint": "חזית מים"
+  },
+  "generator": {
+    "type": "parametric_surface",
+    "params": {
+      "family": "hyperbolic_paraboloid",
+      "span": 18,
+      "span2": 18,
+      "rise": 7
+    }
+  },
+  "bare": {
+    "mode": "shell",
+    "section_center_height": 0,
+    "shell": {
+      "thickness": 0.12,
+      "inner_method": "normal_offset"
+    },
+    "highlight": ["edges"]
+  },
+  "realistic": {
+    "site": {
+      "lat": 32.08,
+      "lon": 34.77,
+      "name": "Tel Aviv"
+    },
+    "datetime": "2026-07-10T11:00:00+03:00",
+    "weather": "haze",
+    "orientation_deg": 45,
+    "wind": { "from_deg": 290, "speed_ms": 6 },
+    "materials": {
+      "outer": "white_render",
+      "inner": "polished_concrete_light"
+    },
+    "context": {
+      "preset": "waterfront",
+      "vegetation": "none",
+      "people": 12
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "הגגון שעומד על שתי פינות",
+    "insight": "שתי פינות נוגעות בקרקע ושתיים מורמות לשמיים, וכל שפה של הגגון היא קו ישר. המשטח מתעקל בשני כיוונים הפוכים בכל נקודה, ולכן קליפה של שנים-עשר סנטימטרים נושאת מפתח של שמונה-עשר מטרים.",
+    "maxim": "העיקול הכפול הוא החוזק.",
+    "fit_note": null
+  }
+}

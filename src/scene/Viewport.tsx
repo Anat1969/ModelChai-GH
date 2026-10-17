@@ -1,6 +1,6 @@
 /** The 3:2 model window. The previous model stays on screen until the new build is ready. */
 import { Canvas } from '@react-three/fiber'
-import type { Sweep } from '../ui/params'
+import type { Built } from '../ui/params'
 import { useStudio } from '../ui/store'
 import { BareScene, CameraRig, cameraControl } from './BareScene'
 import { keyStep } from './navigation'
@@ -15,7 +15,7 @@ export const viewport: { canvas: HTMLCanvasElement | null } = { canvas: null }
  * `built` is the recipe of the mesh on screen; `recipe` is the one being edited. The realistic level dresses
  * the built mesh with the edited recipe's `realistic` fields, which never need a new build.
  */
-export function Viewport({ recipe, built }: { recipe: Sweep | null; built: Sweep | null }) {
+export function Viewport({ recipe, built }: { recipe: Built | null; built: Built | null }) {
   const level = useStudio((s) => s.level)
   const result = useStudio((s) => s.result)
   const building = useStudio((s) => s.building)

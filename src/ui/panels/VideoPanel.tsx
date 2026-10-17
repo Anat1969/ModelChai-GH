@@ -8,14 +8,14 @@ import { entryPass, planSeconds, SECONDS } from '../../capture/shots'
 import { cameraControl } from '../../scene/BareScene'
 import { addCurrentShot, addShots, cancelClip, makeClip, startPreview, stopPreview, useClip } from '../clipRun'
 import { num } from '../format'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 import { useShots } from '../shots'
 import { useStudio } from '../store'
 
 const s1 = (v: number) => num(v, v % 1 ? 1 : 0)
 const seconds = (v: number) => (v === 1 ? 'שנייה אחת' : `${s1(v)} שניות`)
 
-export function VideoPanel({ built }: { built: Sweep | null }) {
+export function VideoPanel({ built }: { built: Built | null }) {
   const shots = useShots((s) => s.shots)
   const thumbs = useShots((s) => s.thumbs)
   const levels = useShots((s) => s.levels)

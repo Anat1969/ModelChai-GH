@@ -1,8 +1,7 @@
 /** The studio's "ספרייה" tab: the library of the open project, fed by what is on screen now. */
 import { useMemo } from 'react'
-import { parseRecipe } from '../../recipe/schema'
+import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { navigate } from '../router'
-import type { Sweep } from '../params'
 import { useStudio } from '../store'
 import { LibraryView } from './LibraryView'
 import { metricRows } from './MetricsPanel'
@@ -14,8 +13,8 @@ export function LibraryPanel({ onNeedSave }: { onNeedSave: () => void }) {
   const result = useStudio((s) => s.result)
   const source = useMemo(() => {
     const p = raw ? parseRecipe(raw) : null
-    if (!p?.ok || p.recipe.generator.type !== 'sweep') return null
-    const recipe = p.recipe as Sweep
+    const recipe = p?.ok ? asBuilt(p.recipe) : null
+    if (!recipe) return null
     const metrics = result ? Object.fromEntries(metricRows(result.metrics, recipe).map((r) => [r.label, r.value.replace(/[⁦⁩]/g, '')])) : undefined
     return { recipe, versionId, metrics }
   }, [raw, result, versionId])

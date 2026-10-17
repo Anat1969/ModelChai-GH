@@ -11,6 +11,7 @@ import { suggestConcepts, type SuggestResult } from '../../data/partner'
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { loadWork, saveJourney, uploadWorkImage, type Work } from '../../data/work'
 import { loadImage } from '../../dossier/images'
+import { useOnReturn } from '../freshness'
 import { buildArticle } from '../../journey/article'
 import { chosenConcept, doneCount, fieldValue, nextStage, projectName, STAGES, stageById, stageStatus, withField, type Journey, type StageDef, type StageId, type WorkImage } from '../../journey/stages'
 import { FIT_WORD, modelById, modelsForUse } from '../../learn/atlas'
@@ -78,6 +79,7 @@ export function Workspace() {
     }
   }, [projectId])
   useEffect(() => void refresh(), [refresh])
+  useOnReturn(refresh)
   // Another project: nothing of the previous one stays on screen.
   useEffect(() => {
     setWork(null)
@@ -231,9 +233,12 @@ export function Workspace() {
             <button type="button" className="quiet" onClick={() => navigate('collection', { p: projectId! })}>
               קולקציה
             </button>
+            <button type="button" onClick={() => (void flush(), navigate('poster', { p: projectId! }))} data-testid="open-poster">
+              פלייר לתערוכה
+            </button>
             {latest && (
               <button type="button" className="quiet" onClick={() => navigate('dossier', { p: projectId! })}>
-                פלייר
+                מסמך הפרויקט
               </button>
             )}
           </div>
@@ -626,9 +631,15 @@ export function Workspace() {
                 )}
                 <h3>המאמר</h3>
                 <p>המאמר נבנה מכל השלבים, ו-Claude יכול לנסח ממנו טיוטה רציפה, רק מהחומרים. {gaps ? `${gaps} חלקים עוד חסרים, וכל אחד מוביל לשלב שבו משלימים אותו.` : 'כל החלקים מלאים.'}</p>
-                <button type="button" className="primary" onClick={() => (void flush(), navigate('article', { p: projectId! }))}>
-                  פתיחת המאמר
-                </button>
+                <div className="toolbar compact">
+                  <button type="button" className="primary" onClick={() => (void flush(), navigate('article', { p: projectId! }))}>
+                    פתיחת המאמר
+                  </button>
+                  <button type="button" onClick={() => (void flush(), navigate('poster', { p: projectId! }))}>
+                    פלייר לתערוכה
+                  </button>
+                </div>
+                <p className="hint">הפלייר הוא עמוד אחד: התמונה, הקו של המודל עליה, הרעיון וארבע תכונות של המודל. PDF ב-A4 או A3, ו-PNG לשיתוף. קישור לסרטון בשלב 8 הופך בו לקוד QR.</p>
               </div>
             )}
 

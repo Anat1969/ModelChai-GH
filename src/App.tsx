@@ -11,6 +11,7 @@ import { Home } from './ui/screens/Home'
 import { LearnScreen } from './ui/screens/Learn'
 import { Workspace } from './ui/screens/Workspace'
 import { ArticleScreen } from './ui/screens/Article'
+import { PosterScreen } from './ui/screens/Poster'
 import { Projects } from './ui/screens/Projects'
 import { Studio } from './ui/screens/Studio'
 import { useStudio } from './ui/store'
@@ -37,6 +38,7 @@ export function App() {
   if (route === 'learn') return <LearnScreen />
   if (route === 'project') return <Workspace />
   if (route === 'article') return <ArticleScreen />
+  if (route === 'poster') return <PosterScreen />
   if (route === 'projects') return <Projects />
   if (route === 'studio') return <Studio />
   if (route === 'new') return <NewConcept />

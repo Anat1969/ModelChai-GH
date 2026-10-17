@@ -2,7 +2,7 @@
  * Openings (GENERATORS.md 1.6): a removed quad, decided once per (row, arc, column) from the outer wall,
  * so the holes in both walls line up. Openings apply to shells only (DECISIONS.md).
  */
-import type { Recipe } from '../../recipe/schema'
+import { RING_PATH_TYPES, type Recipe } from '../../recipe/schema'
 import { TAU } from '../math'
 import { globalCol, nextRow, type SweepSetup } from './setup'
 
@@ -33,7 +33,8 @@ export function computeOpenings(recipe: Recipe, s: SweepSetup, outer: Float64Arr
   const { rows, M, arcs, q, frames } = s
   const bare = recipe.bare
   const slots = bare.mode === 'shell' ? bare.openings?.slots : undefined
-  const passages = bare.mode === 'shell' && frames.closed ? bare.openings?.passages : undefined
+  // Passages open a ring to its courtyard: rings only (DECISIONS.md 130).
+  const passages = bare.mode === 'shell' && RING_PATH_TYPES.includes(s.params.path.type) ? bare.openings?.passages : undefined
   const useSlots = !!slots && slots.count > 0
   const usePassages = !!passages && passages.count > 0
   const level = bare.floor?.level ?? 0

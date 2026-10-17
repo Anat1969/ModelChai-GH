@@ -27,7 +27,12 @@ describe('examples arrive in their ideal state', () => {
     expect(out.ok).toBe(true)
     if (!out.ok) return
     const m = out.metrics
-    if (r.bare.mode === 'shell') {
+    if (r.generator.type === 'parametric_surface') {
+      // A surface has no floor of its own: where people stand under it, they stand at least 2.4 m tall
+      // (rule 14), and its base is not buried deeper than a foundation.
+      if (m.clearHeight) expect(m.clearHeight.min).toBeGreaterThanOrEqual(2.4)
+      expect(m.surface!.sinkDepth).toBeLessThanOrEqual(3)
+    } else if (r.bare.mode === 'shell') {
       // Enterable: a continuous floor at least 1.2 m wide, and at least 2.4 m to stand under.
       expect(m.floorContinuous).toBe(true)
       expect(m.floorWidth!.min).toBeGreaterThanOrEqual(1.2)

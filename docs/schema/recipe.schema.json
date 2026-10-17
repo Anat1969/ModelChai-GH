@@ -45,6 +45,10 @@
         {
           "if": { "properties": { "type": { "const": "sweep" } } },
           "then": { "properties": { "params": { "$ref": "#/$defs/sweep" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "parametric_surface" } } },
+          "then": { "properties": { "params": { "$ref": "#/$defs/surface" } } }
         }
       ]
     },
@@ -209,6 +213,40 @@
         "charred_timber", "white_render", "perforated_metal"
       ]
     },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family"],
+      "properties": {
+        "family": { "enum": ["hyperboloid", "hyperbolic_paraboloid", "catenoid", "helicoid", "klein_bottle", "monkey_saddle"] },
+        "waist_radius": { "type": "number", "minimum": 0.5, "maximum": 100 },
+        "end_radius": { "type": "number", "minimum": 0.5, "maximum": 150 },
+        "height": { "type": "number", "minimum": 1, "maximum": 200 },
+        "span": { "type": "number", "minimum": 1, "maximum": 200 },
+        "span2": { "type": "number", "minimum": 1, "maximum": 200 },
+        "rise": { "type": "number", "minimum": 0.5, "maximum": 100 },
+        "radius": { "type": "number", "minimum": 0.5, "maximum": 150 },
+        "pitch": { "type": "number", "minimum": 0.5, "maximum": 50 },
+        "turns": { "type": "number", "minimum": 0.25, "maximum": 10 },
+        "tube": { "type": "number", "minimum": 0.2, "maximum": 50 },
+        "resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "u_segments": { "type": "integer", "minimum": 8, "maximum": 1024 },
+            "v_segments": { "type": "integer", "minimum": 4, "maximum": 512 }
+          }
+        }
+      },
+      "allOf": [
+        { "if": { "properties": { "family": { "const": "hyperboloid" } } }, "then": { "required": ["waist_radius", "end_radius", "height"] } },
+        { "if": { "properties": { "family": { "const": "hyperbolic_paraboloid" } } }, "then": { "required": ["span", "rise"] } },
+        { "if": { "properties": { "family": { "const": "catenoid" } } }, "then": { "required": ["waist_radius", "height"] } },
+        { "if": { "properties": { "family": { "const": "helicoid" } } }, "then": { "required": ["radius", "pitch", "turns"] } },
+        { "if": { "properties": { "family": { "const": "klein_bottle" } } }, "then": { "required": ["radius", "tube"] } },
+        { "if": { "properties": { "family": { "const": "monkey_saddle" } } }, "then": { "required": ["span", "rise"] } }
+      ]
+    },
     "sweep": {
       "type": "object",
       "additionalProperties": false,
@@ -237,18 +275,30 @@
           "additionalProperties": false,
           "required": ["type"],
           "properties": {
-            "type": { "enum": ["circle", "ellipse", "helix", "line"] },
+            "type": { "enum": ["circle", "ellipse", "helix", "line", "lemniscate", "torus_knot", "wave", "arch"] },
             "R": { "type": "number", "minimum": 0.5, "maximum": 300 },
             "R2": { "type": "number", "minimum": 0.5, "maximum": 300 },
             "pitch": { "type": "number", "minimum": 0.5, "maximum": 100 },
             "turns": { "type": "number", "minimum": 0.25, "maximum": 20 },
-            "length": { "type": "number", "minimum": 1, "maximum": 1000 }
+            "length": { "type": "number", "minimum": 1, "maximum": 1000 },
+            "r": { "type": "number", "minimum": 0.3, "maximum": 100 },
+            "p": { "type": "integer", "minimum": 1, "maximum": 12 },
+            "q": { "type": "integer", "minimum": 1, "maximum": 12 },
+            "cross_height": { "type": "number", "minimum": 0, "maximum": 40 },
+            "amplitude": { "type": "number", "minimum": 0.1, "maximum": 100 },
+            "wavelength": { "type": "number", "minimum": 1, "maximum": 1000 },
+            "span": { "type": "number", "minimum": 1, "maximum": 300 },
+            "height": { "type": "number", "minimum": 0.5, "maximum": 200 }
           },
           "allOf": [
             { "if": { "properties": { "type": { "const": "circle" } } }, "then": { "required": ["R"] } },
             { "if": { "properties": { "type": { "const": "ellipse" } } }, "then": { "required": ["R", "R2"] } },
             { "if": { "properties": { "type": { "const": "helix" } } }, "then": { "required": ["R", "pitch", "turns"] } },
-            { "if": { "properties": { "type": { "const": "line" } } }, "then": { "required": ["length"] } }
+            { "if": { "properties": { "type": { "const": "line" } } }, "then": { "required": ["length"] } },
+            { "if": { "properties": { "type": { "const": "lemniscate" } } }, "then": { "required": ["R", "cross_height"] } },
+            { "if": { "properties": { "type": { "const": "torus_knot" } } }, "then": { "required": ["R", "r", "p", "q"] } },
+            { "if": { "properties": { "type": { "const": "wave" } } }, "then": { "required": ["length", "amplitude", "wavelength"] } },
+            { "if": { "properties": { "type": { "const": "arch" } } }, "then": { "required": ["span", "height"] } }
           ]
         },
         "twist": {

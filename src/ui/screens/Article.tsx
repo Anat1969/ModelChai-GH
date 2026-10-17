@@ -8,7 +8,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { loadWork, saveArticle, type Work } from '../../data/work'
 import { loadImages, type LoadedImage } from '../../dossier/images'
-import { paginate } from '../../journey/paginate'
+import { useOnReturn } from '../freshness'
+import { flow, type FlowItem, type Placement } from '../../journey/paginate'
 import { articleFileName, articleMaterials, buildArticle, SECTION_KEYS, type Article, type ArticleEdits, type ArticleSection, type SectionKey } from '../../journey/article'
 import { projectName, stageById, type WorkImage } from '../../journey/stages'
 import { download } from '../download'
@@ -22,29 +23,57 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 // ---------- blocks: the article cut into pieces that pages are filled with ----------
 
+/** A paragraph's sentences, so a page can end between two of them (DECISIONS.md 126). */
+export const sentencesOf = (text: string): string[] => text.split(/(?<=[.!?:;׃])\s+(?=\S)/).filter(Boolean)
+
 interface Block {
   key: string
   /** A heading stays with what follows it. */
   keep?: boolean
-  node: React.ReactNode
+  /** The section, so a figure waits only for its own text. */
+  group?: string
+  /** A paragraph, cut into sentences. */
+  sentences?: string[]
+  figure?: boolean
+  render: (p?: Placement) => React.ReactNode
 }
 
-function Fig({ img, loaded }: { img: WorkImage; loaded: Map<string, LoadedImage> }) {
+function Fig({ img, loaded, maxH }: { img: WorkImage; loaded: Map<string, LoadedImage>; maxH?: number }) {
   const l = loaded.get(img.id)
   // The image keeps its own proportions; width and height are set before it decodes, so the page is measured right.
   return (
     <figure className="ar-fig">
-      {l ? <img src={l.dataUrl} alt={img.caption} width={l.width} height={l.height} style={{ aspectRatio: `${l.width} / ${l.height}` }} /> : <div className="ar-fig-empty">התמונה נטענת</div>}
+      {l ? (
+        <img src={l.dataUrl} alt={img.caption} width={l.width} height={l.height} style={{ aspectRatio: `${l.width} / ${l.height}`, ...(maxH ? { maxBlockSize: maxH } : {}) }} />
+      ) : (
+        <div className="ar-fig-empty">התמונה נטענת</div>
+      )}
       <figcaption>{img.caption}</figcaption>
     </figure>
   )
+}
+
+function para(key: string, group: string, text: string): Block {
+  const sentences = sentencesOf(text)
+  return {
+    key,
+    group,
+    sentences,
+    render: (p) => {
+      const from = p?.from ?? 0
+      const to = p?.to ?? sentences.length
+      // A paragraph cut at the foot is justified to its last line, so it reads on into the next page.
+      return <p className={`ar-p${to < sentences.length ? ' ar-p-cut' : ''}${from > 0 ? ' ar-p-cont' : ''}`}>{sentences.slice(from, to).join(' ')}</p>
+    },
+  }
 }
 
 function blocksOf(a: Article, loaded: Map<string, LoadedImage>): Block[] {
   const out: Block[] = [
     {
       key: 'head',
-      node: (
+      group: 'head',
+      render: () => (
         <header className="ar-head">
           {a.byline && <p className="ar-byline">{a.byline}</p>}
           <h1 className="ar-title">{a.title}</h1>
@@ -53,36 +82,47 @@ function blocksOf(a: Article, loaded: Map<string, LoadedImage>): Block[] {
       ),
     },
   ]
-  if (a.cover) out.push({ key: 'cover', node: <Fig img={a.cover} loaded={loaded} /> })
-  if (a.lead) out.push({ key: 'lead', node: <p className="ar-lead">{a.lead}</p> })
+  if (a.cover) out.push({ key: 'cover', group: 'head', figure: true, render: (p) => <Fig img={a.cover!} loaded={loaded} maxH={p?.imgH} /> })
+  if (a.lead) out.push({ key: 'lead', group: 'head', render: () => <p className="ar-lead">{a.lead}</p> })
   for (const s of a.sections) {
     if (!s.paras.length && !s.figures.length && !s.quote && !s.facts.length) continue
+    const g = s.key
     out.push({
       key: `${s.key}-h`,
       keep: true,
-      node: (
+      group: g,
+      render: () => (
         <h2 className="ar-h2">
           <span className="num">{s.num}</span> {s.heading}
         </h2>
       ),
     })
-    s.paras.forEach((p, i) => out.push({ key: `${s.key}-p${i}`, node: <p className="ar-p">{p}</p> }))
-    if (s.quote) out.push({ key: `${s.key}-q`, node: <blockquote className="ar-quote">{s.quote}</blockquote> })
-    if (s.figures.length)
-      out.push({
-        key: `${s.key}-f`,
-        node: (
-          <div className={`ar-figs n${s.figures.length}`}>
-            {s.figures.map((f) => (
-              <Fig key={f.id} img={f} loaded={loaded} />
-            ))}
-          </div>
-        ),
-      })
+    const figs: Block | null = s.figures.length
+      ? {
+          key: `${s.key}-f`,
+          group: g,
+          figure: true,
+          render: (p) => (
+            <div className={`ar-figs n${s.figures.length}`}>
+              {s.figures.map((f) => (
+                <Fig key={f.id} img={f} loaded={loaded} maxH={p?.imgH} />
+              ))}
+            </div>
+          ),
+        }
+      : null
+    // The figures stand after the section's first paragraph, so the rest of the text can fill a page around them.
+    s.paras.forEach((t, i) => {
+      out.push(para(`${s.key}-p${i}`, g, t))
+      if (i === 0 && figs) out.push(figs)
+    })
+    if (!s.paras.length && figs) out.push(figs)
+    if (s.quote) out.push({ key: `${s.key}-q`, group: g, render: () => <blockquote className="ar-quote">{s.quote}</blockquote> })
     if (s.facts.length)
       out.push({
         key: `${s.key}-x`,
-        node: (
+        group: g,
+        render: () => (
           <dl className="ar-facts">
             {s.facts.map((f) => (
               <div key={f.label}>
@@ -96,7 +136,8 @@ function blocksOf(a: Article, loaded: Map<string, LoadedImage>): Block[] {
   }
   out.push({
     key: 'colophon',
-    node: (
+    group: 'end',
+    render: () => (
       <div className="ar-colophon">
         {a.colophon.map((c) => (
           <p key={c}>{c}</p>
@@ -107,53 +148,83 @@ function blocksOf(a: Article, loaded: Map<string, LoadedImage>): Block[] {
   return out
 }
 
+const outer = (el: HTMLElement) => {
+  const cs = getComputedStyle(el)
+  return el.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom)
+}
+
+function Sheet({ a, n, total, children, probe }: { a: Article; n: number; total: number; children?: React.ReactNode; probe?: boolean }) {
+  return (
+    <section className="dz-page ar-page" data-testid={probe ? undefined : 'article-page'}>
+      {n > 0 && (
+        <header className="dz-run">
+          <span>{a.title}</span>
+          <span>{a.byline ?? 'מאמר לתערוכה'}</span>
+        </header>
+      )}
+      <div className="ar-body">{children}</div>
+      <footer className="dz-foot">
+        <span>מתמטיקה הפוכה · יוצר: מתמטיקה</span>
+        <span className="num">
+          {n + 1} / {total}
+        </span>
+      </footer>
+    </section>
+  )
+}
+
 function ArticlePages({ a, loaded, sheetsRef }: { a: Article; loaded: Map<string, LoadedImage>; sheetsRef: React.RefObject<HTMLDivElement | null> }) {
   const blocks = useMemo(() => blocksOf(a, loaded), [a, loaded])
   const measure = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState<number[][] | null>(null)
+  const scratch = useRef<HTMLDivElement>(null)
+  const probe = useRef<HTMLDivElement>(null)
+  const [pages, setPages] = useState<Placement[][] | null>(null)
   useLayoutEffect(() => {
     const el = measure.current
-    if (!el) return
+    const sc = scratch.current
+    const pr = probe.current
+    if (!el || !sc || !pr) return
+    // The room on a page is read from empty pages laid out like the real ones: the first has no running head.
+    const bodies = [...pr.querySelectorAll('.ar-body')] as HTMLElement[]
+    const caps = bodies.map((b) => b.clientHeight - 4)
     const kids = [...el.children] as HTMLElement[]
-    const heights = kids.map((k) => {
-      const cs = getComputedStyle(k)
-      return k.offsetHeight + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom)
+    const items: FlowItem[] = blocks.map((b, i) => {
+      const k = kids[i]!
+      const h = outer(k)
+      if (b.figure) {
+        const img = Math.max(0, ...[...k.querySelectorAll('img, .ar-fig-empty')].map((x) => (x as HTMLElement).offsetHeight))
+        return { h, group: b.group, figure: { fixed: h - img, img } }
+      }
+      return { h, keep: b.keep, group: b.group, sentences: b.sentences?.length }
     })
-    setPages(
-      paginate(
-        heights,
-        blocks.map((b) => !!b.keep),
-      ),
-    )
+    const p = sc.firstElementChild as HTMLElement
+    const measureText = (i: number, from: number, to: number) => {
+      p.textContent = blocks[i]!.sentences!.slice(from, to).join(' ')
+      return outer(p)
+    }
+    setPages(flow(items, (n) => caps[Math.min(n, 1)]!, measureText))
   }, [blocks])
   return (
     <>
       <div className="ar-measure ar-body" ref={measure} aria-hidden="true">
         {blocks.map((b) => (
-          <div key={b.key}>{b.node}</div>
+          <div key={b.key}>{b.render()}</div>
         ))}
       </div>
+      <div className="ar-measure ar-body" ref={scratch} aria-hidden="true">
+        <p className="ar-p" />
+      </div>
+      <div className="ar-probe" ref={probe} aria-hidden="true">
+        <Sheet a={a} n={0} total={1} probe />
+        <Sheet a={a} n={1} total={1} probe />
+      </div>
       <div className="dossier-sheets" ref={sheetsRef} data-testid="article-pages">
-        {(pages ?? [blocks.map((_, i) => i)]).map((ids, n, all) => (
-          <section key={n} className="dz-page ar-page" data-testid="article-page">
-            {n > 0 && (
-              <header className="dz-run">
-                <span>{a.title}</span>
-                <span>{a.byline ?? 'מאמר לתערוכה'}</span>
-              </header>
-            )}
-            <div className="ar-body">
-              {ids.map((i) => (
-                <div key={blocks[i]!.key}>{blocks[i]!.node}</div>
-              ))}
-            </div>
-            <footer className="dz-foot">
-              <span>מתמטיקה הפוכה · יוצר: מתמטיקה</span>
-              <span className="num">
-                {n + 1} / {all.length}
-              </span>
-            </footer>
-          </section>
+        {(pages ?? [blocks.map((_, i): Placement => ({ i }))]).map((ps, n, all) => (
+          <Sheet key={n} a={a} n={n} total={all.length}>
+            {ps.map((pl) => (
+              <div key={`${blocks[pl.i]!.key}-${pl.from ?? 0}`}>{blocks[pl.i]!.render(pl)}</div>
+            ))}
+          </Sheet>
         ))}
       </div>
     </>
@@ -248,6 +319,7 @@ export function ArticleScreen() {
     }
   }, [projectId])
   useEffect(() => void refresh(), [refresh])
+  useOnReturn(refresh, () => !!timer.current || !!busy)
 
   const article = useMemo(() => (work ? buildArticle({ ...work.state, metrics }, edits) : null), [work, metrics, edits])
   const images = useMemo(() => (article ? [article.cover, ...article.sections.flatMap((s) => s.figures)].filter((i): i is WorkImage => !!i && !!i.src) : []), [article])
@@ -402,6 +474,9 @@ export function ArticleScreen() {
                 </button>
                 <button type="button" onClick={() => (setMode('preview'), setTimeout(() => window.print(), 50))} disabled={!!busy}>
                   הדפסה
+                </button>
+                <button type="button" className="quiet" onClick={() => navigate('poster', { p: projectId! })} data-testid="article-poster">
+                  פלייר לתערוכה
                 </button>
               </div>
               <p className="hint">הקבצים כוללים רק את המאמר. סימוני החוסר נשארים כאן.</p>

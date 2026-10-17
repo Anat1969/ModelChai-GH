@@ -13,6 +13,19 @@ Path geometry (the engine's axes: y is up, the ground is the xz plane):
 - circle and ellipse are horizontal rings on the ground plane.
 - helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
 - line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
+- lemniscate (R, cross_height) is Bernoulli's figure eight on the ground: R is the distance from the center to the tip of each loop. A built path cannot meet itself in a point, so the branch through the crossing rises by cross_height and passes over the other like a bridge. Use it for walks with two courtyards, and set fit_note to say the branches do not meet in one point.
+- torus_knot (R, r, p, q) winds p times around the vertical axis and q times around a torus of radii R and r; p = 2, q = 3 is the trefoil. It is a closed path that passes over and under itself. p and q must share no factor. The lowest strand's center is at section_center_height - r.
+- wave (length, amplitude, wavelength) is a sine along the ground on the z axis, swinging amplitude to each side: promenades, colonnades, long benches. Its section stays upright, so shells have a floor.
+- arch (span, height) is a catenary in the vertical xy plane, the shape in which force flows in pure compression. Its feet stand span apart at section_center_height, which must be at most 0 so they touch the ground; the apex is height above them. The section's x axis runs across the arch (its depth), its y axis is the rib's thickness: a superellipse with a low aspect makes a vault.
+
+The parametric_surface generator (when it is available): a named surface from a fixed library, built as a shell of even thickness by offsetting the surface along its normal. Choose it when the concept IS one of these surfaces; choose the sweep when the concept is a section moving along a path.
+- hyperboloid (one sheet, ruled: every point lies on two straight lines): waist_radius, end_radius (> waist_radius), height. A tower with a vertical axis. Cooling towers, water towers, Shukhov towers.
+- hyperbolic_paraboloid (hypar, saddle on a rectangular plan, every edge a straight line): span, span2 (omit or equal for a square plan), rise = height difference between the high and low corners. Two corners touch the ground. Canopies, shell roofs.
+- catenoid (minimal surface between two rings, soap film): waist_radius, height. Ring radius at the ends is waist_radius * cosh(height / (2 * waist_radius)); keep height at most 4 * waist_radius.
+- helicoid (minimal ruled surface around an axis: a spiral ramp): radius, pitch (rise per turn, also the clear height between turns), turns.
+- klein_bottle (figure-8 immersion, one-sided, no edge, passes through itself along one ring): radius (ring), tube (half-height of the figure 8). radius > 1.25 * tube + thickness.
+- monkey_saddle (three valleys and three ridges meeting at a flat center, square plan): span, rise.
+Write null for every dimension field the family does not use. Surfaces need bare.mode "shell" with bare.shell.thickness (inner_method "normal_offset"). bare.section_center_height is the height of the shell's lowest point: 0 stands it on the ground, negative sinks it as a foundation. Openings and floors are not built on surfaces: leave bare.openings out, and say so in fit_note when the use needs an entrance.
 
 The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
 - Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
@@ -23,20 +36,31 @@ Hard rules (the engine rejects recipes that break them):
 - Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
 - Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.
 - Shell: thickness must be smaller than a.
+- Passages must not overlap: count * width < 0.8 * 2 * pi * R. Passages exist on circle and ellipse rings only.
+- The path must not bend tighter than the section reaches into the bend (the smallest radius of curvature exceeds the section's half-width there): wave: wavelength^2 / (4 pi^2 amplitude); lemniscate: R / 3; arch: the catenary's c at the apex.
+- Where a lemniscate or a torus knot crosses itself, the branches must not touch: cross_height (or the strand distance of the knot) exceeds the section's height on both branches.
+- Arch: section_center_height <= 0, so the feet touch the ground.
+- Torus knot: p and q share no factor, and R - r exceeds the section's outer radius.
 - Passages must not overlap: count * width < 0.8 * 2 * pi * R.
+- Surfaces: bare.mode must be "shell". A hyperboloid needs end_radius > waist_radius + 0.05. A Klein bottle needs radius > 1.25 * tube + thickness. Half the thickness must stay below the surface's smallest radius of curvature (helicoid: pitch / (2 * pi); catenoid: waist_radius; hyperboloid: about waist_radius).
 
 Soft rules (allowed, but prefer to satisfy):
 - Continuous floor in enterable shells: section_center_height - floor.level < 1.5 * (a - thickness) for a deltoid.
 - Clear height in enterable shells: section_center_height + 1.5 * (a - thickness) - floor.level >= 2.4 for a deltoid.
 - Shell wall thickness at most 0.4 * a.
+- Cusp burial depth (outer radius - section_center_height) at most 3 m. On lemniscate, torus_knot, wave and arch, the depth of the surface below the ground at most 3 m.
+- Under a crossing of a lemniscate or a torus knot, at least 2.4 m free between the branches, so people pass under the bridge standing.
 - Cusp burial depth (outer radius - section_center_height) at most 3 m.
+- Surfaces: the shell's largest plan dimension at most 600 times its thickness. Under a saddle (at its plan center) and between helicoid turns (pitch - thickness), at least 2.4 m to stand.
 
 Ranges the schema enforces after you answer (stay inside them):
 - section.a 0.1-20, cusps 3-8, sides 3-12, exponent 0.3-8, aspect 0.03-1.
-- path.R and R2 0.5-300, pitch 0.5-100, turns 0.25-20, length 1-1000.
+- path.R and R2 0.5-300, pitch 0.5-100, turns 0.25-20, length 1-1000, r 0.3-100, p and q integers 1-12, cross_height 0-40, amplitude 0.1-100, wavelength 1-1000, span 1-300, height 0.5-200.
+- Each path takes only its own fields: circle R; ellipse R, R2; helix R, pitch, turns; line length; lemniscate R, cross_height; torus_knot R, r, p, q; wave length, amplitude, wavelength; arch span, height.
 - twist.turns_per_lap -4 to 4. scale_along_path 0.1-5.
 - section_center_height -20 to 60. shell.thickness 0.08-1.5. floor.level -10 to 30.
 - passages.count 0-12, width 0.9-12, height 2.1-8. slots.count 0-96, width_fraction 0.05-0.8, duty 0.1-0.9.
+- surface: waist_radius 0.5-100, end_radius 0.5-150, height 1-200, span and span2 1-200, rise 0.5-100, radius 0.5-150, pitch 0.5-50, turns 0.25-10, tube 0.2-50.
 - meta.id: lowercase letters, digits and hyphens, 3-64 characters.
 - concept.name and name_he up to 80 characters; narrative.name_he up to 60; insight 10-400; maxim up to 140; fit_note up to 300.
 - realistic.camera.aspect is always "3:2".

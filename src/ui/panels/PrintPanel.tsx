@@ -80,7 +80,14 @@ function SizeReport({ r }: { r: PrintReport }) {
   )
 }
 
-function GroundReport({ r }: { r: PrintReport }) {
+function GroundReport({ r, surface }: { r: PrintReport; surface: boolean }) {
+  if (surface && r.groundCut)
+    return (
+      <p className="print-ground" data-testid="print-ground" data-cut="true">
+        <strong>מפלס הקרקע:</strong> בסיס המשטח שקוע <span className="num">{num(r.belowGroundM, 2)}</span> מ' מתחת לקרקע. הגאומטריה שמתחת לקרקע (
+        <span className="num">{num(r.belowGroundM3, 1)}</span> מ"ק, <span className="num">{num(r.belowGroundShare * 100, 0)}%</span> מהמבנה) לא מודפסת. החיתוך נסגר במשטח ישר, והדגם עומד עליו על השולחן.
+      </p>
+    )
   if (!r.groundCut)
     return (
       <p className="print-ground" data-testid="print-ground" data-cut="false">
@@ -188,7 +195,7 @@ export function PrintPanel() {
             קנה מידה <span className="num">{ltr(`1:${r.scale}`)}</span> · <span className="num">{triple(r.sizeMm.map((v) => v / 10), 1)}</span> ס"מ · <span className="num">{num(r.grams, 0)}</span> גרם PLA
           </p>
           <SizeReport r={r} />
-          <GroundReport r={r} />
+          <GroundReport r={r} surface={(recipe as { generator?: { type?: string } } | null)?.generator?.type === 'parametric_surface'} />
           <figure className="print-preview" data-testid="print-preview">
             <div className="print-preview-view" aria-label="תצוגה מקדימה של הקובץ שיודפס, על שולחן ההדפסה. גרירה מסובבת, גלגלת מקרבת." role="img">
               <PrintPreview stl={state.files.stl.bytes} bed={opts.bed} />
@@ -204,7 +211,14 @@ export function PrintPanel() {
             ))}
           </ul>
           {r.bodyNote && <p className="hint">{r.bodyNote}</p>}
-          {r.openingsDropped && <p className="hint">הפתחים לא נכללים בקובץ: בלי המשקופים שסוגרים את השפות שלהם הגוף לא אטום. הם יחזרו כשהמשקופים ייבנו.</p>}
+          {r.openingsNote && (
+            <p className="hint" data-testid="print-openings" data-cut={r.openingsCut}>
+              {r.openingsNote}
+            </p>
+          )}
+          <p className="print-orientation" data-testid="print-orientation" data-down={r.orientation.down}>
+            <strong>כיוון הדפסה מומלץ:</strong> {r.orientation.label}. <span className="why">{r.orientation.reason}</span>
+          </p>
           <div className="toolbar">
             <button type="button" className="primary" onClick={() => download(state.files.threeMf.bytes as BlobPart, state.files.threeMf.mime, state.files.threeMf.filename)} data-testid="print-3mf">
               הורדת 3MF

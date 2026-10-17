@@ -26,7 +26,7 @@ export function postUserMessage(input: PostInput): string {
     concept: r.concept,
     narrative: r.narrative,
     generator: (r.generator as { type?: string; params?: Record<string, unknown> } | undefined)?.params
-      ? { type: (r.generator as { type: string }).type, params: pick((r.generator as { params: unknown }).params, ['section', 'path', 'twist', 'scale_along_path']) }
+      ? { type: (r.generator as { type: string }).type, params: pick((r.generator as { params: unknown }).params, ['section', 'path', 'twist', 'scale_along_path', 'family', 'waist_radius', 'end_radius', 'height', 'span', 'span2', 'rise', 'radius', 'pitch', 'turns', 'tube']) }
       : r.generator,
     bare: pick(r.bare, ['mode', 'section_center_height', 'shell', 'openings', 'floor']),
     realistic: r.realistic,

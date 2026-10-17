@@ -7,6 +7,9 @@ import { writeObj } from './obj'
 import { writeStl } from './stl'
 import { preparePrint, type PrintOptions, type PrintReport } from './print'
 import { write3mf } from './threeMf'
+import { prepareSurfacePrint } from './printSurface'
+import { buildSurface, buildSurfaceClosedMesh } from '../surface/build'
+import { validateRecipe } from '../../recipe/rules'
 
 export type ExportFormat = 'obj' | 'stl' | 'glb' | 'json'
 
@@ -32,7 +35,17 @@ export function exportFile(input: unknown, format: ExportFormat): ExportFile | {
   if (format === 'json') {
     return { filename, mime: EXPORT_MIME.json, bytes: new TextEncoder().encode(JSON.stringify(input, null, 2) + '\n') }
   }
-  if (recipe.generator.type !== 'sweep') return { error: 'במוצר המינימלי אפשר לייצא רק מחולל סוויפ' }
+  if (recipe.generator.type === 'parametric_surface') {
+    const params = recipe.generator.params
+    if (format === 'stl') return { filename, mime: EXPORT_MIME.stl, bytes: writeStl(buildSurfaceClosedMesh(recipe, params), `${recipe.concept.name}, meters, Z up`) }
+    // OBJ and glTF take the display meshes at export resolution: twice the segments each way.
+    const v = validateRecipe(input)
+    if (!v.ok) return { error: 'המודל לא נבנה, ולכן אין מה לייצא' }
+    const r = buildSurface(recipe, params, v.issues, 2)
+    if (format === 'obj') return { filename, mime: EXPORT_MIME.obj, bytes: new TextEncoder().encode(writeObj(r, title)) }
+    return { filename, mime: EXPORT_MIME.glb, bytes: writeGlb(r, recipe, title) }
+  }
+  if (recipe.generator.type !== 'sweep') return { error: 'המחולל הזה עוד לא נבנה, ולכן אין מה לייצא' }
   if (format === 'stl') {
     const mesh = buildClosedMesh(recipe, recipe.generator.params)
     return { filename, mime: EXPORT_MIME.stl, bytes: writeStl(mesh, `${recipe.concept.name}, meters, Z up`) }
@@ -59,10 +72,10 @@ export async function printFiles(input: unknown, opts: PrintOptions): Promise<Pr
   const parsed = parseRecipe(input)
   if (!parsed.ok) return { error: 'המתכון לא עומד בסכמה, ולכן אי אפשר להכין אותו להדפסה' }
   const recipe = parsed.recipe
-  if (recipe.generator.type !== 'sweep') return { error: 'במוצר המינימלי אפשר להדפיס רק מחולל סוויפ' }
+  if (recipe.generator.type !== 'sweep' && recipe.generator.type !== 'parametric_surface') return { error: 'המחולל הזה עוד לא נבנה, ולכן אין מה להדפיס' }
   let prepared: ReturnType<typeof preparePrint>
   try {
-    prepared = preparePrint(recipe, opts)
+    prepared = recipe.generator.type === 'parametric_surface' ? prepareSurfacePrint(recipe, recipe.generator.params, opts) : preparePrint(recipe, opts)
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }

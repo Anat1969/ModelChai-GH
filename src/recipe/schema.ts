@@ -58,7 +58,23 @@ export const DEFAULT_WIND = { from_deg: 270, speed_ms: 5 } as const
 // ---------- generator: sweep ----------
 
 export const SECTION_CURVES = ['deltoid', 'hypocycloid', 'circle', 'polygon', 'superellipse'] as const
-export const PATH_TYPES = ['circle', 'ellipse', 'helix', 'line'] as const
+export const PATH_TYPES = ['circle', 'ellipse', 'helix', 'line', 'lemniscate', 'torus_knot', 'wave', 'arch'] as const
+/** Closed paths meet themselves after one lap (rule 1). Rings are the closed paths around a courtyard. */
+export const CLOSED_PATH_TYPES: readonly PathType[] = ['circle', 'ellipse', 'lemniscate', 'torus_knot']
+export const RING_PATH_TYPES: readonly PathType[] = ['circle', 'ellipse']
+export type PathType = (typeof PATH_TYPES)[number]
+type PathField = 'R' | 'R2' | 'pitch' | 'turns' | 'length' | 'r' | 'p' | 'q' | 'cross_height' | 'amplitude' | 'wavelength' | 'span' | 'height'
+/** Fields each path type requires; the JSON Schema says the same in its allOf. */
+export const PATH_REQUIRED: Record<PathType, PathField[]> = {
+  circle: ['R'],
+  ellipse: ['R', 'R2'],
+  helix: ['R', 'pitch', 'turns'],
+  line: ['length'],
+  lemniscate: ['R', 'cross_height'],
+  torus_knot: ['R', 'r', 'p', 'q'],
+  wave: ['length', 'amplitude', 'wavelength'],
+  arch: ['span', 'height'],
+}
 
 export const SweepSection = z
   .strictObject({
@@ -88,15 +104,17 @@ export const SweepPath = z
     pitch: num(0.5, 100).optional(),
     turns: num(0.25, 20).optional(),
     length: num(1, 1000).optional(),
+    r: num(0.3, 100).optional(),
+    p: int(1, 12).optional(),
+    q: int(1, 12).optional(),
+    cross_height: num(0, 40).optional(),
+    amplitude: num(0.1, 100).optional(),
+    wavelength: num(1, 1000).optional(),
+    span: num(1, 300).optional(),
+    height: num(0.5, 200).optional(),
   })
   .superRefine((p, ctx) => {
-    const required: Record<(typeof PATH_TYPES)[number], ('R' | 'R2' | 'pitch' | 'turns' | 'length')[]> = {
-      circle: ['R'],
-      ellipse: ['R', 'R2'],
-      helix: ['R', 'pitch', 'turns'],
-      line: ['length'],
-    }
-    for (const field of required[p.type]) {
+    for (const field of PATH_REQUIRED[p.type]) {
       if (p[field] === undefined) {
         ctx.addIssue({ code: 'custom', path: [field], message: `${field} is required when path type is "${p.type}"` })
       }
@@ -119,10 +137,58 @@ export const SweepParams = z.strictObject({
     .optional(),
 })
 
-// The JSON Schema constrains params only for "sweep". The other generator types arrive in Stage 6.
+// ---------- generator: parametric_surface ----------
+
+/**
+ * A fixed library of named surfaces, each with its own few dimensions (DECISIONS.md 135). No formula strings:
+ * every family is code the engine knows, so it is safe and testable.
+ */
+export const SURFACE_FAMILIES = ['hyperboloid', 'hyperbolic_paraboloid', 'catenoid', 'helicoid', 'klein_bottle', 'monkey_saddle'] as const
+export type SurfaceFamily = (typeof SURFACE_FAMILIES)[number]
+export type SurfaceField = 'waist_radius' | 'end_radius' | 'height' | 'span' | 'span2' | 'rise' | 'radius' | 'pitch' | 'turns' | 'tube'
+
+/** The dimensions each family needs. `span2` is optional on the saddles: a square plan when it is missing. */
+export const SURFACE_REQUIRED: Record<SurfaceFamily, SurfaceField[]> = {
+  hyperboloid: ['waist_radius', 'end_radius', 'height'],
+  hyperbolic_paraboloid: ['span', 'rise'],
+  catenoid: ['waist_radius', 'height'],
+  helicoid: ['radius', 'pitch', 'turns'],
+  klein_bottle: ['radius', 'tube'],
+  monkey_saddle: ['span', 'rise'],
+}
+
+export const SurfaceParams = z
+  .strictObject({
+    family: z.enum(SURFACE_FAMILIES),
+    waist_radius: num(0.5, 100).optional(),
+    end_radius: num(0.5, 150).optional(),
+    height: num(1, 200).optional(),
+    span: num(1, 200).optional(),
+    span2: num(1, 200).optional(),
+    rise: num(0.5, 100).optional(),
+    radius: num(0.5, 150).optional(),
+    pitch: num(0.5, 50).optional(),
+    turns: num(0.25, 10).optional(),
+    tube: num(0.2, 50).optional(),
+    resolution: z
+      .strictObject({
+        u_segments: int(8, 1024).optional(),
+        v_segments: int(4, 512).optional(),
+      })
+      .optional(),
+  })
+  .superRefine((p, ctx) => {
+    for (const field of SURFACE_REQUIRED[p.family]) {
+      if (p[field] === undefined) {
+        ctx.addIssue({ code: 'custom', path: [field], message: `${field} is required when family is "${p.family}"` })
+      }
+    }
+  })
+
+// The JSON Schema constrains params for "sweep" and "parametric_surface". "sdf" and "tiling" arrive later in Stage 6.
 export const Generator = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('sweep'), params: SweepParams }),
-  z.strictObject({ type: z.literal('parametric_surface'), params: z.record(z.string(), z.unknown()) }),
+  z.strictObject({ type: z.literal('parametric_surface'), params: SurfaceParams }),
   z.strictObject({ type: z.literal('sdf'), params: z.record(z.string(), z.unknown()) }),
   z.strictObject({ type: z.literal('tiling'), params: z.record(z.string(), z.unknown()) }),
 ])
@@ -249,6 +315,16 @@ export type RecipeInput = z.input<typeof Recipe>
 export type SweepParams = z.output<typeof SweepParams>
 export type SweepSection = z.output<typeof SweepSection>
 export type SweepPath = z.output<typeof SweepPath>
+export type SurfaceParams = z.output<typeof SurfaceParams>
+/** A recipe whose generator the engine builds today: a sweep or a parametric surface. */
+export type SweepRecipe = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
+export type SurfaceRecipe = Recipe & { generator: { type: 'parametric_surface'; params: SurfaceParams } }
+export type BuiltRecipe = SweepRecipe | SurfaceRecipe
+export const BUILT_GENERATORS = ['sweep', 'parametric_surface'] as const
+export const isSweep = (r: Recipe): r is SweepRecipe => r.generator.type === 'sweep'
+export const isSurface = (r: Recipe): r is SurfaceRecipe => r.generator.type === 'parametric_surface'
+/** The recipe when the engine can build its generator, null otherwise. */
+export const asBuilt = (r: Recipe): BuiltRecipe | null => (isSweep(r) || isSurface(r) ? r : null)
 
 export interface SchemaError {
   /** Dotted path, e.g. "generator.params.section.cusps". */
