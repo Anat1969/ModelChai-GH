@@ -72,7 +72,7 @@ export function buildSweep(recipe: Recipe, params: SweepParams, issues: RuleIssu
   }
   const edges = computeEdges(s, outerGrid)
   const caps = s.frames.closed ? null : capsMesh(s, outerGrid, innerGrid)
-  const metrics = computeMetrics(recipe, params, { closed: s.frames.closed, openings, floor, edges, innerScale: kIn })
+  const metrics = computeMetrics(recipe, params, { closed: s.frames.closed, openings, floor, edges, innerScale: kIn, bounds: gridBounds(outerGrid) })
 
   const meshes: BuildMeshes = { outer, inner, floor: floor?.mesh ?? null, caps }
   const all = [outer, inner, meshes.floor, caps].filter((m): m is MeshData => m !== null)
@@ -88,6 +88,18 @@ export function buildSweep(recipe: Recipe, params: SweepParams, issues: RuleIssu
       triangles: all.reduce((n, m) => n + m.indices.length / 3, 0),
     },
   }
+}
+
+function gridBounds(g: Float64Array): { min: [number, number, number]; max: [number, number, number] } {
+  const min: [number, number, number] = [Infinity, Infinity, Infinity]
+  const max: [number, number, number] = [-Infinity, -Infinity, -Infinity]
+  for (let i = 0; i < g.length; i += 3)
+    for (let k = 0; k < 3; k++) {
+      const v = g[i + k]!
+      if (v < min[k]!) min[k] = v
+      if (v > max[k]!) max[k] = v
+    }
+  return { min, max }
 }
 
 /** Flat end caps for an open path: a fan for a solid, an annulus for a shell. */

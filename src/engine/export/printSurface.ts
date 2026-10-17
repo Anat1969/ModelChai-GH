@@ -10,7 +10,7 @@ import { buildSurfaceClosedMesh } from '../surface/build'
 import { family, minCurvatureRadius } from '../surface/families'
 import type { SolidMesh } from '../types'
 import { closedMeshVolume } from '../sweep/closedMesh'
-import { GROUND_Y, PLA_DENSITY, bounds, fmt, openEdges, type Body, type PrintCheck, type PrintOptions, type PrintReport } from './print'
+import { GROUND_Y, PLA_DENSITY, bounds, fmt, openEdges, printOrientation, type Body, type PrintCheck, type PrintOptions, type PrintReport } from './print'
 
 const withThickness = (recipe: Recipe, thickness: number): Recipe => {
   const r = structuredClone(recipe)
@@ -43,7 +43,7 @@ export function prepareSurfacePrint(recipe: Recipe, params: SurfaceParams, opts:
   let printed = recipe
   let whole = designWhole
   let solid = design
-  // The offset folds where the surface bends tighter than half the wall (rule 12): the most it can thicken.
+  // The offset folds where the surface bends tighter than half the wall (rule 17): the most it can thicken.
   const maxT = 2 * minCurvatureRadius(family(params)) * 0.95
   if (recipeT * mmPerM < opts.minWallMm) {
     // A thicker shell is also a little larger, so the thickness and the scale are found together.
@@ -142,7 +142,10 @@ export function prepareSurfacePrint(recipe: Recipe, params: SurfaceParams, opts:
       openEdges: open,
       volumeCm3,
       grams: volumeCm3 * PLA_DENSITY,
-      openingsDropped: false,
+      // Openings are not built on a surface (DECISIONS.md 137), so there are none to cut.
+      openingsCut: false,
+      openingsNote: null,
+      orientation: printOrientation(mesh, opts.groundCut && belowGroundM > 0),
       belowGroundM,
       belowGroundM3,
       belowGroundShare,

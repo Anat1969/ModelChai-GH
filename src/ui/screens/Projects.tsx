@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { loadDraft, pendingSaves } from '../../data/offline'
 import { listProjects, type ProjectSummary } from '../../data/projects'
+import { useOnReturn } from '../freshness'
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { EmailLogin } from '../panels/EmailLogin'
 import { navigate } from '../router'
@@ -86,8 +87,9 @@ export function Projects() {
   const draft = loadDraft()
   const pending = pendingSaves().length
 
-  const refresh = useCallback(async () => {
-    setLoad({ status: 'loading' })
+  // Back in the tab, the list updates in place: what is on screen stays until the new list arrives.
+  const refresh = useCallback(async (quiet = false) => {
+    if (!quiet) setLoad({ status: 'loading' })
     const s = await ensureSession()
     setSession(s)
     if (s.status !== 'signed-in') {
@@ -104,6 +106,7 @@ export function Projects() {
   useEffect(() => {
     void refresh()
   }, [refresh])
+  useOnReturn(() => refresh(true))
 
   return (
     <div className="wrap">
@@ -140,7 +143,7 @@ export function Projects() {
       {session?.status === 'error' && (
         <div className="notice error" role="alert">
           <p>החיבור נכשל: {session.message}</p>
-          <button type="button" onClick={refresh}>
+          <button type="button" onClick={() => void refresh()}>
             ניסיון חוזר
           </button>
         </div>
@@ -154,7 +157,7 @@ export function Projects() {
       {load.status === 'error' && (
         <div className="notice error" role="alert" data-testid="projects-error">
           <p>{load.message}</p>
-          <button type="button" onClick={refresh}>
+          <button type="button" onClick={() => void refresh()}>
             ניסיון חוזר
           </button>
         </div>

@@ -58,7 +58,23 @@ export const DEFAULT_WIND = { from_deg: 270, speed_ms: 5 } as const
 // ---------- generator: sweep ----------
 
 export const SECTION_CURVES = ['deltoid', 'hypocycloid', 'circle', 'polygon', 'superellipse'] as const
-export const PATH_TYPES = ['circle', 'ellipse', 'helix', 'line'] as const
+export const PATH_TYPES = ['circle', 'ellipse', 'helix', 'line', 'lemniscate', 'torus_knot', 'wave', 'arch'] as const
+/** Closed paths meet themselves after one lap (rule 1). Rings are the closed paths around a courtyard. */
+export const CLOSED_PATH_TYPES: readonly PathType[] = ['circle', 'ellipse', 'lemniscate', 'torus_knot']
+export const RING_PATH_TYPES: readonly PathType[] = ['circle', 'ellipse']
+export type PathType = (typeof PATH_TYPES)[number]
+type PathField = 'R' | 'R2' | 'pitch' | 'turns' | 'length' | 'r' | 'p' | 'q' | 'cross_height' | 'amplitude' | 'wavelength' | 'span' | 'height'
+/** Fields each path type requires; the JSON Schema says the same in its allOf. */
+export const PATH_REQUIRED: Record<PathType, PathField[]> = {
+  circle: ['R'],
+  ellipse: ['R', 'R2'],
+  helix: ['R', 'pitch', 'turns'],
+  line: ['length'],
+  lemniscate: ['R', 'cross_height'],
+  torus_knot: ['R', 'r', 'p', 'q'],
+  wave: ['length', 'amplitude', 'wavelength'],
+  arch: ['span', 'height'],
+}
 
 export const SweepSection = z
   .strictObject({
@@ -88,15 +104,17 @@ export const SweepPath = z
     pitch: num(0.5, 100).optional(),
     turns: num(0.25, 20).optional(),
     length: num(1, 1000).optional(),
+    r: num(0.3, 100).optional(),
+    p: int(1, 12).optional(),
+    q: int(1, 12).optional(),
+    cross_height: num(0, 40).optional(),
+    amplitude: num(0.1, 100).optional(),
+    wavelength: num(1, 1000).optional(),
+    span: num(1, 300).optional(),
+    height: num(0.5, 200).optional(),
   })
   .superRefine((p, ctx) => {
-    const required: Record<(typeof PATH_TYPES)[number], ('R' | 'R2' | 'pitch' | 'turns' | 'length')[]> = {
-      circle: ['R'],
-      ellipse: ['R', 'R2'],
-      helix: ['R', 'pitch', 'turns'],
-      line: ['length'],
-    }
-    for (const field of required[p.type]) {
+    for (const field of PATH_REQUIRED[p.type]) {
       if (p[field] === undefined) {
         ctx.addIssue({ code: 'custom', path: [field], message: `${field} is required when path type is "${p.type}"` })
       }

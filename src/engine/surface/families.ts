@@ -209,7 +209,7 @@ export function orientation(f: Family): 1 | -1 {
 
 /**
  * Smallest principal radius of curvature over the surface, m: where the surface bends tightest. An offset of half
- * the thickness beyond it folds the shell over itself (rule 12). From the first and second fundamental forms,
+ * the thickness beyond it folds the shell over itself (rule 17). From the first and second fundamental forms,
  * sampled on a grid; second derivatives by central differences.
  */
 export function minCurvatureRadius(f: Family, nu = 96, nv = 48): number {
@@ -243,7 +243,7 @@ export function minCurvatureRadius(f: Family, nu = 96, nv = 48): number {
   return kMax > 0 ? 1 / kMax : Infinity
 }
 
-/** The largest plan dimension of the mid-surface, m: what a shell spans (rule 13). */
+/** The largest plan dimension of the mid-surface, m: what a shell spans (rule 18). */
 export function planSpan(p: SurfaceParams): number {
   switch (p.family) {
     case 'hyperboloid':

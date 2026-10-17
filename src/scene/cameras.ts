@@ -2,6 +2,7 @@
  * Camera presets (LEVELS.md 2.5), as pure functions of the recipe. Positions follow the reference model
  * "הטבעת המשולשת" for ring paths, and fall back to framing the bounds for open paths.
  */
+import { pathBounds } from '../engine/paths'
 import { sectionCut } from '../engine/sectionCut'
 import { surfaceBox } from '../engine/surface/build'
 import { outerRadius } from '../recipe/rules'
@@ -34,6 +35,12 @@ export function bounds(r: Built): { center: Vec3; extent: number; top: number } 
     }
     case 'line':
       return { center: [0, h0, p.path.length! / 2], extent: p.path.length! / 2 + rOut, top: h0 + rOut }
+    default: {
+      // The new paths (DECISIONS.md 130): framed from their own centerline.
+      const b = pathBounds(p.path, h0)
+      const center: Vec3 = [(b.min[0] + b.max[0]) / 2, (b.min[1] + b.max[1]) / 2, (b.min[2] + b.max[2]) / 2]
+      return { center, extent: Math.max(b.max[0] - b.min[0], b.max[2] - b.min[2], b.max[1] - b.min[1]) / 2 + rOut, top: b.max[1] + rOut }
+    }
   }
 }
 

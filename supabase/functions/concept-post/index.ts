@@ -54,7 +54,17 @@ var VEGETATIONS = [
 ];
 var DEFAULT_WIND = { from_deg: 270, speed_ms: 5 };
 var SECTION_CURVES = ["deltoid", "hypocycloid", "circle", "polygon", "superellipse"];
-var PATH_TYPES = ["circle", "ellipse", "helix", "line"];
+var PATH_TYPES = ["circle", "ellipse", "helix", "line", "lemniscate", "torus_knot", "wave", "arch"];
+var PATH_REQUIRED = {
+  circle: ["R"],
+  ellipse: ["R", "R2"],
+  helix: ["R", "pitch", "turns"],
+  line: ["length"],
+  lemniscate: ["R", "cross_height"],
+  torus_knot: ["R", "r", "p", "q"],
+  wave: ["length", "amplitude", "wavelength"],
+  arch: ["span", "height"]
+};
 var SweepSection = z.strictObject({
   curve: z.enum(SECTION_CURVES),
   a: num(0.1, 20),
@@ -78,15 +88,17 @@ var SweepPath = z.strictObject({
   R2: num(0.5, 300).optional(),
   pitch: num(0.5, 100).optional(),
   turns: num(0.25, 20).optional(),
-  length: num(1, 1e3).optional()
+  length: num(1, 1e3).optional(),
+  r: num(0.3, 100).optional(),
+  p: int(1, 12).optional(),
+  q: int(1, 12).optional(),
+  cross_height: num(0, 40).optional(),
+  amplitude: num(0.1, 100).optional(),
+  wavelength: num(1, 1e3).optional(),
+  span: num(1, 300).optional(),
+  height: num(0.5, 200).optional()
 }).superRefine((p, ctx) => {
-  const required = {
-    circle: ["R"],
-    ellipse: ["R", "R2"],
-    helix: ["R", "pitch", "turns"],
-    line: ["length"]
-  };
-  for (const field of required[p.type]) {
+  for (const field of PATH_REQUIRED[p.type]) {
     if (p[field] === void 0) {
       ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when path type is "${p.type}"` });
     }

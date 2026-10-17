@@ -7,6 +7,7 @@ const base: Metrics = {
   sectionArea: 0, pathLength: 0, solidVolume: 1000, shellVolume: 250, volume: 250, envelopeArea: 0, density: 2.4, weight: 0,
   outerDiameter: 50, courtyardDiameter: 20, floorWidth: null, clearHeight: null, floorContinuous: null, floorCoverage: null,
   cuspBurial: 0, edgeCount: 1, edgeLength: 0, openingFraction: 0.2, innerScale: 0.8, wallAtCorners: null,
+  extents: { x: 50, z: 50, top: 5 }, crossingClearance: null,
 }
 
 describe('figureGround', () => {

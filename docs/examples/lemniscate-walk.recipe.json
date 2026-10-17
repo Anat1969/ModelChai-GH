@@ -1,0 +1,74 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "lemniscate-walk",
+    "created_at": "2026-10-17T12:00:00+03:00",
+    "source": "manual",
+    "notes": "Example: balanced default state"
+  },
+  "concept": {
+    "name": "Lemniscate of Bernoulli",
+    "name_he": "למניסקטה",
+    "use": "מסלול הליכה",
+    "context_hint": "פארק"
+  },
+  "generator": {
+    "type": "sweep",
+    "params": {
+      "section": {
+        "curve": "superellipse",
+        "exponent": 6,
+        "a": 1.8,
+        "aspect": 0.15
+      },
+      "path": {
+        "type": "lemniscate",
+        "R": 24,
+        "cross_height": 3.2
+      },
+      "twist": {
+        "turns_per_lap": 0,
+        "initial_angle_deg": 0
+      },
+      "scale_along_path": 1
+    }
+  },
+  "bare": {
+    "mode": "solid",
+    "section_center_height": 0.27,
+    "highlight": [
+      "path"
+    ]
+  },
+  "realistic": {
+    "site": {
+      "lat": 32.08,
+      "lon": 34.8,
+      "name": "Tel Aviv"
+    },
+    "datetime": "2026-04-18T17:00:00+03:00",
+    "weather": "clear",
+    "orientation_deg": 0,
+    "wind": { "from_deg": 270, "speed_ms": 5 },
+    "materials": {
+      "outer": "polished_concrete_light"
+    },
+    "context": {
+      "preset": "park_lawn",
+      "vegetation": "lawn_and_trees",
+      "people": 10
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "שביל השמונה",
+    "insight": "שביל אחד בצורת שמונה שוכבת סוגר שתי חצרות של דשא. בצומת השביל עולה בשיפוע מתון ועובר כגשר בגובה 3.2 מ' מעל עצמו, כך שמי שהולך בו עובר מחצר לחצר בלי שהדרך נקטעת, ומתחת לגשר נשאר מעבר בגובה מלא.",
+    "maxim": "דרך אחת, שתי חצרות.",
+    "fit_note": "בלמניסקטה המתמטית שני הענפים נפגשים בנקודה אחת. כאן ענף אחד מוגבה מעל השני, כדי שאפשר יהיה לעבור."
+  }
+}

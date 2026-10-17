@@ -11,6 +11,7 @@ import { modelById } from '../learn/atlas'
 import { fitUse, USES } from '../learn/traits'
 import { visualPrompt } from '../prompt/visualPrompt'
 import { siteWords } from '../scene/sun'
+import type { PosterEdits } from './poster'
 import { chosenConcept, type StageId, type WorkImage, type WorkState } from './stages'
 
 export interface Gap {
@@ -55,6 +56,8 @@ export interface ArticleEdits {
   sections?: Partial<Record<string, string>>
   /** Where the current text came from: the owner, or a Claude draft she can edit. */
   drafted?: string
+  /** The flyer's own wording and choices (poster.ts). */
+  poster?: PosterEdits
 }
 
 const t = (s?: string | null) => (s ?? '').trim()

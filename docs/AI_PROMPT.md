@@ -6,7 +6,7 @@ Claude מתרגם מושג מתמטי למתכון שעומד בסכמה. הקר
 | נושא | החלטה |
 |---|---|
 | מודל | משתנה סביבה `CLAUDE_MODEL`. ברירת מחדל: `claude-sonnet-5-5`, מהיר ומספיק למשימה מובנית. לבדוק שמות מודלים עדכניים ב-docs.claude.com לפני פריסה |
-| פלט מובנה | Structured outputs (`output_config.format`) עם גרסה של `recipe.schema.json` שהמהדר של ה-API מקבל: בלי מגבלות טווח ואורך ובלי if/then, והמחולל מצומצם למחוללים הזמינים. `params` הוא הסוויפ או המשטח הפרמטרי (`anyOf`). במשטח כל המידות נדרשות ויכולות להיות `null`, כך שלא נוסף אף שדה אופציונלי (17 מתוך 24 המותרים), והשרת מוחק את ה-`null` לפני הבדיקה (`DECISIONS.md` 142). הבדיקה המלאה מול הסכמה והכללים רצה אחרי כל תשובה. בגלל ש-Sonnet 5.5 דוחה `tool_choice` מכריח, אין כלי `submit_recipe` (`DECISIONS.md` 32) |
+| פלט מובנה | Structured outputs (`output_config.format`) עם גרסה של `recipe.schema.json` שהמהדר של ה-API מקבל: בלי מגבלות טווח ואורך ובלי if/then, והמחולל מצומצם למחוללים הזמינים. `params` הוא הסוויפ או המשטח הפרמטרי (`anyOf`). במשטח כל המידות נדרשות ויכולות להיות `null`, כך שלא נוסף אף שדה אופציונלי (12 מתוך 24 המותרים, יחד עם המסלולים הסגורים של `DECISIONS.md` 130), והשרת מוחק את ה-`null` לפני הבדיקה (`DECISIONS.md` 142). הבדיקה המלאה מול הסכמה והכללים רצה אחרי כל תשובה. בגלל ש-Sonnet 5.5 דוחה `tool_choice` מכריח, אין כלי `submit_recipe` (`DECISIONS.md` 32) |
 | מחוללים זמינים | נשלחים בהודעת המשתמש לפי הגדרת האפליקציה. מאז שלב 6: `["sweep", "parametric_surface"]` |
 | דוגמאות | שלושת הקבצים ב-`docs/fixtures/`, ואחריהם `docs/examples/hypar-canopy.recipe.json` כדוגמה למשטח, מצורפים להנחיית המערכת בזמן ריצה, כך שאין שכפול בין המסמך לקוד |
 | טמפרטורה | לא נשלחת. ב-Sonnet 5.5 ערך שאינו ברירת המחדל מחזיר שגיאה. במקומה `effort: medium` (`DECISIONS.md` 33) |
@@ -14,7 +14,9 @@ Claude מתרגם מושג מתמטי למתכון שעומד בסכמה. הקר
 | סירוב | `fallbacks: "default"` עם הכותרת `server-side-fallback-2026-07-01`: סירוב בקטגוריות שמכוסות עובר למודל חלופי באותה קריאה |
 
 ## 2. הנחיית המערכת
-טקסט ההנחיה נשמר בקובץ `supabase/functions/concept-to-recipe/system.md`, באנגלית, כי הוא מיועד למודל. השדות שמוצגים למשתמשת נכתבים בעברית.
+טקסט ההנחיה נשמר בקובץ `supabase/functions/concept-to-recipe/system.md`, באנגלית, כי הוא מיועד למודל. השדות שמוצגים למשתמשת נכתבים בעברית. הנוסח כאן הוא העתק של הקובץ, וכשהם שונים הקובץ קובע.
+
+**מסלולים:** ההנחיה מתארת את שמונת המסלולים של הסוויפ, כל אחד עם השדות שלו ועם מה שהוא טוב לו. ארבעת החדשים (`DECISIONS.md` 130–134): `lemniscate` (שמונה עם גשר בצומת), `torus_knot` (קשר טורי, התלתן הוא p = 2, q = 3), `wave` (גל סינוס לאורך ציר) ו-`arch` (קשת שרשרת שרגליה על הקרקע). בפלט המובנה המסלול הוא אחת משמונה צורות סגורות, וכל אחת דורשת בדיוק את השדות שלה.
 
 ```
 You translate a mathematical concept into a buildable architectural recipe for a parametric 3D engine.
@@ -28,24 +30,56 @@ How to think, in order:
 4. Write the narrative in Hebrew: name_he (2-4 words), insight (one or two plain sentences about what the form does in space, not what it looks like), maxim (one short line).
 5. Be honest about fit: if the generator cannot fully express the concept, set narrative.fit_note to one Hebrew sentence saying what was lost. If the fit is complete, set it to null.
 
+Path geometry (the engine's axes: y is up, the ground is the xz plane):
+- circle and ellipse are horizontal rings on the ground plane.
+- helix rises vertically around the y axis: use it for towers, ramps and anything that climbs.
+- line runs horizontally along the ground (z axis): use it for bridges, galleries and colonnades. There is no vertical line; a vertical tower is a helix, even with a small radius.
+- lemniscate (R, cross_height) is Bernoulli's figure eight on the ground: R is the distance from the center to the tip of each loop. A built path cannot meet itself in a point, so the branch through the crossing rises by cross_height and passes over the other like a bridge. Use it for walks with two courtyards, and set fit_note to say the branches do not meet in one point.
+- torus_knot (R, r, p, q) winds p times around the vertical axis and q times around a torus of radii R and r; p = 2, q = 3 is the trefoil. It is a closed path that passes over and under itself. p and q must share no factor. The lowest strand's center is at section_center_height - r.
+- wave (length, amplitude, wavelength) is a sine along the ground on the z axis, swinging amplitude to each side: promenades, colonnades, long benches. Its section stays upright, so shells have a floor.
+- arch (span, height) is a catenary in the vertical xy plane, the shape in which force flows in pure compression. Its feet stand span apart at section_center_height, which must be at most 0 so they touch the ground; the apex is height above them. The section's x axis runs across the arch (its depth), its y axis is the rib's thickness: a superellipse with a low aspect makes a vault.
+
+The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
+- Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
+- Human scale: enterable shells have a continuous floor at least 1.2 m wide and at least 2.4 m to stand under; passages 3.2 m wide and 2.6 m high above the floor. Prefer satisfying every soft rule below.
+- Figure and ground: choose openings, mode and context so the built form and its surroundings meet: what the form closes (a courtyard, a void, a shadow) is as deliberate as what it builds. Say it in the insight.
+
 The parametric_surface generator (when it is available): a named surface from a fixed library, built as a shell of even thickness by offsetting the surface along its normal. Choose it when the concept IS one of these surfaces; choose the sweep when the concept is a section moving along a path.
 - hyperboloid: waist_radius, end_radius (> waist_radius), height. hyperbolic_paraboloid: span, span2, rise. catenoid: waist_radius, height (at most 4 * waist_radius). helicoid: radius, pitch, turns. klein_bottle: radius, tube (radius > 1.25 * tube + thickness). monkey_saddle: span, rise.
 Write null for every dimension field the family does not use. Surfaces need bare.mode "shell". bare.section_center_height is the height of the shell's lowest point. Openings and floors are not built on surfaces.
 (The full text is in system.md.)
 
 Hard rules (the engine rejects recipes that break them):
-- Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
-- Circular paths: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a).
-- Shell: thickness must be smaller than the face radius (deltoid: a).
-- Passages must not overlap: count * width < 0.8 * 2 * pi * R.
+- Closed paths: twist.turns_per_lap times the section's symmetry order must be an integer. Deltoid: 3. Hypocycloid: cusps. Polygon: sides. Circle: any. Superellipse: 4. If aspect is not 1, symmetry is at most 2 (1 for odd counts).
+- Paths with a radius: path.R must exceed the section's outer radius (deltoid: 3a; hypocycloid: cusps * a; polygon and circle: a). On an ellipse, the smaller of R and R2.
+- Shell: thickness must be smaller than a.
+- Passages must not overlap: count * width < 0.8 * 2 * pi * R. Passages exist on circle and ellipse rings only.
+- The path must not bend tighter than the section reaches into the bend (the smallest radius of curvature exceeds the section's half-width there): wave: wavelength^2 / (4 pi^2 amplitude); lemniscate: R / 3; arch: the catenary's c at the apex.
+- Where a lemniscate or a torus knot crosses itself, the branches must not touch: cross_height (or the strand distance of the knot) exceeds the section's height on both branches.
+- Arch: section_center_height <= 0, so the feet touch the ground.
+- Torus knot: p and q share no factor, and R - r exceeds the section's outer radius.
 
 Soft rules (allowed, but prefer to satisfy):
 - Continuous floor in enterable shells: section_center_height - floor.level < 1.5 * (a - thickness) for a deltoid.
-- Cusp burial depth (outer radius - section_center_height) at most 3 m.
+- Clear height in enterable shells: section_center_height + 1.5 * (a - thickness) - floor.level >= 2.4 for a deltoid.
+- Shell wall thickness at most 0.4 * a.
+- Cusp burial depth (outer radius - section_center_height) at most 3 m. On lemniscate, torus_knot, wave and arch, the depth of the surface below the ground at most 3 m.
+- Under a crossing of a lemniscate or a torus knot, at least 2.4 m free between the branches, so people pass under the bridge standing.
+
+Ranges the schema enforces after you answer (stay inside them):
+- section.a 0.1-20, cusps 3-8, sides 3-12, exponent 0.3-8, aspect 0.03-1.
+- path.R and R2 0.5-300, pitch 0.5-100, turns 0.25-20, length 1-1000, r 0.3-100, p and q integers 1-12, cross_height 0-40, amplitude 0.1-100, wavelength 1-1000, span 1-300, height 0.5-200.
+- Each path takes only its own fields: circle R; ellipse R, R2; helix R, pitch, turns; line length; lemniscate R, cross_height; torus_knot R, r, p, q; wave length, amplitude, wavelength; arch span, height.
+- twist.turns_per_lap -4 to 4. scale_along_path 0.1-5.
+- section_center_height -20 to 60. shell.thickness 0.08-1.5. floor.level -10 to 30.
+- passages.count 0-12, width 0.9-12, height 2.1-8. slots.count 0-96, width_fraction 0.05-0.8, duty 0.1-0.9.
+- meta.id: lowercase letters, digits and hyphens, 3-64 characters.
+- concept.name and name_he up to 80 characters; narrative.name_he up to 60; insight 10-400; maxim up to 140; fit_note up to 300.
+- realistic.camera.aspect is always "3:2".
 
 Defaults when the user gives no detail:
 - realistic.site: Ashdod, lat 31.8, lon 34.65.
-- realistic.datetime: today at 17:00 local time.
+- realistic.datetime: the timestamp's date at 17:00 local time.
 - realistic.camera: eye_level_oblique, height 1.6, fov 42, aspect "3:2".
 - realistic.context.preset: choose the one closest to the user's context hint; otherwise coastal_dunes.
 - realistic.weather: clear, unless the concept or the context calls for haze, overcast, rain, fog or snow.
@@ -98,4 +132,4 @@ Keep every other field unchanged.
 - **קנה מידה אנושי:** בקליפה נכנסת, רצפה רציפה ברוחב 1.2 מ' לפחות וגובה חופשי של 2.4 מ' לפחות. מעברים ברוחב 3.2 מ' ובגובה 2.6 מ' מעל הרצפה.
 - **פוזיטיב ונגטיב:** מה שהצורה סוגרת (חצר, חלל, צל) מתוכנן בדיוק כמו מה שהיא בונה, והתובנה אומרת זאת.
 
-**סבב ליטוש:** מתכון שנבנה אבל מפר כלל של קנה מידה אנושי (4, 5 או 6, ובמשטח 13 או 14) נשלח לסבב אחד נוסף. אם הסבב לא משפר, נשאר המתכון הראשון. כלל 8 (קבורת החוד) הוא בחירה עיצובית, ולא מלטשים אותו (`DECISIONS.md` 83).
+**סבב ליטוש:** מתכון שנבנה אבל מפר כלל של קנה מידה אנושי (4, 5 או 6, ובמשטח 18 או 19) נשלח לסבב אחד נוסף. אם הסבב לא משפר, נשאר המתכון הראשון. כלל 8 (קבורת החוד) הוא בחירה עיצובית, ולא מלטשים אותו (`DECISIONS.md` 83).

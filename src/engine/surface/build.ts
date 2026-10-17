@@ -13,7 +13,7 @@ import type { SolidMesh } from '../types'
 import { clearance, family, integrateArea, minCurvatureRadius, normalAt, simpson } from './families'
 import { closedShell, displayMeshes, sampleGrid, sheetArea, surfaceResolution, type SurfaceGrid } from './mesh'
 
-/** The thickness a surface is built with. A surface is always a shell (rule 10); the schema floor is the fallback. */
+/** The thickness a surface is built with. A surface is always a shell (rule 15); the schema floor is the fallback. */
 export const surfaceThickness = (recipe: Recipe): number => recipe.bare.shell?.thickness ?? 0.08
 
 export function surfaceGridOf(recipe: Recipe, params: SurfaceParams, scale = 1): SurfaceGrid {
@@ -99,7 +99,7 @@ export function surfaceMetrics(recipe: Recipe, params: SurfaceParams, g: Surface
   const sink = Math.max(0, -b.min[1]!)
   return {
     sectionArea: null,
-    pathLength: null,
+    pathLength: 0,
     solidVolume: volume,
     shellVolume: volume,
     volume,
@@ -113,6 +113,8 @@ export function surfaceMetrics(recipe: Recipe, params: SurfaceParams, g: Surface
     floorContinuous: null,
     floorCoverage: null,
     cuspBurial: sink,
+    extents: { x: b.max[0]! - b.min[0]!, z: b.max[2]! - b.min[2]!, top: b.max[1]! },
+    crossingClearance: null,
     edgeCount: loops.length,
     edgeLength,
     openingFraction: 0,

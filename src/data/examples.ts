@@ -3,6 +3,7 @@
  * state: balanced, at human scale, with no rule broken (tests/examples.test.ts, DECISIONS.md 83).
  */
 import astroid from '../../docs/examples/astroid-pavilion.recipe.json'
+import catenary from '../../docs/examples/catenary-arch.recipe.json'
 import catenoid from '../../docs/examples/catenoid-pavilion.recipe.json'
 import ellipse from '../../docs/examples/elliptic-gallery.recipe.json'
 import helicoid from '../../docs/examples/helicoid-spiral-ramp.recipe.json'
@@ -11,7 +12,10 @@ import hypar from '../../docs/examples/hypar-canopy.recipe.json'
 import hyperboloid from '../../docs/examples/hyperboloid-water-tower.recipe.json'
 import klein from '../../docs/examples/klein-bottle-pavilion.recipe.json'
 import lame from '../../docs/examples/lame-curve-ring.recipe.json'
+import lemniscate from '../../docs/examples/lemniscate-walk.recipe.json'
 import pentacle from '../../docs/examples/pentacle-sculpture.recipe.json'
+import sine from '../../docs/examples/sine-promenade.recipe.json'
+import trefoil from '../../docs/examples/trefoil-knot.recipe.json'
 import golden from '../../docs/fixtures/golden-ratio.recipe.json'
 import mobius from '../../docs/fixtures/mobius-strip.recipe.json'
 import umbilic from '../../docs/fixtures/umbilic-torus.recipe.json'
@@ -32,6 +36,10 @@ export const EXAMPLES: Example[] = (
     ['pentacle-sculpture', pentacle],
     ['helix-ramp', helix],
     ['elliptic-gallery', ellipse],
+    ['trefoil-knot', trefoil],
+    ['lemniscate-walk', lemniscate],
+    ['sine-promenade', sine],
+    ['catenary-arch', catenary],
     // Parametric surfaces (DECISIONS.md 141).
     ['hyperboloid-water-tower', hyperboloid],
     ['hypar-canopy', hypar],

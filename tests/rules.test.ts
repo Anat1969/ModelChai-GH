@@ -11,10 +11,10 @@ const parsed = (raw: unknown): Recipe => {
 const ruleIds = (raw: unknown) => checkRules(parsed(raw)).map((i) => i.rule)
 
 describe('rule catalogue', () => {
-  // Rules 10–14 belong to the parametric surface (stage 6); the sweep's 1–9 are unchanged.
-  it('has rules 1–14 with Hebrew messages, matching RECIPE_SCHEMA.md', () => {
-    expect(RULES.map((r) => r.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
-    expect(RULES.filter((r) => r.severity === 'error').map((r) => r.id)).toEqual([1, 2, 3, 7, 9, 10, 11, 12])
+  // 10–14 belong to the sweep's curve paths (DECISIONS.md 130–134), 15–19 to the parametric surface (135–142).
+  it('has rules 1–19 with Hebrew messages, matching RECIPE_SCHEMA.md', () => {
+    expect(RULES.map((r) => r.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+    expect(RULES.filter((r) => r.severity === 'error').map((r) => r.id)).toEqual([1, 2, 3, 7, 9, 10, 11, 13, 14, 15, 16, 17])
     for (const r of RULES) expect(r.message).toMatch(/[֐-׿]/)
   })
 })

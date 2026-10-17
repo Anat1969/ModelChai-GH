@@ -3,8 +3,8 @@ import type { Metrics } from '../../engine/metrics'
 import { changes, infoOf, type Change } from '../metricMeaning'
 import { DENSITY, MATERIAL_LOOK } from '../../engine/materials'
 import type { RuleIssue } from '../../recipe/rules'
-import { meters, num, percent, range } from '../format'
-import type { Built } from '../params'
+import { ltr, meters, num, percent, range } from '../format'
+import type { Built, Sweep } from '../params'
 
 export interface MetricRow {
   key: string
@@ -36,7 +36,7 @@ function surfaceRows(m: Metrics, r: Built): MetricRow[] {
   if (m.outerDiameter !== null) out.push({ key: 'outerDiameter', label: 'קוטר חיצוני', value: meters(m.outerDiameter), raw: m.outerDiameter })
   else out.push({ key: 'planSize', label: 'מידות בתוכנית', value: `${num(s.planWidth, 1)} × ${num(s.planDepth, 1)} מ'`, raw: s.planWidth * s.planDepth })
   if (s.waistDiameter !== null) out.push({ key: 'waistDiameter', label: 'קוטר המותן מבפנים', value: meters(s.waistDiameter, 2), raw: s.waistDiameter })
-  if (m.clearHeight) out.push({ key: 'clearHeight', label: 'גובה חופשי', value: range(m.clearHeight.min, m.clearHeight.max, 2), raw: m.clearHeight.min, rawMax: m.clearHeight.max, rules: [14] })
+  if (m.clearHeight) out.push({ key: 'clearHeight', label: 'גובה חופשי', value: range(m.clearHeight.min, m.clearHeight.max, 2), raw: m.clearHeight.min, rawMax: m.clearHeight.max, rules: [19] })
   out.push({
     key: 'edgeCount',
     label: 'מספר קצוות',
@@ -44,8 +44,8 @@ function surfaceRows(m: Metrics, r: Built): MetricRow[] {
     raw: m.edgeCount,
   })
   if (m.edgeCount > 0) out.push({ key: 'edgeLength', label: 'אורך הקצה', value: meters(m.edgeLength, 1), raw: m.edgeLength })
-  out.push({ key: 'surfaceArea', label: `שטח ה${FAMILY_HE[s.family]}`, value: `${num(s.midArea, 0)} מ"ר`, raw: s.midArea, rules: [13] })
-  out.push({ key: 'curvatureRadius', label: 'רדיוס העיקול הקטן', value: meters(s.minCurvatureRadius, 2), raw: s.minCurvatureRadius, rules: [12] })
+  out.push({ key: 'surfaceArea', label: `שטח ה${FAMILY_HE[s.family]}`, value: `${num(s.midArea, 0)} מ"ר`, raw: s.midArea, rules: [18] })
+  out.push({ key: 'curvatureRadius', label: 'רדיוס העיקול הקטן', value: meters(s.minCurvatureRadius, 2), raw: s.minCurvatureRadius, rules: [17] })
   out.push({ key: 'volume', label: `${material}, קליפה בעובי ${meters(s.thickness, 2)}`, value: `${num(m.volume, 0)} מ"ק`, raw: m.volume })
   const weight = m.volume * DENSITY[r.realistic.materials.outer]
   out.push({ key: 'weight', label: 'משקל משוער', value: `${num(weight, 0)} טון`, raw: weight })
@@ -60,6 +60,17 @@ export function metricRows(m: Metrics, r: Built): MetricRow[] {
   const out: MetricRow[] = []
   if (m.outerDiameter !== null) out.push({ key: 'outerDiameter', label: 'קוטר חיצוני', value: meters(m.outerDiameter), raw: m.outerDiameter })
   if (m.courtyardDiameter !== null) out.push({ key: 'courtyardDiameter', label: 'קוטר החצר', value: meters(m.courtyardDiameter), raw: m.courtyardDiameter })
+  const sp = (r as Sweep).generator.params
+  const ring = sp.path.type === 'circle' || sp.path.type === 'ellipse'
+  if (!ring) {
+    // A path that is not a ring has no diameter: its plan size, height and length say how big it is.
+    out.push({ key: 'footprint', label: 'רוחב ועומק בתוכנית', value: ltr(`${num(m.extents.x, 1)} × ${num(m.extents.z, 1)} מ'`), raw: m.extents.x * m.extents.z })
+    out.push({ key: 'top', label: 'גובה מעל הקרקע', value: meters(m.extents.top, 1), raw: m.extents.top })
+    out.push({ key: 'pathLength', label: 'אורך המסלול', value: meters(m.pathLength, 1), raw: m.pathLength })
+  }
+  if (m.crossingClearance !== null) {
+    out.push({ key: 'crossingClearance', label: 'מרווח בהצטלבות', value: meters(m.crossingClearance, 2), raw: m.crossingClearance, rules: [11, 12] })
+  }
   out.push({
     key: 'edgeCount',
     label: 'מספר קצוות',
@@ -97,7 +108,7 @@ export function metricRows(m: Metrics, r: Built): MetricRow[] {
   out.push({ key: 'weight', label: 'משקל משוער', value: `${num(weight, 0)} טון`, raw: weight })
   if (shell) out.push({ key: 'saving', label: 'חיסכון לעומת גוש', value: percent(1 - m.volume / m.solidVolume), raw: 1 - m.volume / m.solidVolume })
   out.push({ key: 'envelopeArea', label: 'שטח מעטפת', value: `${num(m.envelopeArea, 0)} מ"ר`, raw: m.envelopeArea })
-  out.push({ key: 'cuspBurial', label: 'עומק החוד בקרקע', value: meters(m.cuspBurial, 2), raw: m.cuspBurial, rules: [8] })
+  out.push({ key: 'cuspBurial', label: ring ? 'עומק החוד בקרקע' : 'עומק מתחת לקרקע', value: meters(m.cuspBurial, 2), raw: m.cuspBurial, rules: [8] })
   return out
 }
 

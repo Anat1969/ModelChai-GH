@@ -175,11 +175,11 @@ export async function conceptToRecipe(
 
 /**
  * Human-scale rules worth one more round: wall thickness (4), a continuous floor (5), full standing height (6),
- * and on a parametric surface a shell too thin for its span (13) and no room to stand under it (14).
+ * and on a parametric surface a shell too thin for its span (18) and no room to stand under it (19).
  * Rule 8, cusp burial, is a design choice with a cost (the reference model buries its cusp 5.7 m), so it stays
  * a warning and is never polished away.
  */
-export const POLISH_RULES = [4, 5, 6, 13, 14]
+export const POLISH_RULES = [4, 5, 6, 18, 19]
 
 export function polishMessage(soft: RuleIssue[]): string {
   return [

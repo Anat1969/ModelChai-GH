@@ -5,7 +5,7 @@ import { changes, infoOf, METRIC_INFO } from '../src/ui/metricMeaning'
 
 describe('metric meaning', () => {
   it('explains every metric the panel can show', () => {
-    const keys = ['outerDiameter', 'courtyardDiameter', 'edgeCount', 'edgeLength', 'floorWidth', 'clearHeight', 'floorContinuous', 'wallAtCorners', 'openingFraction', 'volume', 'weight', 'saving', 'envelopeArea', 'cuspBurial',
+    const keys = ['outerDiameter', 'courtyardDiameter', 'edgeCount', 'edgeLength', 'floorWidth', 'clearHeight', 'floorContinuous', 'wallAtCorners', 'openingFraction', 'volume', 'weight', 'saving', 'envelopeArea', 'cuspBurial', 'footprint', 'top', 'pathLength', 'crossingClearance',
       // Parametric surfaces.
       'height', 'planSize', 'waistDiameter', 'surfaceArea', 'curvatureRadius', 'sinkDepth']
     for (const k of keys) {

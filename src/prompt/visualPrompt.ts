@@ -4,6 +4,8 @@
  * it sounds impressive. tests/visualPrompt.test.ts checks that each field really changes its part.
  */
 import { MATERIAL_LOOK } from '../engine/materials'
+import { isClosedPath } from '../engine/paths'
+import { CURVE_PATHS, lowestPoints } from '../engine/paths/analysis'
 import { outerRadius, symmetryOrder } from '../recipe/rules'
 import type { BuiltRecipe, SurfaceRecipe, SweepParams, SweepRecipe } from '../recipe/schema'
 import { CONTEXTS, VEGETATION, type ContextId, type VegetationId } from '../scene/contexts/layout'
@@ -65,6 +67,17 @@ function pathWords(p: SweepParams): string {
       return `סליל שעולה לגובה ${m(p.path.pitch! * p.path.turns! + rOut)} ב-${num(p.path.turns!, p.path.turns! % 1 ? 2 : 0)} סיבובים`
     case 'line':
       return `מבנה ישר באורך ${m(p.path.length!)}`
+    case 'lemniscate':
+      return `מסלול בצורת שמונה שוכבת (למניסקטה) באורך ${m(2 * (p.path.R! + outerRadius(p.section)))}, ובהצטלבות ענף אחד עובר כגשר ${m(p.path.cross_height!)} מעל השני`
+    case 'torus_knot': {
+      const pq = [p.path.p!, p.path.q!].sort((x, y) => x - y).join(',')
+      const name = pq === '2,3' ? 'קשר תלתן' : `קשר טורי שמקיף את המרכז ${p.path.p} פעמים ומתלפף ${p.path.q} פעמים`
+      return `${name} בקוטר ${m(2 * (p.path.R! + p.path.r! + outerRadius(p.section)))}, שעובר מעל ומתחת לעצמו`
+    }
+    case 'wave':
+      return `גל סינוס באורך ${m(p.path.length!)}, משרעת ${m(p.path.amplitude!)} ואורך גל ${m(p.path.wavelength!)}`
+    case 'arch':
+      return `קשת שרשרת במפתח ${m(p.path.span!)} ובגובה ${m(p.path.height!)}, שהכוח זורם בה בלחיצה בלבד`
   }
 }
 
@@ -102,7 +115,7 @@ function shapePart(r: Built): PromptPart {
 
 function sweepShape(r: Sweep): PromptPart {
   const p = r.generator.params
-  const closed = p.path.type === 'circle' || p.path.type === 'ellipse'
+  const closed = isClosedPath(p.path)
   const words = [`מבנה שנוצר מ${sectionWords(p)}, לאורך ${pathWords(p)}`]
   if (p.twist.turns_per_lap !== 0) words.push(`החתך מסתובב ${turnsLabel(p.twist.turns_per_lap, closed ? symmetryOrder(p.section) : Infinity).split(',')[0]} ${closed ? 'בהקפה' : 'לאורך המבנה'}`)
   if (p.scale_along_path > 1) words.push(`החתך גדל פי ${num(p.scale_along_path, 1)} לאורך המסלול`)
@@ -112,8 +125,13 @@ function sweepShape(r: Sweep): PromptPart {
   const slots = r.bare.openings?.slots?.count ?? 0
   if (r.bare.mode === 'shell' && passages) words.push(`${passages} מעברים דרך הדפנות`)
   if (r.bare.mode === 'shell' && slots) words.push(`${slots} פסי אור בדופן`)
-  const burial = outerRadius(p.section) - r.bare.section_center_height
-  if (burial > 0.05) words.push(`החודים נקברים בקרקע לעומק ${m(burial)}`)
+  if (CURVE_PATHS.has(p.path.type)) {
+    const depth = -lowestPoints(p, r.bare.section_center_height).surface
+    if (depth > 0.05) words.push(`המבנה יורד מתחת לקרקע לעומק ${m(depth)}`)
+  } else {
+    const burial = outerRadius(p.section) - r.bare.section_center_height
+    if (burial > 0.05) words.push(`החודים נקברים בקרקע לעומק ${m(burial)}`)
+  }
   return {
     slot: 'shape',
     text: words.join(', '),

@@ -9,6 +9,7 @@ import { removeItem, type LibraryItem } from '../../data/library'
 import { ensureSession, type SessionState } from '../../data/supabase'
 import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { download } from '../download'
+import { useOnReturn } from '../freshness'
 import { EmailLogin } from '../panels/EmailLogin'
 import { navigate, useParam } from '../router'
 import { TopNav } from '../TopNav'
@@ -86,6 +87,7 @@ export function CollectionScreen() {
     }
   }, [projectId])
   useEffect(() => void refresh(), [refresh])
+  useOnReturn(refresh)
 
   const parsed = data?.latest ? parseRecipe(data.latest.recipe) : null
   const recipe = parsed?.ok ? asBuilt(parsed.recipe) : null
