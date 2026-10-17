@@ -25,7 +25,7 @@ import {
 import type { BuildSuccess } from '../engine/build'
 import { MATERIAL_LOOK } from '../engine/materials'
 import type { MeshData } from '../engine/types'
-import type { Sweep } from '../ui/params'
+import type { Built } from '../ui/params'
 import { useStudio } from '../ui/store'
 import { atmosphere, mixColor, tone } from './atmosphere'
 import { Person, useGeometry } from './BareScene'
@@ -345,7 +345,7 @@ const CLOTHES = ['#2f3a4a', '#8a3b2e', '#d9d2c3', '#3d5a40', '#6b5b4b', '#1f1f22
 const SKIN = ['#c99a78', '#8d5d42', '#e0b896', '#a8765a', '#5e3d2c']
 
 /** People for scale (LEVELS.md 2.4): the bare level's spots first, then more around the model. */
-function People({ recipe, count, fp, seed }: { recipe: Sweep; count: number; fp: Footprint; seed: number }) {
+function People({ recipe, count, fp, seed }: { recipe: Built; count: number; fp: Footprint; seed: number }) {
   const people = useMemo(() => {
     const spots = peopleSpots(recipe).slice(0, count)
     const rand = rng(seed ^ 0x51ed)
@@ -558,7 +558,7 @@ function Compass({ fp, orientation, model }: { fp: Footprint; orientation: numbe
   )
 }
 
-export function RealisticScene({ result, built, recipe }: { result: BuildSuccess | null; built: Sweep; recipe: Sweep }) {
+export function RealisticScene({ result, built, recipe }: { result: BuildSuccess | null; built: Built; recipe: Built }) {
   const showPeople = useStudio((s) => s.showPeople)
   const showWind = useStudio((s) => s.showWind)
   const recording = useStudio((s) => s.recording)

@@ -1,14 +1,14 @@
 import { Choice } from '../controls/Choice'
 import { Slider } from '../controls/Slider'
-import { GROUPS, twistFormat, type Sweep } from '../params'
+import { GROUPS, SURFACE_GROUPS, twistFormat, type Built, type ParamGroup, type Sweep } from '../params'
 import { useStudio } from '../store'
 
-export function ParamsPanel({ recipe }: { recipe: Sweep }) {
+export function ParamsPanel({ recipe }: { recipe: Built }) {
   const setParam = useStudio((s) => s.setParam)
   const setParams = useStudio((s) => s.setParams)
 
   const onMode = (mode: string) => {
-    if (mode === 'shell' && !recipe.bare.shell) {
+    if (recipe.generator.type === 'sweep' && mode === 'shell' && !recipe.bare.shell) {
       const t = Math.min(0.3, Math.round(recipe.generator.params.section.a * 0.3 * 100) / 100)
       setParams([
         ['bare.shell', { thickness: t, inner_method: 'scaled_section' }],
@@ -17,9 +17,14 @@ export function ParamsPanel({ recipe }: { recipe: Sweep }) {
     } else setParam('bare.mode', mode)
   }
 
+  // Each generator has its own sliders, read through the same definitions (DECISIONS.md 139).
+  const groups = (recipe.generator.type === 'sweep' ? GROUPS : SURFACE_GROUPS) as ParamGroup<Built>[]
+  const display = (id: string, v: number, format: (v: number) => string) =>
+    id === 'twist' && recipe.generator.type === 'sweep' ? twistFormat(recipe as Sweep, v) : format(v)
+
   return (
     <>
-      {GROUPS.map((g) => {
+      {groups.map((g) => {
         const visible = g.params.filter((p) => !p.show || p.show(recipe))
         if (!visible.length) return null
         return (
@@ -48,7 +53,7 @@ export function ParamsPanel({ recipe }: { recipe: Sweep }) {
                   min={p.min(recipe)}
                   max={p.max(recipe)}
                   step={p.step}
-                  display={p.id === 'twist' ? twistFormat(recipe, p.value(recipe)) : p.format(p.value(recipe))}
+                  display={display(p.id, p.value(recipe), p.format)}
                   onChange={(v) => setParam(p.path, p.write ? p.write(v, recipe) : v)}
                 />
               ),

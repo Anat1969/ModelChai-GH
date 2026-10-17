@@ -7,11 +7,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { loadCollection, STAGES, type Collection, type Stage } from '../../data/collection'
 import { removeItem, type LibraryItem } from '../../data/library'
 import { ensureSession, type SessionState } from '../../data/supabase'
-import { parseRecipe } from '../../recipe/schema'
+import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { download } from '../download'
 import { useOnReturn } from '../freshness'
 import { EmailLogin } from '../panels/EmailLogin'
-import type { Sweep } from '../params'
 import { navigate, useParam } from '../router'
 import { TopNav } from '../TopNav'
 
@@ -91,7 +90,7 @@ export function CollectionScreen() {
   useOnReturn(refresh)
 
   const parsed = data?.latest ? parseRecipe(data.latest.recipe) : null
-  const recipe = parsed?.ok && parsed.recipe.generator.type === 'sweep' ? (parsed.recipe as Sweep) : null
+  const recipe = parsed?.ok ? asBuilt(parsed.recipe) : null
   const numberOf = (versionId: string | null) => data?.versions.find((v) => v.id === versionId)?.number ?? null
   const stillsOn = (stage: Stage) => data?.stills.filter((s) => s.stage === stage) ?? []
   const count = (stage: Stage) =>

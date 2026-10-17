@@ -7,7 +7,8 @@
 import { CURVE_PATHS, bendAxis, crossingClearance, lowestPoints, minCurvatureRadius, sectionExtent } from '../engine/paths/analysis'
 import { gcd } from '../engine/math'
 import { pathFrames } from '../engine/paths'
-import type { Recipe, SweepParams, SweepSection } from './schema'
+import type { Recipe, SurfaceParams, SweepParams, SweepSection } from './schema'
+import { KLEIN_REACH, clearance, family, minCurvatureRadius as surfaceMinCurvature, planSpan } from '../engine/surface/families'
 import { CLOSED_PATH_TYPES, RING_PATH_TYPES, parseRecipe, type SchemaError } from './schema'
 
 export type Severity = 'error' | 'warning'
@@ -36,6 +37,12 @@ export const RULES: readonly RuleDef[] = [
   { id: 12, severity: 'warning', scope: 'recipe', message: 'אין גובה מלא מתחת להצטלבות' },
   { id: 13, severity: 'error', scope: 'recipe', message: 'רגלי הקשת לא נוגעות בקרקע' },
   { id: 14, severity: 'error', scope: 'recipe', message: 'הקשר מתפרק לכמה לולאות נפרדות' },
+  // Parametric surfaces (GENERATORS.md 4.1, DECISIONS.md 138).
+  { id: 15, severity: 'error', scope: 'recipe', message: 'משטח נבנה רק כקליפה' },
+  { id: 16, severity: 'error', scope: 'recipe', message: 'מידות המשטח סותרות זו את זו' },
+  { id: 17, severity: 'error', scope: 'recipe', message: 'הדופן עבה מהעיקול של המשטח, והקליפה מתקפלת על עצמה' },
+  { id: 18, severity: 'warning', scope: 'recipe', message: 'הקליפה דקה מאוד ביחס למפתח שלה' },
+  { id: 19, severity: 'warning', scope: 'recipe', message: 'אין גובה לעמידה מתחת לקליפה' },
 ]
 
 export interface RuleIssue {
@@ -197,6 +204,39 @@ function sweepIssues(recipe: Recipe, g: SweepParams): RuleIssue[] {
   return out
 }
 
+/** A shell thinner than its span over this ratio is a warning (rule 18). Thin concrete shells reach about 1:500. */
+export const MAX_SPAN_RATIO = 600
+
+/** Rules for a parametric surface (RECIPE_SCHEMA.md, rules 15–19). */
+function surfaceIssues(recipe: Recipe, p: SurfaceParams): RuleIssue[] {
+  const out: RuleIssue[] = []
+  const bare = recipe.bare
+  // 15. A surface has no inside to fill: it is built as a shell of a given thickness.
+  if (bare.mode !== 'shell' || !bare.shell) {
+    out.push(issue(15, 'bare.mode', 0, 'mode = "shell"'))
+    return out
+  }
+  const t = bare.shell.thickness
+  // 16. Dimensions that cannot make the family.
+  if (p.family === 'hyperboloid' && !(p.end_radius! > p.waist_radius! + 0.05 - EPS)) {
+    out.push(issue(16, `${P}.end_radius`, p.end_radius!, `end_radius > waist_radius + 0.05 = ${round(p.waist_radius! + 0.05)}`))
+  }
+  if (p.family === 'klein_bottle' && !(p.radius! > KLEIN_REACH * p.tube! + t + EPS)) {
+    out.push(issue(16, `${P}.radius`, p.radius!, `radius > ${KLEIN_REACH} × tube + thickness = ${round(KLEIN_REACH * p.tube! + t)}`))
+  }
+  if (out.length) return out
+  // 17. The offset folds over itself where the surface bends tighter than half the thickness.
+  const rMin = surfaceMinCurvature(family(p))
+  if (!(t / 2 < rMin - EPS)) out.push(issue(17, 'bare.shell.thickness', t, `thickness < 2 × smallest radius of curvature = ${round(2 * rMin)}`))
+  // 18. A shell much thinner than its span cannot carry itself.
+  const span = planSpan(p)
+  if (span / t > MAX_SPAN_RATIO + EPS) out.push(issue(18, 'bare.shell.thickness', t, `thickness ≥ span / ${MAX_SPAN_RATIO} = ${round(span / MAX_SPAN_RATIO)}`))
+  // 19. Where people walk under the shell, they must be able to stand.
+  const clear = clearance(p, t, bare.section_center_height)
+  if (clear && !(clear.min >= MIN_CLEAR_HEIGHT - EPS)) out.push(issue(19, p.family === 'helicoid' ? `${P}.pitch` : `${P}.rise`, clear.min, `clear height ≥ ${MIN_CLEAR_HEIGHT}`))
+  return out
+}
+
 /**
  * Rules of the paths written as curves (DECISIONS.md 130–134). Rule 14 first: a knot that falls apart into
  * separate loops has no single curve to measure.
@@ -235,6 +275,7 @@ function curvePathIssues(g: SweepParams, h0: number, rOut: number): RuleIssue[] 
 
 /** Runs every recipe-scope rule. Assumes the recipe already passed the schema. */
 export function checkRules(recipe: Recipe): RuleIssue[] {
+  if (recipe.generator.type === 'parametric_surface') return surfaceIssues(recipe, recipe.generator.params)
   if (recipe.generator.type !== 'sweep') return []
   return sweepIssues(recipe, recipe.generator.params)
 }

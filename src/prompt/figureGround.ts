@@ -17,7 +17,19 @@ export interface FigureGroundRow {
 
 export function figureGround(m: Metrics, shell: boolean): FigureGroundRow[] {
   const rows: FigureGroundRow[] = []
-  if (m.outerDiameter !== null && m.courtyardDiameter !== null) {
+  // A parametric surface (DECISIONS.md 139): its material against the space it holds, then its edge.
+  const held = m.surface?.heldVolume
+  if (m.surface && held != null) {
+    rows.push({
+      key: 'volume',
+      label: 'בנפח: חומר מול חלל',
+      value: `${num(m.volume, 0)} מ"ק חומר, ${num(held, 0)} מ"ק חלל`,
+      share: m.volume / (m.volume + held),
+      why: 'קליפה דקה מחזיקה חלל גדול ממנה פי כמה. החומר הוא הגבול, והחלל שהוא סוגר או מכסה הוא המקום.',
+    })
+  }
+  if (m.surface) shell = false
+  if (!m.surface && m.outerDiameter !== null && m.courtyardDiameter !== null) {
     const disc = (Math.PI / 4) * m.outerDiameter ** 2
     const court = (Math.PI / 4) * m.courtyardDiameter ** 2
     const built = disc - court

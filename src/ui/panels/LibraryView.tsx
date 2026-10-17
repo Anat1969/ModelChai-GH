@@ -18,10 +18,10 @@ import {
 import { readingOf } from '../../data/library'
 import { visualPrompt } from '../../prompt/visualPrompt'
 import { ReadingText } from './ReadingPanel'
-import type { Sweep } from '../params'
+import type { Built } from '../params'
 
 export interface LibrarySource {
-  recipe: Sweep
+  recipe: Built
   versionId: string | null
   /** Measured metrics, already worded, for the post. */
   metrics?: Record<string, string>

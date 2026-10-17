@@ -4,8 +4,10 @@
  */
 import { pathBounds } from '../engine/paths'
 import { sectionCut } from '../engine/sectionCut'
+import { surfaceBox } from '../engine/surface/build'
 import { outerRadius } from '../recipe/rules'
-import type { Sweep } from '../ui/params'
+import type { SurfaceRecipe } from '../recipe/schema'
+import type { Built, Sweep } from '../ui/params'
 import type { CameraPreset } from '../ui/store'
 
 export type Vec3 = [number, number, number]
@@ -14,7 +16,11 @@ export type CameraPose = { position: Vec3; target: Vec3 } | { unavailable: strin
 const TAU = Math.PI * 2
 
 /** Center and radius of the model's footprint, plus its top. */
-export function bounds(r: Sweep): { center: Vec3; extent: number; top: number } {
+export function bounds(r: Built): { center: Vec3; extent: number; top: number } {
+  if (r.generator.type === 'parametric_surface') {
+    const b = surfaceBox(r, r.generator.params)
+    return { center: b.center, extent: b.extent, top: b.top }
+  }
   const p = r.generator.params
   const h0 = r.bare.section_center_height
   const rOut = outerRadius(p.section) * Math.max(1, p.path.type === 'circle' || p.path.type === 'ellipse' ? 1 : p.scale_along_path)
@@ -38,7 +44,58 @@ export function bounds(r: Sweep): { center: Vec3; extent: number; top: number } 
   }
 }
 
-export function cameraPose(r: Sweep, preset: CameraPreset): CameraPose {
+/** Presets for a parametric surface (DECISIONS.md 139): framed on its box, inside where there is an inside. */
+function surfacePose(r: SurfaceRecipe, preset: CameraPreset): CameraPose {
+  const p = r.generator.params
+  const eye = r.realistic.camera.height
+  const b = surfaceBox(r, p)
+  const [cx, , cz] = b.center
+  const E = b.extent
+  switch (preset) {
+    case 'eye_level_oblique': {
+      // Far enough that the whole height fits the 42° view (a tower is framed by its height, a canopy by its plan),
+      // but inside the ring the realistic contexts keep clear around the footprint, so no facade stands in between.
+      const D = Math.min(Math.max(E * 2.2 + 10, b.top * 1.6 + 4), E + 28)
+      return { position: [cx + D * 0.85, eye, cz + D * 0.5], target: [cx, Math.max(2.4, b.top * 0.5), cz] }
+    }
+    case 'aerial':
+      return { position: [cx + E * 1.6, b.top + E * 1.4, cz + E * 1.9], target: b.center }
+    case 'inside': {
+      switch (p.family) {
+        case 'hyperboloid':
+        case 'catenoid': {
+          // In the middle of the tower, looking up its wall.
+          const w = p.waist_radius!
+          return { position: [cx - w * 0.3, Math.max(0, b.bottom) + eye, cz], target: [cx + w, Math.max(0, b.bottom) + eye + (b.top - b.bottom) * 0.45, cz] }
+        }
+        case 'hyperbolic_paraboloid':
+        case 'monkey_saddle': {
+          const h = p.span! / 2
+          return { position: [cx - h * 0.45, eye, cz + h * 0.35], target: [cx + h * 0.6, 2.4, cz - h * 0.3] }
+        }
+        case 'helicoid': {
+          // On the ramp, half way out, looking up along it.
+          const c = p.pitch! / (2 * Math.PI), rr = p.radius! * 0.6
+          const at = (u: number, h: number): Vec3 => [rr * Math.cos(u), b.bottom + c * u + h, rr * Math.sin(u)]
+          return { position: at(0.5, eye), target: at(1.6, 2.4) }
+        }
+        case 'klein_bottle':
+          return { unavailable: 'לבקבוק קליין אין פנים: הוא משטח חד-צדדי, ולכן אין מקום לעמוד בתוכו.' }
+      }
+      break
+    }
+    case 'courtyard':
+      return { unavailable: 'מבט מהחצר זמין רק בטבעת שסוגרת חצר.' }
+  }
+  return { position: [cx + E * 2, eye, cz + E], target: b.center }
+}
+
+export function cameraPose(r: Built, preset: CameraPreset): CameraPose {
+  if (r.generator.type === 'parametric_surface') return surfacePose(r as SurfaceRecipe, preset)
+  return sweepPose(r as Sweep, preset)
+}
+
+function sweepPose(r: Sweep, preset: CameraPreset): CameraPose {
   const p = r.generator.params
   const eye = r.realistic.camera.height
   const ring = p.path.type === 'circle' || p.path.type === 'ellipse'
@@ -80,7 +137,19 @@ export function cameraPose(r: Sweep, preset: CameraPreset): CameraPose {
 }
 
 /** Where to stand the 1.75 m figures: outside the ring, in the courtyard, and on the inner floor. */
-export function peopleSpots(r: Sweep): { at: Vec3; h: number }[] {
+export function peopleSpots(r: Built): { at: Vec3; h: number }[] {
+  if (r.generator.type === 'parametric_surface') {
+    // Around the footprint on the ground, and under the shell where there is room to stand.
+    const p = r.generator.params
+    const b = bounds(r)
+    const D = b.extent + 2.5
+    const spots: { at: Vec3; h: number }[] = []
+    for (const [ang, h] of [[0.3, 1.75], [0.5, 1.68], [2.6, 1.72]] as const) spots.push({ at: [b.center[0] + Math.cos(ang) * D, 0, b.center[2] + Math.sin(ang) * D], h })
+    if (p.family === 'hyperboloid' || p.family === 'catenoid' || p.family === 'hyperbolic_paraboloid' || p.family === 'monkey_saddle') {
+      spots.push({ at: [b.center[0] + 0.8, 0, b.center[2] - 0.4], h: 1.72 }, { at: [b.center[0] - 0.9, 0, b.center[2] + 0.6], h: 1.66 })
+    }
+    return spots
+  }
   const p = r.generator.params
   const rOut = outerRadius(p.section)
   const spots: { at: Vec3; h: number }[] = []

@@ -50,6 +50,10 @@ var recipe_schema_default = {
         {
           if: { properties: { type: { const: "sweep" } } },
           then: { properties: { params: { $ref: "#/$defs/sweep" } } }
+        },
+        {
+          if: { properties: { type: { const: "parametric_surface" } } },
+          then: { properties: { params: { $ref: "#/$defs/surface" } } }
         }
       ]
     },
@@ -234,6 +238,40 @@ var recipe_schema_default = {
         "charred_timber",
         "white_render",
         "perforated_metal"
+      ]
+    },
+    surface: {
+      type: "object",
+      additionalProperties: false,
+      required: ["family"],
+      properties: {
+        family: { enum: ["hyperboloid", "hyperbolic_paraboloid", "catenoid", "helicoid", "klein_bottle", "monkey_saddle"] },
+        waist_radius: { type: "number", minimum: 0.5, maximum: 100 },
+        end_radius: { type: "number", minimum: 0.5, maximum: 150 },
+        height: { type: "number", minimum: 1, maximum: 200 },
+        span: { type: "number", minimum: 1, maximum: 200 },
+        span2: { type: "number", minimum: 1, maximum: 200 },
+        rise: { type: "number", minimum: 0.5, maximum: 100 },
+        radius: { type: "number", minimum: 0.5, maximum: 150 },
+        pitch: { type: "number", minimum: 0.5, maximum: 50 },
+        turns: { type: "number", minimum: 0.25, maximum: 10 },
+        tube: { type: "number", minimum: 0.2, maximum: 50 },
+        resolution: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            u_segments: { type: "integer", minimum: 8, maximum: 1024 },
+            v_segments: { type: "integer", minimum: 4, maximum: 512 }
+          }
+        }
+      },
+      allOf: [
+        { if: { properties: { family: { const: "hyperboloid" } } }, then: { required: ["waist_radius", "end_radius", "height"] } },
+        { if: { properties: { family: { const: "hyperbolic_paraboloid" } } }, then: { required: ["span", "rise"] } },
+        { if: { properties: { family: { const: "catenoid" } } }, then: { required: ["waist_radius", "height"] } },
+        { if: { properties: { family: { const: "helicoid" } } }, then: { required: ["radius", "pitch", "turns"] } },
+        { if: { properties: { family: { const: "klein_bottle" } } }, then: { required: ["radius", "tube"] } },
+        { if: { properties: { family: { const: "monkey_saddle" } } }, then: { required: ["span", "rise"] } }
       ]
     },
     sweep: {
@@ -474,6 +512,73 @@ var umbilic_torus_recipe_default = {
   }
 };
 
+// docs/examples/hypar-canopy.recipe.json
+var hypar_canopy_recipe_default = {
+  schema_version: "1.0",
+  meta: {
+    id: "hypar-canopy",
+    created_at: "2026-10-17T12:00:00+03:00",
+    source: "manual",
+    notes: "Example: balanced default state, parametric surface"
+  },
+  concept: {
+    name: "Hyperbolic paraboloid",
+    name_he: "פרבולואיד היפרבולי",
+    use: "גגון הצללה",
+    context_hint: "חזית מים"
+  },
+  generator: {
+    type: "parametric_surface",
+    params: {
+      family: "hyperbolic_paraboloid",
+      span: 18,
+      span2: 18,
+      rise: 7
+    }
+  },
+  bare: {
+    mode: "shell",
+    section_center_height: 0,
+    shell: {
+      thickness: 0.12,
+      inner_method: "normal_offset"
+    },
+    highlight: ["edges"]
+  },
+  realistic: {
+    site: {
+      lat: 32.08,
+      lon: 34.77,
+      name: "Tel Aviv"
+    },
+    datetime: "2026-07-10T11:00:00+03:00",
+    weather: "haze",
+    orientation_deg: 45,
+    wind: { from_deg: 290, speed_ms: 6 },
+    materials: {
+      outer: "white_render",
+      inner: "polished_concrete_light"
+    },
+    context: {
+      preset: "waterfront",
+      vegetation: "none",
+      people: 12
+    },
+    camera: {
+      preset: "eye_level_oblique",
+      height: 1.6,
+      fov_deg: 42,
+      aspect: "3:2"
+    }
+  },
+  narrative: {
+    name_he: "הגגון שעומד על שתי פינות",
+    insight: "שתי פינות נוגעות בקרקע ושתיים מורמות לשמיים, וכל שפה של הגגון היא קו ישר. המשטח מתעקל בשני כיוונים הפוכים בכל נקודה, ולכן קליפה של שנים-עשר סנטימטרים נושאת מפתח של שמונה-עשר מטרים.",
+    maxim: "העיקול הכפול הוא החוזק.",
+    fit_note: null
+  }
+};
+
 // supabase/functions/concept-to-recipe/system.md
 var system_default = `You translate a mathematical concept into a buildable architectural recipe for a parametric 3D engine.
 
@@ -495,6 +600,15 @@ Path geometry (the engine's axes: y is up, the ground is the xz plane):
 - wave (length, amplitude, wavelength) is a sine along the ground on the z axis, swinging amplitude to each side: promenades, colonnades, long benches. Its section stays upright, so shells have a floor.
 - arch (span, height) is a catenary in the vertical xy plane, the shape in which force flows in pure compression. Its feet stand span apart at section_center_height, which must be at most 0 so they touch the ground; the apex is height above them. The section's x axis runs across the arch (its depth), its y axis is the rib's thickness: a superellipse with a low aspect makes a vault.
 
+The parametric_surface generator (when it is available): a named surface from a fixed library, built as a shell of even thickness by offsetting the surface along its normal. Choose it when the concept IS one of these surfaces; choose the sweep when the concept is a section moving along a path.
+- hyperboloid (one sheet, ruled: every point lies on two straight lines): waist_radius, end_radius (> waist_radius), height. A tower with a vertical axis. Cooling towers, water towers, Shukhov towers.
+- hyperbolic_paraboloid (hypar, saddle on a rectangular plan, every edge a straight line): span, span2 (omit or equal for a square plan), rise = height difference between the high and low corners. Two corners touch the ground. Canopies, shell roofs.
+- catenoid (minimal surface between two rings, soap film): waist_radius, height. Ring radius at the ends is waist_radius * cosh(height / (2 * waist_radius)); keep height at most 4 * waist_radius.
+- helicoid (minimal ruled surface around an axis: a spiral ramp): radius, pitch (rise per turn, also the clear height between turns), turns.
+- klein_bottle (figure-8 immersion, one-sided, no edge, passes through itself along one ring): radius (ring), tube (half-height of the figure 8). radius > 1.25 * tube + thickness.
+- monkey_saddle (three valleys and three ridges meeting at a flat center, square plan): span, rise.
+Write null for every dimension field the family does not use. Surfaces need bare.mode "shell" with bare.shell.thickness (inner_method "normal_offset"). bare.section_center_height is the height of the shell's lowest point: 0 stands it on the ground, negative sinks it as a foundation. Openings and floors are not built on surfaces: leave bare.openings out, and say so in fit_note when the use needs an entrance.
+
 The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
 - Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
 - Human scale: enterable shells have a continuous floor at least 1.2 m wide and at least 2.4 m to stand under; passages 3.2 m wide and 2.6 m high above the floor. Prefer satisfying every soft rule below.
@@ -509,6 +623,8 @@ Hard rules (the engine rejects recipes that break them):
 - Where a lemniscate or a torus knot crosses itself, the branches must not touch: cross_height (or the strand distance of the knot) exceeds the section's height on both branches.
 - Arch: section_center_height <= 0, so the feet touch the ground.
 - Torus knot: p and q share no factor, and R - r exceeds the section's outer radius.
+- Passages must not overlap: count * width < 0.8 * 2 * pi * R.
+- Surfaces: bare.mode must be "shell". A hyperboloid needs end_radius > waist_radius + 0.05. A Klein bottle needs radius > 1.25 * tube + thickness. Half the thickness must stay below the surface's smallest radius of curvature (helicoid: pitch / (2 * pi); catenoid: waist_radius; hyperboloid: about waist_radius).
 
 Soft rules (allowed, but prefer to satisfy):
 - Continuous floor in enterable shells: section_center_height - floor.level < 1.5 * (a - thickness) for a deltoid.
@@ -516,6 +632,8 @@ Soft rules (allowed, but prefer to satisfy):
 - Shell wall thickness at most 0.4 * a.
 - Cusp burial depth (outer radius - section_center_height) at most 3 m. On lemniscate, torus_knot, wave and arch, the depth of the surface below the ground at most 3 m.
 - Under a crossing of a lemniscate or a torus knot, at least 2.4 m free between the branches, so people pass under the bridge standing.
+- Cusp burial depth (outer radius - section_center_height) at most 3 m.
+- Surfaces: the shell's largest plan dimension at most 600 times its thickness. Under a saddle (at its plan center) and between helicoid turns (pitch - thickness), at least 2.4 m to stand.
 
 Ranges the schema enforces after you answer (stay inside them):
 - section.a 0.1-20, cusps 3-8, sides 3-12, exponent 0.3-8, aspect 0.03-1.
@@ -524,6 +642,7 @@ Ranges the schema enforces after you answer (stay inside them):
 - twist.turns_per_lap -4 to 4. scale_along_path 0.1-5.
 - section_center_height -20 to 60. shell.thickness 0.08-1.5. floor.level -10 to 30.
 - passages.count 0-12, width 0.9-12, height 2.1-8. slots.count 0-96, width_fraction 0.05-0.8, duty 0.1-0.9.
+- surface: waist_radius 0.5-100, end_radius 0.5-150, height 1-200, span and span2 1-200, rise 0.5-100, radius 0.5-150, pitch 0.5-50, turns 0.25-10, tube 0.2-50.
 - meta.id: lowercase letters, digits and hyphens, 3-64 characters.
 - concept.name and name_he up to 80 characters; narrative.name_he up to 60; insight 10-400; maxim up to 140; fit_note up to 300.
 - realistic.camera.aspect is always "3:2".
@@ -707,9 +826,41 @@ var SweepParams = z.strictObject({
     section_segments: int(12, 512).default(144)
   }).optional()
 });
+var SURFACE_FAMILIES = ["hyperboloid", "hyperbolic_paraboloid", "catenoid", "helicoid", "klein_bottle", "monkey_saddle"];
+var SURFACE_REQUIRED = {
+  hyperboloid: ["waist_radius", "end_radius", "height"],
+  hyperbolic_paraboloid: ["span", "rise"],
+  catenoid: ["waist_radius", "height"],
+  helicoid: ["radius", "pitch", "turns"],
+  klein_bottle: ["radius", "tube"],
+  monkey_saddle: ["span", "rise"]
+};
+var SurfaceParams = z.strictObject({
+  family: z.enum(SURFACE_FAMILIES),
+  waist_radius: num(0.5, 100).optional(),
+  end_radius: num(0.5, 150).optional(),
+  height: num(1, 200).optional(),
+  span: num(1, 200).optional(),
+  span2: num(1, 200).optional(),
+  rise: num(0.5, 100).optional(),
+  radius: num(0.5, 150).optional(),
+  pitch: num(0.5, 50).optional(),
+  turns: num(0.25, 10).optional(),
+  tube: num(0.2, 50).optional(),
+  resolution: z.strictObject({
+    u_segments: int(8, 1024).optional(),
+    v_segments: int(4, 512).optional()
+  }).optional()
+}).superRefine((p, ctx) => {
+  for (const field of SURFACE_REQUIRED[p.family]) {
+    if (p[field] === void 0) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when family is "${p.family}"` });
+    }
+  }
+});
 var Generator = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("sweep"), params: SweepParams }),
-  z.strictObject({ type: z.literal("parametric_surface"), params: z.record(z.string(), z.unknown()) }),
+  z.strictObject({ type: z.literal("parametric_surface"), params: SurfaceParams }),
   z.strictObject({ type: z.literal("sdf"), params: z.record(z.string(), z.unknown()) }),
   z.strictObject({ type: z.literal("tiling"), params: z.record(z.string(), z.unknown()) })
 ]);
@@ -971,8 +1122,8 @@ function curveFrames(p, curve, segs) {
   if (p.type === "torus_knot") {
     const o = Math.hypot(C[0], C[2]);
     const r = [C[0] / o, 0, C[2] / o];
-    const dot = r[0] * T[0] + r[2] * T[2];
-    const n = [r[0] - dot * T[0], -dot * T[1], r[2] - dot * T[2]];
+    const dot2 = r[0] * T[0] + r[2] * T[2];
+    const n = [r[0] - dot2 * T[0], -dot2 * T[1], r[2] - dot2 * T[2]];
     const nl = Math.hypot(...n);
     set(N, 0, n[0] / nl, n[1] / nl, n[2] / nl);
     propagateRMF(C, T, N, rows);
@@ -1085,9 +1236,9 @@ function minCurvatureRadius(f) {
     const vx = C[c] - C[b], vy = C[c + 1] - C[b + 1], vz = C[c + 2] - C[b + 2];
     const wx = C[c] - C[a], wy = C[c + 1] - C[a + 1], wz = C[c + 2] - C[a + 2];
     const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
-    const cross = Math.hypot(cx, cy, cz);
-    if (cross < 1e-15) continue;
-    const r = Math.hypot(ux, uy, uz) * Math.hypot(vx, vy, vz) * Math.hypot(wx, wy, wz) / (2 * cross);
+    const cross2 = Math.hypot(cx, cy, cz);
+    if (cross2 < 1e-15) continue;
+    const r = Math.hypot(ux, uy, uz) * Math.hypot(vx, vy, vz) * Math.hypot(wx, wy, wz) / (2 * cross2);
     if (r < best) best = r;
   }
   return best;
@@ -1183,6 +1334,231 @@ function lowestPoints(g, h0) {
   return { surface, ends };
 }
 
+// src/engine/surface/families.ts
+function hyperboloidC(a, e, h) {
+  return h / Math.sqrt(Math.max(1e-12, e * e / (a * a) - 1));
+}
+function simpson(f, a, b, n = 2e3) {
+  const h = (b - a) / n;
+  let s = f(a) + f(b);
+  for (let i = 1; i < n; i++) s += (i % 2 ? 4 : 2) * f(a + i * h);
+  return s * h / 3;
+}
+function family(p) {
+  switch (p.family) {
+    case "hyperboloid": {
+      const a = p.waist_radius, e = p.end_radius, H = p.height;
+      const c = hyperboloidC(a, e, H / 2);
+      const r = (y) => a * Math.sqrt(1 + y * y / (c * c));
+      const dr = (y) => a * y / (c * c * Math.sqrt(1 + y * y / (c * c)));
+      return {
+        family: p.family,
+        point: (u, v) => [r(v) * Math.cos(u), v, r(v) * Math.sin(u)],
+        u: [0, TAU],
+        v: [-H / 2, H / 2],
+        uClosure: "wrap",
+        vClosure: "open",
+        outward: "axis",
+        segments: [192, 64],
+        referenceArea: () => TAU * simpson((y) => r(y) * Math.sqrt(1 + dr(y) ** 2), -H / 2, H / 2, 4e3),
+        revolution: true
+      };
+    }
+    case "catenoid": {
+      const c = p.waist_radius, H = p.height;
+      const r = (y) => c * Math.cosh(y / c);
+      return {
+        family: p.family,
+        point: (u, v) => [r(v) * Math.cos(u), v, r(v) * Math.sin(u)],
+        u: [0, TAU],
+        v: [-H / 2, H / 2],
+        uClosure: "wrap",
+        vClosure: "open",
+        outward: "axis",
+        segments: [192, 64],
+        referenceArea: () => Math.PI * c * (H + c * Math.sinh(H / c)),
+        revolution: true
+      };
+    }
+    case "hyperbolic_paraboloid": {
+      const hx = p.span / 2, hz = (p.span2 ?? p.span) / 2, k = p.rise / 2 / (hx * hz);
+      return {
+        family: p.family,
+        point: (u, v) => [u, k * u * v, v],
+        u: [-hx, hx],
+        v: [-hz, hz],
+        uClosure: "open",
+        vClosure: "open",
+        outward: "up",
+        segments: [96, 96],
+        // |S_u × S_v| = √(1 + k²(u² + v²)); the inner integral is done exactly in x for each z.
+        referenceArea: () => simpson((z2) => simpson((x) => Math.sqrt(1 + k * k * (x * x + z2 * z2)), -hx, hx, 600), -hz, hz, 600),
+        revolution: false
+      };
+    }
+    case "monkey_saddle": {
+      const h = p.span / 2, hz = (p.span2 ?? p.span) / 2, k = p.rise / 4 / (h * h * h);
+      return {
+        family: p.family,
+        point: (u, v) => [u, k * (u * u * u - 3 * u * v * v), v],
+        u: [-h, h],
+        v: [-hz, hz],
+        uClosure: "open",
+        vClosure: "open",
+        outward: "up",
+        segments: [96, 96],
+        referenceArea: () => simpson((z2) => simpson((x) => Math.sqrt(1 + (k * (3 * x * x - 3 * z2 * z2)) ** 2 + (k * 6 * x * z2) ** 2), -h, h, 600), -hz, hz, 600),
+        revolution: false
+      };
+    }
+    case "helicoid": {
+      const R = p.radius, c = p.pitch / TAU, U = TAU * p.turns;
+      return {
+        family: p.family,
+        point: (u, v) => [v * Math.cos(u), c * u, v * Math.sin(u)],
+        u: [0, U],
+        v: [0, R],
+        uClosure: "open",
+        vClosure: "open",
+        outward: "up",
+        segments: [Math.max(48, Math.round(96 * p.turns)), 32],
+        // ∫∫ √(v² + c²) dv du in closed form.
+        referenceArea: () => U * (R / 2 * Math.sqrt(R * R + c * c) + c * c / 2 * Math.asinh(R / c)),
+        revolution: false
+      };
+    }
+    case "klein_bottle": {
+      const R = p.radius, a = p.tube;
+      return {
+        family: p.family,
+        point: (u, v) => {
+          const c = Math.cos(u / 2), s = Math.sin(u / 2);
+          const rho = R + a * (c * Math.sin(v) - s * Math.sin(2 * v));
+          return [rho * Math.cos(u), a * (s * Math.sin(v) + c * Math.sin(2 * v)), rho * Math.sin(u)];
+        },
+        u: [0, TAU],
+        v: [0, TAU],
+        uClosure: "flip",
+        vClosure: "wrap",
+        outward: "none",
+        segments: [192, 64],
+        referenceArea: () => integrateArea(family(p), 1600, 800),
+        revolution: true
+      };
+    }
+  }
+}
+function derivatives(f, u, v) {
+  const hu = (f.u[1] - f.u[0]) * 1e-6, hv = (f.v[1] - f.v[0]) * 1e-6;
+  const a = f.point(u + hu, v), b = f.point(u - hu, v), c = f.point(u, v + hv), d = f.point(u, v - hv);
+  return {
+    Su: [(a[0] - b[0]) / (2 * hu), (a[1] - b[1]) / (2 * hu), (a[2] - b[2]) / (2 * hu)],
+    Sv: [(c[0] - d[0]) / (2 * hv), (c[1] - d[1]) / (2 * hv), (c[2] - d[2]) / (2 * hv)]
+  };
+}
+var cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+var dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+var len = (a) => Math.sqrt(dot(a, a));
+function normalAt(f, u, v) {
+  const { Su, Sv } = derivatives(f, u, v);
+  const n = cross(Su, Sv);
+  const L = len(n) || 1;
+  return [n[0] / L, n[1] / L, n[2] / L];
+}
+function integrateArea(f, nu = 400, nv = 200) {
+  const du = (f.u[1] - f.u[0]) / nu, dv = (f.v[1] - f.v[0]) / nv;
+  let A = 0;
+  for (let i = 0; i < nu; i++) {
+    const u = f.u[0] + (i + 0.5) * du;
+    for (let j = 0; j < nv; j++) {
+      const { Su, Sv } = derivatives(f, u, f.v[0] + (j + 0.5) * dv);
+      A += len(cross(Su, Sv));
+    }
+  }
+  return A * du * dv;
+}
+function minCurvatureRadius2(f, nu = 96, nv = 48) {
+  const hu = (f.u[1] - f.u[0]) * 1e-4, hv = (f.v[1] - f.v[0]) * 1e-4;
+  let kMax = 0;
+  for (let i = 0; i <= nu; i++) {
+    const u = f.u[0] + (f.u[1] - f.u[0]) * i / nu;
+    for (let j = 0; j <= nv; j++) {
+      const v = f.v[0] + (f.v[1] - f.v[0]) * j / nv;
+      const P2 = f.point(u, v);
+      const pu = f.point(u + hu, v), mu = f.point(u - hu, v), pv = f.point(u, v + hv), mv = f.point(u, v - hv);
+      const pp = f.point(u + hu, v + hv), pm = f.point(u + hu, v - hv), mp = f.point(u - hu, v + hv), mm = f.point(u - hu, v - hv);
+      const Su = [0, 1, 2].map((k2) => (pu[k2] - mu[k2]) / (2 * hu));
+      const Sv = [0, 1, 2].map((k2) => (pv[k2] - mv[k2]) / (2 * hv));
+      const Suu = [0, 1, 2].map((k2) => (pu[k2] - 2 * P2[k2] + mu[k2]) / (hu * hu));
+      const Svv = [0, 1, 2].map((k2) => (pv[k2] - 2 * P2[k2] + mv[k2]) / (hv * hv));
+      const Suv = [0, 1, 2].map((k2) => (pp[k2] - pm[k2] - mp[k2] + mm[k2]) / (4 * hu * hv));
+      const nn = cross(Su, Sv);
+      const L0 = len(nn);
+      if (L0 < 1e-12) continue;
+      const n = [nn[0] / L0, nn[1] / L0, nn[2] / L0];
+      const E = dot(Su, Su), F = dot(Su, Sv), G = dot(Sv, Sv);
+      const L = dot(Suu, n), M = dot(Suv, n), N = dot(Svv, n);
+      const det = E * G - F * F;
+      const K = (L * N - M * M) / det;
+      const H = (E * N - 2 * F * M + G * L) / (2 * det);
+      const k = Math.abs(H) + Math.sqrt(Math.max(0, H * H - K));
+      if (k > kMax) kMax = k;
+    }
+  }
+  return kMax > 0 ? 1 / kMax : Infinity;
+}
+function planSpan(p) {
+  switch (p.family) {
+    case "hyperboloid":
+      return 2 * Math.max(p.waist_radius, p.end_radius);
+    case "catenoid":
+      return 2 * p.waist_radius * Math.cosh(p.height / 2 / p.waist_radius);
+    case "hyperbolic_paraboloid":
+    case "monkey_saddle":
+      return Math.max(p.span, p.span2 ?? p.span);
+    case "helicoid":
+      return 2 * p.radius;
+    case "klein_bottle":
+      return 2 * (p.radius + KLEIN_REACH * p.tube);
+  }
+}
+var KLEIN_REACH = 1.25;
+function clearance(p, thickness, base) {
+  const f = family(p);
+  switch (p.family) {
+    case "hyperbolic_paraboloid":
+    case "monkey_saddle": {
+      const lift = base - placementLow(f, thickness);
+      const under = (u, v) => f.point(u, v)[1] - thickness / 2 / Math.abs(normalAt(f, u, v)[1]) + lift;
+      let max = -Infinity;
+      for (let i = 0; i <= 40; i++)
+        for (let j = 0; j <= 40; j++) max = Math.max(max, under(f.u[0] + (f.u[1] - f.u[0]) * i / 40, f.v[0] + (f.v[1] - f.v[0]) * j / 40));
+      return { min: under(0, 0), max };
+    }
+    case "helicoid": {
+      if (p.turns <= 1) return null;
+      const c = p.pitch / TAU;
+      const gap = (v) => p.pitch - thickness / (v / Math.sqrt(v * v + c * c));
+      return { min: gap(p.radius / 2), max: gap(p.radius) };
+    }
+    default:
+      return null;
+  }
+}
+function placementLow(f, thickness, nu = 96, nv = 48) {
+  let low = Infinity;
+  for (let i = 0; i <= nu; i++) {
+    const u = f.u[0] + (f.u[1] - f.u[0]) * i / nu;
+    for (let j = 0; j <= nv; j++) {
+      const v = f.v[0] + (f.v[1] - f.v[0]) * j / nv;
+      const y = f.point(u, v)[1];
+      const n = normalAt(f, u, v);
+      low = Math.min(low, y - Math.abs(n[1]) * thickness / 2);
+    }
+  }
+  return low;
+}
+
 // src/recipe/rules.ts
 var RULES = [
   { id: 1, severity: "error", scope: "recipe", message: "החתך לא נסגר על עצמו בסוף ההקפה" },
@@ -1198,7 +1574,13 @@ var RULES = [
   { id: 11, severity: "error", scope: "recipe", message: "המסלול פוגש את עצמו בהצטלבות" },
   { id: 12, severity: "warning", scope: "recipe", message: "אין גובה מלא מתחת להצטלבות" },
   { id: 13, severity: "error", scope: "recipe", message: "רגלי הקשת לא נוגעות בקרקע" },
-  { id: 14, severity: "error", scope: "recipe", message: "הקשר מתפרק לכמה לולאות נפרדות" }
+  { id: 14, severity: "error", scope: "recipe", message: "הקשר מתפרק לכמה לולאות נפרדות" },
+  // Parametric surfaces (GENERATORS.md 4.1, DECISIONS.md 138).
+  { id: 15, severity: "error", scope: "recipe", message: "משטח נבנה רק כקליפה" },
+  { id: 16, severity: "error", scope: "recipe", message: "מידות המשטח סותרות זו את זו" },
+  { id: 17, severity: "error", scope: "recipe", message: "הדופן עבה מהעיקול של המשטח, והקליפה מתקפלת על עצמה" },
+  { id: 18, severity: "warning", scope: "recipe", message: "הקליפה דקה מאוד ביחס למפתח שלה" },
+  { id: 19, severity: "warning", scope: "recipe", message: "אין גובה לעמידה מתחת לקליפה" }
 ];
 var INTEGER_TOLERANCE = 1e-3;
 var MIN_CLEAR_HEIGHT = 2.4;
@@ -1311,6 +1693,30 @@ function sweepIssues(recipe, g) {
   }
   return out;
 }
+var MAX_SPAN_RATIO = 600;
+function surfaceIssues(recipe, p) {
+  const out = [];
+  const bare = recipe.bare;
+  if (bare.mode !== "shell" || !bare.shell) {
+    out.push(issue(15, "bare.mode", 0, 'mode = "shell"'));
+    return out;
+  }
+  const t = bare.shell.thickness;
+  if (p.family === "hyperboloid" && !(p.end_radius > p.waist_radius + 0.05 - EPS)) {
+    out.push(issue(16, `${P}.end_radius`, p.end_radius, `end_radius > waist_radius + 0.05 = ${round(p.waist_radius + 0.05)}`));
+  }
+  if (p.family === "klein_bottle" && !(p.radius > KLEIN_REACH * p.tube + t + EPS)) {
+    out.push(issue(16, `${P}.radius`, p.radius, `radius > ${KLEIN_REACH} × tube + thickness = ${round(KLEIN_REACH * p.tube + t)}`));
+  }
+  if (out.length) return out;
+  const rMin = minCurvatureRadius2(family(p));
+  if (!(t / 2 < rMin - EPS)) out.push(issue(17, "bare.shell.thickness", t, `thickness < 2 × smallest radius of curvature = ${round(2 * rMin)}`));
+  const span = planSpan(p);
+  if (span / t > MAX_SPAN_RATIO + EPS) out.push(issue(18, "bare.shell.thickness", t, `thickness ≥ span / ${MAX_SPAN_RATIO} = ${round(span / MAX_SPAN_RATIO)}`));
+  const clear = clearance(p, t, bare.section_center_height);
+  if (clear && !(clear.min >= MIN_CLEAR_HEIGHT - EPS)) out.push(issue(19, p.family === "helicoid" ? `${P}.pitch` : `${P}.rise`, clear.min, `clear height ≥ ${MIN_CLEAR_HEIGHT}`));
+  return out;
+}
 function curvePathIssues(g, h0, rOut) {
   const out = [];
   const path = g.path;
@@ -1337,6 +1743,7 @@ function curvePathIssues(g, h0, rOut) {
   return out;
 }
 function checkRules(recipe) {
+  if (recipe.generator.type === "parametric_surface") return surfaceIssues(recipe, recipe.generator.params);
   if (recipe.generator.type !== "sweep") return [];
   return sweepIssues(recipe, recipe.generator.params);
 }
@@ -1362,6 +1769,129 @@ function repairMessage(schemaErrors, issues) {
     ...lines,
     "Keep every other field unchanged."
   ].join("\n");
+}
+
+// supabase/functions/concept-to-recipe/src/modelSchema.ts
+var DROP = /* @__PURE__ */ new Set([
+  "$schema",
+  "$id",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "multipleOf",
+  "minLength",
+  "maxLength",
+  "pattern",
+  "default",
+  "uniqueItems",
+  "minItems",
+  "maxItems",
+  "if",
+  "then",
+  "else"
+]);
+function inferType(values) {
+  if (values.every((v) => typeof v === "string")) return "string";
+  if (values.every((v) => Number.isInteger(v))) return "integer";
+  if (values.every((v) => typeof v === "number")) return "number";
+  if (values.every((v) => typeof v === "boolean")) return "boolean";
+  throw new Error(`mixed enum types: ${JSON.stringify(values)}`);
+}
+function clean(node) {
+  if (Array.isArray(node)) return node.map(clean);
+  if (!node || typeof node !== "object") return node;
+  const { type, ...rest } = node;
+  if (Array.isArray(type)) return clean({ ...rest, anyOf: type.map((t) => ({ type: t })) });
+  const out = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (DROP.has(k)) continue;
+    if (k === "allOf") {
+      const kept = v.filter((s) => !(s && typeof s === "object" && "if" in s)).map(clean);
+      if (kept.length) out.allOf = kept;
+      continue;
+    }
+    out[k] = clean(v);
+  }
+  if (out.type === "object" && out.properties && out.additionalProperties === void 0) out.additionalProperties = false;
+  if (out.type === void 0 && !out.anyOf && !out.allOf && !out.$ref) {
+    const values = Array.isArray(out.enum) ? out.enum : "const" in out ? [out.const] : [];
+    if (values.length) out.type = inferType(values);
+  }
+  return out;
+}
+var ALWAYS_FILL = [
+  [["properties", "concept"], ["use", "context_hint"]],
+  [["properties", "narrative"], ["maxim", "fit_note"]],
+  [["properties", "realistic", "properties", "site"], ["name"]],
+  [["properties", "realistic", "properties", "context"], ["vegetation", "people"]],
+  [["properties", "realistic", "properties", "camera"], ["height", "fov_deg", "aspect"]],
+  [["$defs", "sweep"], ["scale_along_path"]],
+  [["$defs", "sweep", "properties", "twist"], ["initial_angle_deg"]],
+  [["$defs", "sweep", "properties", "section"], ["aspect"]],
+  [["properties", "meta"], ["notes"]],
+  [["properties", "bare"], ["highlight"]],
+  [["properties", "bare", "properties", "shell"], ["inner_method"]],
+  [["properties", "bare", "properties", "floor"], ["level", "type"]],
+  [["properties", "bare", "properties", "openings", "properties", "passages"], ["width", "height", "start_angle_deg"]],
+  [["properties", "bare", "properties", "openings", "properties", "slots"], ["width_fraction", "duty", "position"]]
+];
+var NOT_FOR_MODEL = [
+  [["$defs", "sweep"], "resolution"],
+  [["$defs", "surface"], "resolution"],
+  [["properties", "meta"], "parent_id"]
+];
+function splitPath(recipeSchema, s) {
+  const original = recipeSchema.$defs.sweep.properties;
+  const path = original.path;
+  const props = s.$defs.sweep.properties.path;
+  const fields = props.properties;
+  const variants = path.allOf.map((c) => {
+    const type = c.if.properties.type.const;
+    const required = c.then.required;
+    return {
+      type: "object",
+      properties: { type: { type: "string", const: type }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
+      required: ["type", ...required],
+      additionalProperties: false
+    };
+  });
+  s.$defs.sweep.properties.path = { anyOf: variants };
+}
+function modelSchema(recipeSchema, generators) {
+  const s = clean(recipeSchema);
+  for (const [path, field] of NOT_FOR_MODEL) {
+    delete path.reduce((o, k) => o[k], s).properties[field];
+  }
+  for (const [path, fields] of ALWAYS_FILL) {
+    const node = path.reduce((o, k) => o[k], s);
+    node.required = [.../* @__PURE__ */ new Set([...node.required ?? [], ...fields])];
+  }
+  splitPath(recipeSchema, s);
+  const props = s.properties;
+  const gen = props.generator;
+  const genProps = gen.properties;
+  genProps.type = { type: "string", enum: generators };
+  const defs = s.$defs;
+  const surface = defs.surface;
+  if (generators.includes("parametric_surface")) {
+    const props2 = surface.properties;
+    for (const k of Object.keys(props2)) if (k !== "family") props2[k] = { anyOf: [props2[k], { type: "null" }] };
+    surface.required = Object.keys(props2);
+    genProps.params = generators.includes("sweep") ? { anyOf: [{ $ref: "#/$defs/sweep" }, { $ref: "#/$defs/surface" }] } : { $ref: "#/$defs/surface" };
+  } else {
+    delete defs.surface;
+    genProps.params = { $ref: "#/$defs/sweep" };
+  }
+  delete gen.allOf;
+  return s;
+}
+function dropNullSurfaceFields(value) {
+  const g = value?.generator;
+  if (!g || g.type !== "parametric_surface" || !g.params || typeof g.params !== "object") return value;
+  const params = g.params;
+  for (const k of Object.keys(params)) if (params[k] === null) delete params[k];
+  return value;
 }
 
 // supabase/functions/concept-to-recipe/src/core.ts
@@ -1398,12 +1928,12 @@ function jerusalemTimestamp(d) {
 }
 function parse(text) {
   try {
-    return { value: JSON.parse(text) };
+    return { value: dropNullSurfaceFields(JSON.parse(text)) };
   } catch {
     const a = text.indexOf("{"), b = text.lastIndexOf("}");
     if (a >= 0 && b > a) {
       try {
-        return { value: JSON.parse(text.slice(a, b + 1)) };
+        return { value: dropNullSurfaceFields(JSON.parse(text.slice(a, b + 1))) };
       } catch {
       }
     }
@@ -1474,7 +2004,7 @@ async function conceptToRecipe(input, deps) {
     model
   };
 }
-var POLISH_RULES = [4, 5, 6];
+var POLISH_RULES = [4, 5, 6, 18, 19];
 function polishMessage(soft) {
   return [
     "The recipe builds, but it is not yet in its ideal default state. These human-scale rules are not met:",
@@ -1484,116 +2014,11 @@ function polishMessage(soft) {
 }
 var pick = (l) => ({ schemaErrors: l.schemaErrors, issues: l.issues });
 
-// supabase/functions/concept-to-recipe/src/modelSchema.ts
-var DROP = /* @__PURE__ */ new Set([
-  "$schema",
-  "$id",
-  "minimum",
-  "maximum",
-  "exclusiveMinimum",
-  "exclusiveMaximum",
-  "multipleOf",
-  "minLength",
-  "maxLength",
-  "pattern",
-  "default",
-  "uniqueItems",
-  "minItems",
-  "maxItems",
-  "if",
-  "then",
-  "else"
-]);
-function inferType(values) {
-  if (values.every((v) => typeof v === "string")) return "string";
-  if (values.every((v) => Number.isInteger(v))) return "integer";
-  if (values.every((v) => typeof v === "number")) return "number";
-  if (values.every((v) => typeof v === "boolean")) return "boolean";
-  throw new Error(`mixed enum types: ${JSON.stringify(values)}`);
-}
-function clean(node) {
-  if (Array.isArray(node)) return node.map(clean);
-  if (!node || typeof node !== "object") return node;
-  const { type, ...rest } = node;
-  if (Array.isArray(type)) return clean({ ...rest, anyOf: type.map((t) => ({ type: t })) });
-  const out = {};
-  for (const [k, v] of Object.entries(node)) {
-    if (DROP.has(k)) continue;
-    if (k === "allOf") {
-      const kept = v.filter((s) => !(s && typeof s === "object" && "if" in s)).map(clean);
-      if (kept.length) out.allOf = kept;
-      continue;
-    }
-    out[k] = clean(v);
-  }
-  if (out.type === "object" && out.properties && out.additionalProperties === void 0) out.additionalProperties = false;
-  if (out.type === void 0 && !out.anyOf && !out.allOf && !out.$ref) {
-    const values = Array.isArray(out.enum) ? out.enum : "const" in out ? [out.const] : [];
-    if (values.length) out.type = inferType(values);
-  }
-  return out;
-}
-var ALWAYS_FILL = [
-  [["properties", "concept"], ["use", "context_hint"]],
-  [["properties", "narrative"], ["maxim", "fit_note"]],
-  [["properties", "realistic", "properties", "site"], ["name"]],
-  [["properties", "realistic", "properties", "context"], ["vegetation", "people"]],
-  [["properties", "realistic", "properties", "camera"], ["height", "fov_deg", "aspect"]],
-  [["$defs", "sweep"], ["scale_along_path"]],
-  [["$defs", "sweep", "properties", "twist"], ["initial_angle_deg"]],
-  [["$defs", "sweep", "properties", "section"], ["aspect"]],
-  [["properties", "meta"], ["notes"]],
-  [["properties", "bare"], ["highlight"]],
-  [["properties", "bare", "properties", "shell"], ["inner_method"]],
-  [["properties", "bare", "properties", "floor"], ["level", "type"]],
-  [["properties", "bare", "properties", "openings", "properties", "passages"], ["width", "height", "start_angle_deg"]],
-  [["properties", "bare", "properties", "openings", "properties", "slots"], ["width_fraction", "duty", "position"]]
-];
-var NOT_FOR_MODEL = [
-  [["$defs", "sweep"], "resolution"],
-  [["properties", "meta"], "parent_id"]
-];
-function splitPath(recipeSchema, s) {
-  const original = recipeSchema.$defs.sweep.properties;
-  const path = original.path;
-  const props = s.$defs.sweep.properties.path;
-  const fields = props.properties;
-  const variants = path.allOf.map((c) => {
-    const type = c.if.properties.type.const;
-    const required = c.then.required;
-    return {
-      type: "object",
-      properties: { type: { type: "string", const: type }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
-      required: ["type", ...required],
-      additionalProperties: false
-    };
-  });
-  s.$defs.sweep.properties.path = { anyOf: variants };
-}
-function modelSchema(recipeSchema, generators) {
-  const s = clean(recipeSchema);
-  for (const [path, field] of NOT_FOR_MODEL) {
-    delete path.reduce((o, k) => o[k], s).properties[field];
-  }
-  for (const [path, fields] of ALWAYS_FILL) {
-    const node = path.reduce((o, k) => o[k], s);
-    node.required = [.../* @__PURE__ */ new Set([...node.required ?? [], ...fields])];
-  }
-  splitPath(recipeSchema, s);
-  const props = s.properties;
-  const gen = props.generator;
-  const genProps = gen.properties;
-  genProps.type = { type: "string", enum: generators };
-  genProps.params = { $ref: "#/$defs/sweep" };
-  delete gen.allOf;
-  return s;
-}
-
 // supabase/functions/concept-to-recipe/src/handler.ts
 var RATE_LIMIT_PER_HOUR = 20;
 var DEFAULT_MODEL = "claude-sonnet-5-5";
-var GENERATORS = ["sweep"];
-var SYSTEM = systemPrompt(system_default, [umbilic_torus_recipe_default, mobius_strip_recipe_default, golden_ratio_recipe_default]);
+var GENERATORS = ["sweep", "parametric_surface"];
+var SYSTEM = systemPrompt(system_default, [umbilic_torus_recipe_default, mobius_strip_recipe_default, golden_ratio_recipe_default, hypar_canopy_recipe_default]);
 var SCHEMA = modelSchema(recipe_schema_default, GENERATORS);
 var CORS = {
   "Access-Control-Allow-Origin": "*",

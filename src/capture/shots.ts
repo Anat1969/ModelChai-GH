@@ -2,9 +2,9 @@
  * The views a clip is made from (DECISIONS.md 116): an ordered list of camera poses, each with the time to
  * the next one, plus the level plan. Pure: a reducer, the two ready paths, and a small JSON form.
  */
-import { bounds } from '../scene/cameras'
+import { bounds, cameraPose } from '../scene/cameras'
 import { outerRadius } from '../recipe/rules'
-import type { Sweep } from '../ui/params'
+import type { Built, Sweep } from '../ui/params'
 import { DEFAULT_LEVELS, quarterOrbit, type LevelMode, type LevelPlan } from './clip'
 import type { PathKey, Pose, Vec3 } from './path'
 
@@ -80,7 +80,34 @@ export const planSeconds = (keys: PathKey[]) => keys.reduce((a, k) => a + Math.m
  * then cuts to the courtyard's edge. A straight gallery is entered at its start and walked to its end. Every
  * view looks ahead, slightly down, at eye height.
  */
-export function entryPass(r: Sweep): Omit<Shot, 'id' | 'level'>[] {
+export function entryPass(r: Built): Omit<Shot, 'id' | 'level'>[] {
+  if (r.generator.type === 'parametric_surface') return surfaceEntry(r)
+  return sweepEntry(r as Sweep)
+}
+
+/**
+ * A parametric surface has no passages: the walk comes from afar to its face, then cuts to where one stands
+ * inside or under it, when it has such a place (DECISIONS.md 139).
+ */
+function surfaceEntry(r: Built): Omit<Shot, 'id' | 'level'>[] {
+  const eye = r.realistic.camera.height
+  const b = bounds(r)
+  const far = Math.max(30, b.extent * 2.5)
+  const ang = 0.18
+  const out: Vec3 = [Math.cos(ang), 0, Math.sin(ang)]
+  const at = (radius: number, y: number): Vec3 => [b.center[0] + out[0] * radius, y, b.center[2] + out[2] * radius]
+  const look: Vec3 = [b.center[0], Math.max(2.4, Math.min(b.top * 0.5, eye + 6)), b.center[2]]
+  const shots = [
+    { position: at(b.extent + far, eye), target: look, seconds: 4 },
+    { position: at(b.extent + 1.5, eye), target: look, seconds: 2 },
+  ]
+  const inside = cameraPose(r, 'inside')
+  if (!('unavailable' in inside)) shots.push({ position: inside.position, target: inside.target, seconds: 1 })
+  else shots[1]!.seconds = 1
+  return shots
+}
+
+function sweepEntry(r: Sweep): Omit<Shot, 'id' | 'level'>[] {
   const p = r.generator.params
   const eye = r.realistic.camera.height
   const floor = r.bare.floor?.level ?? 0

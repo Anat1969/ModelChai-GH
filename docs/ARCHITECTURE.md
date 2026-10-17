@@ -23,7 +23,7 @@
 ├─ docs/                      מסמכי האפיון, הסכמה והדוגמאות
 ├─ src/
 │  ├─ recipe/                 schema.ts (zod), rules.ts (כללים סמנטיים), migrate.ts
-│  ├─ engine/                 worker.ts, sweep/, sections/, paths/, metrics.ts, export/
+│  ├─ engine/                 worker.ts, sweep/, surface/, sections/, paths/, metrics.ts, export/
 │  ├─ scene/                  BareScene.tsx, RealisticScene.tsx, materials/, contexts/, sun.ts, seasons.ts
 │  ├─ ui/                     screens/, panels/, controls/, theme/
 │  ├─ data/                   supabase.ts, projects.ts, versions.ts

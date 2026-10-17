@@ -6,10 +6,11 @@
  */
 import type { Reading } from '../data/library'
 import { visualPrompt } from '../prompt/visualPrompt'
-import type { Recipe, SweepParams } from '../recipe/schema'
+import type { BuiltRecipe } from '../recipe/schema'
 import { siteWords } from '../scene/sun'
 
-type Sweep = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
+/** A recipe the engine builds: a sweep or a parametric surface. */
+type Built = BuiltRecipe
 
 export type DossierStage = 'concept' | 'recipe' | 'bare' | 'realistic' | 'render' | 'print'
 
@@ -25,7 +26,7 @@ export interface DossierImage {
 }
 
 export interface DossierInput {
-  recipe: Sweep
+  recipe: Built
   projectTitle: string
   versions: { number: number; created_at: string; note: string | null }[]
   images: DossierImage[]

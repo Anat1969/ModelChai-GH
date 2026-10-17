@@ -7,14 +7,15 @@ import { MATERIAL_LOOK } from '../engine/materials'
 import { isClosedPath } from '../engine/paths'
 import { CURVE_PATHS, lowestPoints } from '../engine/paths/analysis'
 import { outerRadius, symmetryOrder } from '../recipe/rules'
-import type { Recipe, SweepParams } from '../recipe/schema'
+import type { BuiltRecipe, SurfaceRecipe, SweepParams, SweepRecipe } from '../recipe/schema'
 import { CONTEXTS, VEGETATION, type ContextId, type VegetationId } from '../scene/contexts/layout'
 import { seasonOf } from '../scene/seasons'
 import { clockLabel, dateLabel, localTime, siteWords, sunAt } from '../scene/sun'
 import { SIDE_HE, beaufort, compassWord, orientationOf, sideOfFront, windOfRecipe } from '../scene/wind'
 import { num, turnsLabel } from '../ui/format'
 
-type Sweep = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
+type Sweep = SweepRecipe
+type Built = BuiltRecipe
 
 export interface PromptPart {
   /** The slot in the LEVELS.md 2.6 template. */
@@ -80,7 +81,39 @@ function pathWords(p: SweepParams): string {
   }
 }
 
-function shapePart(r: Sweep): PromptPart {
+/** Words for each surface family (DECISIONS.md 139): what the form is, in the numbers the screen shows. */
+function surfaceWords(r: SurfaceRecipe): string {
+  const p = r.generator.params
+  switch (p.family) {
+    case 'hyperboloid':
+      return `מגדל היפרבולואיד חד-יריעתי בגובה ${m(p.height!)}, מותן בקוטר ${m(2 * p.waist_radius!)} שמתרחבת לקוטר ${m(2 * p.end_radius!)} בקצוות, משטח שכולו קווים ישרים`
+    case 'catenoid':
+      return `ביתן קטנואיד בגובה ${m(p.height!)}, משטח מינימלי שנמתח בין שתי טבעות בקוטר ${m(2 * p.waist_radius! * Math.cosh(p.height! / 2 / p.waist_radius!))}, מותן בקוטר ${m(2 * p.waist_radius!)}`
+    case 'hyperbolic_paraboloid':
+      return `גגון פרבולואיד היפרבולי על תוכנית ${m(p.span!)} על ${m(p.span2 ?? p.span!)}, שתי פינות מורמות לגובה ${m(p.rise!)} ושתיים יורדות לקרקע, כל השפות קווים ישרים`
+    case 'monkey_saddle':
+      return `אוכף קוף על תוכנית ${m(p.span!)} על ${m(p.span2 ?? p.span!)}, שלושה עמקים ושלושה רכסים שנפגשים במרכז שטוח, הפרש גובה ${m(p.rise!)}`
+    case 'helicoid':
+      return `רמפה הליקואידית ברדיוס ${m(p.radius!)}, שעולה ${m(p.pitch!)} בכל סיבוב, ${num(p.turns!, p.turns! % 1 ? 2 : 0)} סיבובים סביב ציר אחד`
+    case 'klein_bottle':
+      return `בקבוק קליין: חתך שמינייה שמסתובב חצי סיבוב לאורך טבעת בקוטר ${m(2 * p.radius!)}, משטח חד-צדדי בלי פנים וחוץ, שעובר דרך עצמו בטבעת אחת`
+  }
+}
+
+function surfaceShape(r: SurfaceRecipe): PromptPart {
+  const words = [surfaceWords(r), `קליפה דקה בעובי ${num(r.bare.shell?.thickness ?? 0.08, 2)} מ'`]
+  const base = r.bare.section_center_height
+  if (base < -0.05) words.push(`הבסיס שקוע בקרקע לעומק ${m(-base)}`)
+  if (base > 0.05) words.push(`הבסיס מורם ${m(base)} מעל הקרקע`)
+  return { slot: 'shape', text: words.join(', '), sources: [`${P}.family`, P, 'bare.shell', 'bare.section_center_height'] }
+}
+
+function shapePart(r: Built): PromptPart {
+  if (r.generator.type === 'parametric_surface') return surfaceShape(r as SurfaceRecipe)
+  return sweepShape(r as Sweep)
+}
+
+function sweepShape(r: Sweep): PromptPart {
   const p = r.generator.params
   const closed = isClosedPath(p.path)
   const words = [`מבנה שנוצר מ${sectionWords(p)}, לאורך ${pathWords(p)}`]
@@ -106,7 +139,7 @@ function shapePart(r: Sweep): PromptPart {
   }
 }
 
-function materialPart(r: Sweep): PromptPart {
+function materialPart(r: Built): PromptPart {
   const mats = r.realistic.materials
   const words = [`מעטפת מ${MATERIAL_LOOK[mats.outer].name_he}`]
   if (mats.inner && mats.inner !== mats.outer) words.push(`דופן פנימית מ${MATERIAL_LOOK[mats.inner].name_he}`)
@@ -114,7 +147,7 @@ function materialPart(r: Sweep): PromptPart {
   return { slot: 'material', text: words.join(', '), sources: ['realistic.materials'] }
 }
 
-function contextPart(r: Sweep): PromptPart {
+function contextPart(r: Built): PromptPart {
   const c = CONTEXTS[r.realistic.context.preset as ContextId]
   const site = siteWords(r.realistic.site)
   const where = site ? ` ${site}` : ''
@@ -123,7 +156,7 @@ function contextPart(r: Sweep): PromptPart {
 
 export const windOf = compassWord
 
-function lightPart(r: Sweep): PromptPart {
+function lightPart(r: Built): PromptPart {
   const site = r.realistic.site
   const t = localTime(r.realistic.datetime, site)
   const sun = sunAt(site, new Date(r.realistic.datetime))
@@ -140,7 +173,7 @@ function lightPart(r: Sweep): PromptPart {
   }
 }
 
-function seasonPart(r: Sweep): PromptPart {
+function seasonPart(r: Built): PromptPart {
   const t = localTime(r.realistic.datetime, r.realistic.site)
   const s = seasonOf(t.month)
   const veg = VEGETATION[(r.realistic.context.vegetation ?? CONTEXTS[r.realistic.context.preset as ContextId].vegetation) as VegetationId]
@@ -159,14 +192,14 @@ const WEATHER_WORDS = {
   snow: 'שלג יורד, שלג על הקרקע ועל הצמחייה, אור לבן רך בלי צל',
 } as const
 
-function weatherPart(r: Sweep): PromptPart {
+function weatherPart(r: Built): PromptPart {
   const w = windOfRecipe(r.realistic)
   const b = beaufort(w.speed_ms)
   const wind = b.force === 0 ? 'בלי רוח' : `${b.name_he} מה${windOf(w.from_deg)}, ${num(w.speed_ms, 0)} מ' לשנייה (בופור ${b.force})`
   return { slot: 'weather', text: `${WEATHER_WORDS[r.realistic.weather]}, ${wind}`, sources: ['realistic.weather', 'realistic.wind'] }
 }
 
-function peoplePart(r: Sweep): PromptPart | null {
+function peoplePart(r: Built): PromptPart | null {
   const n = r.realistic.context.people ?? 0
   if (!n) return null
   return { slot: 'people', text: n === 1 ? 'אדם אחד לקנה מידה' : `${n} אנשים לקנה מידה`, sources: ['realistic.context.people'] }
@@ -179,18 +212,29 @@ const CAMERA_WORDS = {
   courtyard: 'מבט מתוך החצר אל המבנה',
 } as const
 
-function cameraPart(r: Sweep): PromptPart {
-  const c = r.realistic.camera
-  return { slot: 'camera', text: `${CAMERA_WORDS[c.preset]}, מגובה ${m(c.height)}, זווית ראייה ${num(c.fov_deg, 0)}°`, sources: ['realistic.camera'] }
+/** "Inside" means a different place on a surface: up the tower, under the canopy, on the ramp. */
+const SURFACE_INSIDE: Record<string, string> = {
+  hyperboloid: 'מבט מתוך המגדל כלפי מעלה',
+  catenoid: 'מבט מתוך הביתן כלפי מעלה',
+  hyperbolic_paraboloid: 'מבט מתחת לקליפה',
+  monkey_saddle: 'מבט מתחת לקליפה',
+  helicoid: 'מבט על הרמפה, במעלה הסיבוב',
+  klein_bottle: CAMERA_WORDS.eye_level_oblique,
 }
 
-function distill(r: Sweep): string {
+function cameraPart(r: Built): PromptPart {
+  const c = r.realistic.camera
+  const words = c.preset === 'inside' && r.generator.type === 'parametric_surface' ? SURFACE_INSIDE[r.generator.params.family]! : CAMERA_WORDS[c.preset]
+  return { slot: 'camera', text: `${words}, מגובה ${m(c.height)}, זווית ראייה ${num(c.fov_deg, 0)}°`, sources: ['realistic.camera'] }
+}
+
+function distill(r: Built): string {
   const n = r.narrative
   const line = n.maxim?.trim() || n.insight.split(/(?<=\.)\s/)[0]!.trim()
   return `${n.name_he}: ${line}`
 }
 
-export function visualPrompt(r: Sweep): VisualPrompt {
+export function visualPrompt(r: Built): VisualPrompt {
   const parts = [shapePart(r), materialPart(r), contextPart(r), lightPart(r), seasonPart(r), weatherPart(r), peoplePart(r), cameraPart(r)].filter(
     (p): p is PromptPart => p !== null,
   )

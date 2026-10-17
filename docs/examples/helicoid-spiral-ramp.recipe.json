@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "helicoid-spiral-ramp",
+    "created_at": "2026-10-17T12:00:00+03:00",
+    "source": "manual",
+    "notes": "Example: balanced default state, parametric surface"
+  },
+  "concept": {
+    "name": "Helicoid",
+    "name_he": "הליקואיד",
+    "use": "רמפת תצפית",
+    "context_hint": "שולי יער"
+  },
+  "generator": {
+    "type": "parametric_surface",
+    "params": {
+      "family": "helicoid",
+      "radius": 7,
+      "pitch": 3.2,
+      "turns": 2
+    }
+  },
+  "bare": {
+    "mode": "shell",
+    "section_center_height": 0,
+    "shell": {
+      "thickness": 0.22,
+      "inner_method": "normal_offset"
+    },
+    "highlight": ["edges"]
+  },
+  "realistic": {
+    "site": {
+      "lat": 32.7,
+      "lon": 35.05,
+      "name": "Carmel"
+    },
+    "datetime": "2026-10-20T16:30:00+03:00",
+    "weather": "clear",
+    "orientation_deg": 0,
+    "wind": { "from_deg": 280, "speed_ms": 4 },
+    "materials": {
+      "outer": "timber_oak",
+      "inner": "polished_concrete_grey"
+    },
+    "context": {
+      "preset": "forest_edge",
+      "vegetation": "pine_forest",
+      "people": 8
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "הרמפה שהיא משטח אחד",
+    "insight": "קו ישר אחד שמסתובב סביב ציר ועולה בקצב קבוע יוצר את כל הרמפה: כל רדיוס הוא קו ישר על המשטח. ליד הציר הרמפה תלולה ובשפה היא מתונה, ולכן כל אחד בוחר את השיפוע שלו לפי המרחק מהמרכז.",
+    "maxim": "קו ישר שעולה בסיבוב.",
+    "fit_note": "הרמפה נבנית מהציר עצמו, בלי עמוד מרכזי ובלי מעקה."
+  }
+}

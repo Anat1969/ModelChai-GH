@@ -5,6 +5,7 @@
 import { validateRecipe, type RuleIssue } from '../recipe/rules'
 import type { Recipe, SchemaError, SweepParams } from '../recipe/schema'
 import { computeMetrics, type Metrics } from './metrics'
+import { buildSurface } from './surface/build'
 import { computeEdges, pathCurve } from './sweep/edges'
 import { computeFloor, type FloorResult } from './sweep/floor'
 import { computeOpenings } from './sweep/openings'
@@ -16,7 +17,7 @@ export interface BuildMeshes {
   outer: MeshData
   inner: MeshData | null
   floor: MeshData | null
-  /** End caps of an open path. */
+  /** End caps of an open path; on a parametric surface, the strips that close the shell along its open edges. */
   caps: MeshData | null
 }
 
@@ -46,8 +47,9 @@ export function build(input: unknown, resolution?: Resolution): BuildResult {
   if (v.stage === 'schema') return { ok: false, stage: 'schema', schemaErrors: v.schemaErrors, issues: [] }
   if (!v.ok) return { ok: false, stage: 'rules', schemaErrors: [], issues: v.issues }
   const g = v.recipe.generator
+  if (g.type === 'parametric_surface') return buildSurface(v.recipe, g.params, v.issues)
   if (g.type !== 'sweep') {
-    return { ok: false, stage: 'generator', schemaErrors: [], issues: v.issues, message: `generator "${g.type}" arrives in Stage 6` }
+    return { ok: false, stage: 'generator', schemaErrors: [], issues: v.issues, message: `generator "${g.type}" arrives later in Stage 6` }
   }
   return buildSweep(v.recipe, g.params, v.issues, resolution)
 }

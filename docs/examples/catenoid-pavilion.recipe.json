@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "catenoid-pavilion",
+    "created_at": "2026-10-17T12:00:00+03:00",
+    "source": "manual",
+    "notes": "Example: balanced default state, parametric surface"
+  },
+  "concept": {
+    "name": "Catenoid",
+    "name_he": "קטנואיד",
+    "use": "ביתן",
+    "context_hint": "פארק"
+  },
+  "generator": {
+    "type": "parametric_surface",
+    "params": {
+      "family": "catenoid",
+      "waist_radius": 5,
+      "height": 7
+    }
+  },
+  "bare": {
+    "mode": "shell",
+    "section_center_height": 0,
+    "shell": {
+      "thickness": 0.15,
+      "inner_method": "normal_offset"
+    },
+    "highlight": ["edges"]
+  },
+  "realistic": {
+    "site": {
+      "lat": 31.8,
+      "lon": 34.65,
+      "name": "Ashdod"
+    },
+    "datetime": "2026-05-02T17:30:00+03:00",
+    "weather": "clear",
+    "orientation_deg": 0,
+    "wind": { "from_deg": 270, "speed_ms": 4 },
+    "materials": {
+      "outer": "white_marble",
+      "inner": "white_render"
+    },
+    "context": {
+      "preset": "park_lawn",
+      "vegetation": "lawn_and_trees",
+      "people": 8
+    },
+    "camera": {
+      "preset": "eye_level_oblique",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "הביתן של קרום הסבון",
+    "insight": "קרום סבון שנמתח בין שתי טבעות מוצא לבד את המשטח בעל השטח הקטן ביותר: הקטנואיד. בכל נקודה העיקול לאורך הקיר מבטל את העיקול סביב הציר, ולכן הדופן מתוחה באופן שווה, בלי מקום חלש אחד.",
+    "maxim": "השטח הקטן ביותר מחזיק את החלל כולו.",
+    "fit_note": "המשטח נבנה כקליפה רציפה: הכניסה לביתן עוד לא נחתכת בדופן של משטח."
+  }
+}

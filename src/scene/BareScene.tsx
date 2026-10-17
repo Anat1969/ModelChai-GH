@@ -10,7 +10,7 @@ import type { BuildSuccess } from '../engine/build'
 import { sectionCut } from '../engine/sectionCut'
 import type { MeshData } from '../engine/types'
 import { outerRadius } from '../recipe/rules'
-import type { Sweep } from '../ui/params'
+import type { Built, Sweep } from '../ui/params'
 import { useStudio } from '../ui/store'
 import { bounds, cameraPose, peopleSpots, type Vec3 } from './cameras'
 import { between, boundingSphere, ease, frame, LIMITS, step, type NavStep, type Pose } from './navigation'
@@ -161,7 +161,7 @@ export const cameraControl: {
 /** A click moves the camera for this long, then stops exactly on the step. */
 const MOVE_MS = 220
 
-export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) {
+export function CameraRig({ recipe, ready }: { recipe: Built; ready: boolean }) {
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null)
   const { camera } = useThree()
   const nonce = useStudio((s) => s.cameraNonce)
@@ -303,7 +303,7 @@ export function CameraRig({ recipe, ready }: { recipe: Sweep; ready: boolean }) 
 }
 
 /** `still` drops the studio's live tools (edge tracer, moving section), for side-by-side comparison. */
-export function BareScene({ result, recipe, rows, still = false }: { result: BuildSuccess | null; recipe: Sweep; rows: number; still?: boolean }) {
+export function BareScene({ result, recipe, rows, still = false }: { result: BuildSuccess | null; recipe: Built; rows: number; still?: boolean }) {
   const showEdges = useStudio((s) => s.showEdges)
   const showPeople = useStudio((s) => s.showPeople)
   const sectionOn = useStudio((s) => s.sectionOn)
@@ -362,7 +362,8 @@ export function BareScene({ result, recipe, rows, still = false }: { result: Bui
           {!still && <Tracer result={result} rows={rows} />}
         </>
       )}
-      {sectionOn && !still && <SectionPlane recipe={recipe} />}
+      {/* The moving section belongs to the sweep: a surface has no section to cut (DECISIONS.md 139). */}
+      {sectionOn && !still && recipe.generator.type === 'sweep' && <SectionPlane recipe={recipe as Sweep} />}
       {people.map((p, i) => (
         <Person key={i} at={p.at} h={p.h} />
       ))}

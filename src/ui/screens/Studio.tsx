@@ -7,7 +7,7 @@ import { loadDraft, saveDraft } from '../../data/offline'
 import { getVersion, type View } from '../../data/projects'
 import { cameraControl } from '../../scene/BareScene'
 import { sectionCut } from '../../engine/sectionCut'
-import { parseRecipe } from '../../recipe/schema'
+import { asBuilt, parseRecipe } from '../../recipe/schema'
 import { Viewport } from '../../scene/Viewport'
 import { meters, num } from '../format'
 import { ExportPanel } from '../panels/ExportPanel'
@@ -16,7 +16,7 @@ import { NoticeBox } from '../panels/NoticeBox'
 import { ParamsPanel } from '../panels/ParamsPanel'
 import { RealisticPanel } from '../panels/RealisticPanel'
 import { FIXTURES, RecipeLoader } from '../panels/RecipeLoader'
-import type { Sweep } from '../params'
+import type { Built, Sweep } from '../params'
 import { useStudio, type CameraPreset } from '../store'
 import { TopNav } from '../TopNav'
 import { SavePanel } from '../panels/SavePanel'
@@ -61,10 +61,11 @@ function parseView(raw: string | null): View | null {
   }
 }
 
-function asSweep(raw: unknown): Sweep | null {
+/** The recipe when the engine builds its generator: a sweep or a parametric surface (DECISIONS.md 139). */
+function asBuiltRecipe(raw: unknown): Built | null {
   if (!raw) return null
   const p = parseRecipe(raw)
-  return p.ok && p.recipe.generator.type === 'sweep' ? (p.recipe as Sweep) : null
+  return p.ok ? asBuilt(p.recipe) : null
 }
 
 function SectionControl({ recipe }: { recipe: Sweep }) {
@@ -196,9 +197,9 @@ export function Studio() {
   // A preview does not outlive the studio.
   useEffect(() => () => stopPreview(), [])
 
-  const recipe = useMemo(() => asSweep(raw), [raw])
+  const recipe = useMemo(() => asBuiltRecipe(raw), [raw])
   // The scene follows the last built recipe, so figures and the section plane always match the mesh on screen.
-  const built = useMemo(() => asSweep(validRaw), [validRaw])
+  const built = useMemo(() => asBuiltRecipe(validRaw), [validRaw])
   const shown = built ?? recipe
   const edges = result?.metrics.edgeCount ?? 0
 
@@ -329,7 +330,7 @@ export function Studio() {
                   <button type="button" className="reset" disabled={!changed(['generator', 'bare'])} onClick={() => reset('shape')} data-testid="reset-shape">
                     איפוס הצורה
                   </button>
-                  {shown && bare && <SectionControl recipe={shown} />}
+                  {shown && bare && shown.generator.type === 'sweep' && <SectionControl recipe={shown as Sweep} />}
                 </div>
                 <ParamsPanel recipe={recipe} />
               </>

@@ -107,6 +107,16 @@ export const FIGURES: Record<string, () => Figure> = {
     }
     return fit([guide(top, true), guide(bot, true), ...lines])
   },
+  helicoid: () => {
+    // The rulings: straight radii that turn and climb around the axis, under the outer helix.
+    const lines: Figure['lines'] = []
+    for (let i = 0; i <= 24; i++) {
+      const u = (i / 24) * 2 * TAU
+      lines.push(guide([project([0, 0.5 * u, 0]), project([3 * Math.cos(u), 0.5 * u, 3 * Math.sin(u)])]))
+    }
+    const rim = sample((u) => project([3 * Math.cos(u), 0.5 * u, 3 * Math.sin(u)]), 0, 2 * TAU, 300)
+    return fit([main(rim), ...lines, guide([project([0, 0, 0]), project([0, 0.5 * 2 * TAU, 0])])])
+  },
   hypar: () => {
     const lines: Figure['lines'] = []
     for (let i = -4; i <= 4; i++) {
