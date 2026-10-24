@@ -35,7 +35,7 @@
 ## ממשק
 - עברית ו-RTL מלא בכל רכיב, טופס וכפתור.
 - **בלי אייקונים בממשק.** המילים מספרות. הכלל חל על סמלים במקום מילים, ולא על סמל האפליקציה. חריג אחד שענת ביקשה: מפתח Claude בסרגל העליון, תמיד עם מילים. לאפליקציה יש אייקון, הדלתואיד: favicon, manifest והתקנה מ-Chrome. הוא מופיע גם ליד השם בסרגל העליון (`DECISIONS.md` 95).
-- **סרגל עליון קבוע בכל מסך:** סמל ושם האפליקציה כקישור לדף הבית, מושגים, פרויקטים, מפתח Claude, וכפתור "מערכת" אחד שבו העתקת קישור, שיחת הפיתוח, פרויקט המחקר והתקנה (`DECISIONS.md` 96, 124).
+- **סרגל עליון קבוע בכל מסך:** סמל ושם האפליקציה כקישור לדף הבית, מושגים, פרויקטים, מפתח Claude, וכפתור הלוגו A&I אחד (`<ai-menu>`) שבו העתקת קישור, שיחת הפיתוח והתקנה (`DECISIONS.md` 96, 124).
 - **בלי רענון ידני.** גרסה חדשה נטענת במעבר הבא בין מסכים, ונתונים נטענים מחדש כשהלשונית חוזרת (`DECISIONS.md` 125). מסך חדש שטוען נתונים משתמש ב-`useOnReturn`.
 - **ייצוא לדף מנצל את הדף.** טקסט נחתך בין משפטים, ותמונה מתקצרת או עוברת, ולא משאירים חור בתחתית (`DECISIONS.md` 126).
 - פונטים גדולים וקריאים. מספרים ב-`tabular-nums`.
@@ -55,3 +55,6 @@
 - האפליקציה: Vercel, פרויקט `math-creator`, בכתובת https://math-creator.vercel.app. כל דחיפה לענף ברירת המחדל נפרסת לבד.
 - השרת: Supabase ‏`cultura-GH`. כל טבלה ודלי מתחילים ב-`mathcreator_` או `mathcreator-`, כי הפרויקט משותף לאפליקציות אחרות.
 - סביבת הפיתוח לא מגיעה ל-supabase.co. בדיקות חיות רצות מתוך Postgres בהרחבת `http`, עם משתמש הבדיקה שהסיסמה שלו ב-Vault (`DECISIONS.md` 45).
+
+## A&I logo button
+The top bar holds only the app name (links home), content navigation, and ONE logo button "אד' ענת שטיבלמן A&I" (`<ai-menu>` from https://appofapp-gh.vercel.app/ai-menu.js). Every editing and development action (העתקת קישור, שיחת הפיתוח, פרויקט המחקר, התקנת האפליקציה, edit mode, add, delete) lives only inside it, never as loose buttons. Standard: https://github.com/Anat1969/AppOfApp-GH/blob/main/docs/ai-menu-standard.md

@@ -9,7 +9,6 @@ import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import './ui/theme/app.css'
 import { startFreshness } from './ui/freshness'
-import { listenForInstall } from './ui/install'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -17,7 +16,6 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
-listenForInstall()
 startFreshness()
 // The service worker makes the app installable from Chrome (DECISIONS.md 95). Not in development, where
 // Vite serves every file fresh.
