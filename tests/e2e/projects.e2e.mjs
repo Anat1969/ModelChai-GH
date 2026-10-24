@@ -187,6 +187,8 @@ async function mock(page) {
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { cwd: root, stdio: 'ignore' })
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
 const context = await browser.newContext({ viewport: { width: 1360, height: 1000 }, deviceScaleFactor: 1, acceptDownloads: true, permissions: ['clipboard-read', 'clipboard-write'] })
+// The A&I logo button is loaded from the portfolio app; serve a local copy when AI_MENU_JS points to one.
+if (process.env.AI_MENU_JS) await context.route('https://appofapp-gh.vercel.app/ai-menu.js', (r) => r.fulfill({ path: process.env.AI_MENU_JS, contentType: 'application/javascript' }))
 
 async function open(page, hash) {
   for (let i = 0; i < 60; i++) {
@@ -282,18 +284,19 @@ try {
     return { manifest: await get('link[rel=manifest]'), icon: await get('link[rel=icon][type="image/svg+xml"]'), png: await get('link[rel=icon][type="image/png"]'), apple: await get('link[rel=apple-touch-icon]') }
   })
   check('the app has an icon and an install manifest', Object.values(head).every((v) => v === 200), JSON.stringify(head))
-  await page.click('[data-testid=system-menu]')
+  await page.click('ai-menu .logo')
   const bar = await page.evaluate(() => ({
     mark: document.querySelector('[data-testid=brand] .brand-mark')?.getAttribute('src'),
-    tools: [...document.querySelectorAll('.system-menu > [role=menuitem]')].map((e) => e.firstChild.textContent.trim()),
-    inBar: document.querySelectorAll('.topbar-tools > button').length,
-    dev: document.querySelector('[data-testid=dev-session]')?.getAttribute('href'),
+    tools: [...document.querySelector('ai-menu').shadowRoot.querySelectorAll('.item')].map((e) => e.firstChild.textContent.trim()),
+    inBar: document.querySelectorAll('.topbar > button').length,
+    dev: document.querySelector('ai-menu').getAttribute('chat'),
   }))
-  check('the top bar has the mark, and copy link, the development chat, the research project and install', bar.mark === '/icon.svg' && bar.inBar === 1 && bar.tools.join('|') === 'העתקת קישור|שיחת הפיתוח|פרויקט המחקר|התקנה' && /claude\.ai\/code\/session_/.test(bar.dev), bar.tools.join(' · '))
+  check('the top bar has the mark and one A&I logo button with copy link, the development chat and install', bar.mark === '/icon.svg' && bar.inBar === 0 && bar.tools.slice(0, 2).join('|') === 'העתקת קישור|שיחת הפיתוח' && bar.tools.includes('התקנת האפליקציה') && /claude\.ai\/code\/session_/.test(bar.dev), bar.tools.join(' · '))
+  await page.keyboard.press('Escape')
   await open(page, '#/new')
-  await page.click('[data-testid=system-menu]')
-  await page.click('[data-testid=copy-link]')
-  await page.waitForSelector('[data-testid=topbar-said]')
+  await page.click('ai-menu .logo')
+  await page.locator('ai-menu .item', { hasText: 'העתקת קישור' }).click()
+  await page.waitForTimeout(300)
   const copied = await page.evaluate(() => navigator.clipboard.readText())
   check('"העתקת קישור" copies this page\'s address', copied.endsWith('#/new'), copied)
   await page.click('[data-testid=brand]')

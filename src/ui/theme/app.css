@@ -542,74 +542,8 @@ select {
   width: 26px;
   height: 26px;
 }
-.topbar-tools {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  border-inline-start: 1px solid var(--line);
-  padding-inline-start: var(--space-3);
-}
-.system-button {
-  font-size: 15px;
-  font-weight: 600;
-  min-height: 44px;
-  padding-inline: 12px;
-  white-space: nowrap;
-}
-.system-button[aria-expanded='true'] {
-  background: var(--ink);
-  color: var(--accent-ink);
-}
-.system-menu {
-  position: absolute;
-  inset-block-start: calc(100% + 4px);
-  inset-inline-end: 0;
-  z-index: 40;
-  min-width: 260px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
-  display: flex;
-  flex-direction: column;
-  padding: 4px;
-}
-.system-menu > button,
-.system-menu > .toollink {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  text-align: start;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 10px 12px;
-  min-height: 44px;
-}
-.system-menu small {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--muted);
-}
-.system-menu > button:hover,
-.system-menu > .toollink:hover,
-.system-menu > :focus-visible {
-  background: var(--hairline);
-}
-.topbar-said {
-  position: absolute;
-  inset-block-start: calc(100% + 4px);
-  inset-inline-end: 0;
-  background: var(--ink);
-  color: var(--accent-ink);
-  font-size: 14px;
-  padding: 4px 10px;
-  white-space: nowrap;
-  z-index: 30;
+.topbar ai-menu {
+  margin-inline-start: auto;
 }
 .topbar .crumbs {
   min-width: 0;
@@ -660,10 +594,6 @@ select {
   .topbar .crumbs {
     order: 3;
     flex-basis: 100%;
-  }
-  .topbar-said {
-    white-space: normal;
-    max-width: calc(100vw - 32px);
   }
 }
 
