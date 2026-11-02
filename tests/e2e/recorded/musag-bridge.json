@@ -1,0 +1,394 @@
+{
+ "app": "musag-matemati",
+ "version": 1,
+ "url": "https://musag-matemati-gh.vercel.app",
+ "concepts": [
+  {
+   "slug": "golden-ratio",
+   "name": "יחס הזהב",
+   "latin": "Golden ratio · φ",
+   "force": {
+    "id": "order",
+    "name": "סדר",
+    "question": "איך מחלקים"
+   },
+   "architecturalName": "מקדש הפרופורציה האלוהית",
+   "url": "https://musag-matemati-gh.vercel.app/#/c/golden-ratio",
+   "image": "https://musag-matemati-gh.vercel.app/media/golden-ext.webp",
+   "insight": "פרופורציה שחוזרת בכל קנה מידה.",
+   "insightText": "מוסיפים ריבוע למלבן זהב, ומקבלים שוב מלבן זהב. אותו יחס מחזיק את הפרט ואת השלם.",
+   "rule": {
+    "text": "קטע מחולק כך שהשלם ביחס לחלק הגדול שווה לחלק הגדול ביחס לקטן.",
+    "formula": "φ = (1+√5)/2 ≈ 1.618",
+    "source": {
+     "label": "אוקלידס Euclid, יסודות, ספר VI, הגדרה 3",
+     "href": "https://mathcs.clarku.edu/~djoyce/elements/bookVI/defVI3.html"
+    }
+   },
+   "precedent": {
+    "name": {
+     "he": "יחידת המגורים במרסיי",
+     "latin": "Unité d'habitation, Marseille"
+    },
+    "by": "לה קורבוזיה Le Corbusier",
+    "year": "1952",
+    "text": "כל המידות נגזרות מהמודולור: סולם מידות שנבנה מגובה אדם ומ-φ, ופורסם ב-1948.",
+    "source": {
+     "label": "Le Modulor, 1948",
+     "href": "https://en.wikipedia.org/wiki/Modulor"
+    }
+   },
+   "city": {
+    "name": {
+     "he": "אשדוד",
+     "latin": "Ashdod"
+    },
+    "text": "מדדו חלון בחזית שלידכם.\nיחס של 1.6 בין גובה לרוחב הוא מלבן זהב.\nיחס של 1 הוא ריבוע שקט."
+   },
+   "quote": {
+    "text": "האדריכלות היא המשחק המלומד, המדויק והמפואר של נפחים המכונסים באור.",
+    "by": {
+     "he": "לה קורבוזיה",
+     "latin": "Le Corbusier"
+    },
+    "work": "Vers une architecture",
+    "year": "1923"
+   },
+   "haiku": {
+    "lines": [
+     "ריבוע נוסף",
+     "והמלבן שוב שלם",
+     "צדף על החוף"
+    ],
+    "note": "צמיחה שמוסיפה בלי לשנות צורה: כך גדל צדף, וכך גדל מלבן זהב."
+   },
+   "models": [
+    {
+     "id": "golden_spiral",
+     "relation": "near",
+     "why": "ספירלה שגדלה פי φ בכל רבע סיבוב: היחס הופך לצורה בתלת־ממד."
+    },
+    {
+     "id": "fibonacci",
+     "relation": "near",
+     "why": "היחס בין שני מספרים סמוכים בסדרה שואף ל-φ."
+    }
+   ]
+  },
+  {
+   "slug": "mobius",
+   "name": "רצועת מביוס",
+   "latin": "Möbius strip",
+   "force": {
+    "id": "flow",
+    "name": "רצף",
+    "question": "איך מחברים"
+   },
+   "architecturalName": "היכל המשטח היחידאי",
+   "url": "https://musag-matemati-gh.vercel.app/#/c/mobius",
+   "image": "https://musag-matemati-gh.vercel.app/media/mobius-ext.webp",
+   "insight": "פנים וחוץ הם אותו משטח.",
+   "insightText": "מי שהולך לאורך הרצועה חוזר לנקודת המוצא הפוך, בלי לחצות אף שפה.",
+   "rule": {
+    "text": "משטח עם צד אחד ושפה אחת. מקבלים אותו כשמסובבים רצועה בחצי סיבוב ומחברים את קצותיה.",
+    "formula": "חצי סיבוב ← צד אחד, שפה אחת",
+    "source": {
+     "label": "אוגוסט פרדיננד מביוס August F. Möbius ויוהאן בנדיקט ליסטינג J. B. Listing, באופן בלתי תלוי, 1858",
+     "href": "https://en.wikipedia.org/wiki/M%C3%B6bius_strip"
+    }
+   },
+   "precedent": {
+    "name": {
+     "he": "בית מביוס",
+     "latin": "Möbius House, Het Gooi"
+    },
+    "by": "UNStudio, בן ואן ברקל Ben van Berkel וקרוליין בוס Caroline Bos",
+    "year": "1998",
+    "text": "מסלול היום ומסלול העבודה נכרכים זה בזה כמו רצועה, ובטון וזכוכית מחליפים צדדים לאורכם.",
+    "source": {
+     "label": "UNStudio, Möbius House",
+     "href": "https://www.unstudio.com/en/page/12102/m%C3%B6bius-house"
+    }
+   },
+   "city": {
+    "name": {
+     "he": "חניון קומות בעיר",
+     "latin": "Parking ramp"
+    },
+    "text": "רמפה שמחברת קומה לקומה היא רצף אחד.\nשימו לב איפה היא מסמנת לכם עצירה, ואיפה אתם הולכים לאיבוד."
+   },
+   "quote": null,
+   "haiku": {
+    "lines": [
+     "נמלה צועדת",
+     "על פס נייר מפותל",
+     "חוזרת הפוכה"
+    ],
+    "note": "הדימוי של מאוריץ אשר M. C. Escher, ברצועת מביוס II, 1963: הליכה בלי לחצות שפה."
+   },
+   "models": [
+    {
+     "id": "mobius",
+     "relation": "same",
+     "why": "אותו משטח: צד אחד ושפה אחת, בחצי סיבוב."
+    }
+   ]
+  },
+  {
+   "slug": "prime",
+   "name": "מספר ראשוני",
+   "latin": "Prime number",
+   "force": {
+    "id": "order",
+    "name": "סדר",
+    "question": "איך מחלקים"
+   },
+   "architecturalName": "היכל היסודות הראשוניים",
+   "url": "https://musag-matemati-gh.vercel.app/#/c/prime",
+   "image": "https://musag-matemati-gh.vercel.app/media/prime-ext.webp",
+   "insight": "יסוד שאי אפשר לפרק.",
+   "insightText": "כמו אבן פינה, ראשוני הוא חלק שממנו בונים, ואינו מתחלק לחלקים קטנים יותר.",
+   "rule": {
+    "text": "מספר גדול מ-1 שמתחלק רק ב-1 ובעצמו. כל מספר שלם בנוי מראשוניים, בדרך אחת בלבד.",
+    "formula": "2, 3, 5, 7, 11, 13 …",
+    "source": {
+     "label": "אוקלידס Euclid, יסודות, ספר IX, משפט 20: יש אינסוף ראשוניים",
+     "href": "https://mathcs.clarku.edu/~djoyce/elements/bookIX/propIX20.html"
+    }
+   },
+   "precedent": {
+    "name": {
+     "he": "בית האספה הלאומית של בנגלדש",
+     "latin": "Jatiya Sangsad Bhaban, Dhaka"
+    },
+    "by": "לואי קאן Louis Kahn",
+    "year": "1982",
+    "text": "קירות בטון ענקיים נחתכים בעיגולים, משולשים וריבועים: צורות יסוד בלי קישוט אחד.",
+    "source": {
+     "label": "Jatiya Sangsad Bhaban",
+     "href": "https://en.wikipedia.org/wiki/Jatiya_Sangsad_Bhaban"
+    }
+   },
+   "city": {
+    "name": {
+     "he": "בניין ציבורי בעיר",
+     "latin": "Colonnade"
+    },
+    "text": "ספרו עמודים בקולונדה או מרפסות בחזית.\nמספר אי־זוגי נותן ציר מרכזי לכניסה.\nמספר ראשוני גם לא מתחלק לקבוצות שוות."
+   },
+   "quote": {
+    "text": "יש יותר מספרים ראשוניים מכל כמות נתונה של מספרים ראשוניים.",
+    "by": {
+     "he": "אוקלידס",
+     "latin": "Euclid"
+    },
+    "work": "יסודות, ספר IX, משפט 20, בתרגום Heath",
+    "year": "בערך 300 לפני הספירה"
+   },
+   "haiku": {
+    "lines": [
+     "אבן אחת",
+     "שום פטיש לא יחצה",
+     "עליה הבית"
+    ],
+    "note": "הייקו על אבן הפינה: מה שאי אפשר לפרק הוא מה שנושא."
+   },
+   "models": []
+  },
+  {
+   "slug": "integral",
+   "name": "אינטגרל",
+   "latin": "Integral · ∫",
+   "force": {
+    "id": "flow",
+    "name": "רצף",
+    "question": "איך מחברים"
+   },
+   "architecturalName": "מקדש הרצף המצטבר",
+   "url": "https://musag-matemati-gh.vercel.app/#/c/integral",
+   "image": "https://musag-matemati-gh.vercel.app/media/integral-ext.webp",
+   "insight": "השלם הוא סכום של צעדים קטנים.",
+   "insightText": "כשהמלבנים נעשים צרים, המדרגות הופכות לעקומה, והבניין נקרא כנפח אחד רציף.",
+   "rule": {
+    "text": "סכום של אינסוף חלקים זעירים: השטח מתחת לעקומה, כגבול של סכום מלבנים צרים.",
+    "formula": "∫f dx = lim Σ f·Δx",
+    "source": {
+     "label": "גוטפריד וילהלם לייבניץ G. W. Leibniz כתב את הסימן ∫ לראשונה, 1675",
+     "href": "https://en.wikipedia.org/wiki/Integral_symbol"
+    }
+   },
+   "precedent": {
+    "name": {
+     "he": "באר המדרגות צ׳אנד באורי",
+     "latin": "Chand Baori, Abhaneri"
+    },
+    "by": "ראג׳סטאן, הודו Rajasthan, India",
+    "year": "המאה ה-9",
+    "text": "כ-3,500 מדרגות צרות יורדות 13 קומות אל המים: סכום מדרגות שהופך לבור אחד.",
+    "source": {
+     "label": "Chand Baori",
+     "href": "https://en.wikipedia.org/wiki/Chand_Baori"
+    }
+   },
+   "city": {
+    "name": {
+     "he": "שמורת חולות אשדוד־ניצנים",
+     "latin": "Ashdod–Nitzanim Sands"
+    },
+    "text": "דיונה היא אינטגרל של רוח.\nגרגר ועוד גרגר, עד גבעה שלמה.\nאיש לא תכנן אותה כשלם."
+   },
+   "quote": {
+    "text": "אם ראיתי רחוק יותר, הרי זה משום שעמדתי על כתפי ענקים.",
+    "by": {
+     "he": "אייזק ניוטון",
+     "latin": "Isaac Newton"
+    },
+    "work": "מכתב לרוברט הוק Robert Hooke",
+    "year": "1676"
+   },
+   "haiku": {
+    "lines": [
+     "גרגר על גרגר",
+     "הרוח בונה גבעה",
+     "בלי לספור אחד"
+    ],
+    "note": "דיונה בחוף אשדוד: צבירה שאין בה רגע אחד של בנייה."
+   },
+   "models": [
+    {
+     "id": "riemann",
+     "relation": "same",
+     "why": "סכום רימן הוא ההגדרה של האינטגרל: מלבנים שנעשים צרים עד שהם עקומה."
+    }
+   ]
+  },
+  {
+   "slug": "entropy",
+   "name": "אנטרופיה",
+   "latin": "Entropy · S",
+   "force": {
+    "id": "change",
+    "name": "שינוי",
+    "question": "איך משתנים"
+   },
+   "architecturalName": "מבוך השינוי המתהווה",
+   "url": "https://musag-matemati-gh.vercel.app/#/c/entropy",
+   "image": "https://musag-matemati-gh.vercel.app/media/entropy-ext.webp",
+   "insight": "הזמן הוא חומר בניין.",
+   "insightText": "כל בניין נע מסדר לאי־סדר. השאלה היא אם התכנון מתנגד לזה או משתמש בזה.",
+   "rule": {
+    "text": "מדד לאי־סדר. במערכת סגורה הוא לא יורד: החוק השני של התרמודינמיקה.",
+    "formula": "ΔS ≥ 0",
+    "source": {
+     "label": "רודולף קלאוזיוס Rudolf Clausius טבע את המונח, 1865",
+     "href": "https://en.wikipedia.org/wiki/Entropy"
+    }
+   },
+   "precedent": {
+    "name": {
+     "he": "מצודת אשדוד־ים",
+     "latin": "Ashdod-Yam Fortress"
+    },
+    "by": "חוף אשדוד Ashdod",
+    "year": "התקופה המוסלמית הקדומה",
+    "text": "חומות אבן על קו החוף, שהרוח והחול מפרקים ומכסים לאט. ההריסה היא חלק מהמקום.",
+    "source": {
+     "label": "Ashdod-Yam",
+     "href": "https://en.wikipedia.org/wiki/Ashdod-Yam"
+    }
+   },
+   "city": {
+    "name": {
+     "he": "חוף אשדוד",
+     "latin": "Ashdod beach"
+    },
+    "text": "אחרי כל סערה, החול מכסה מדרגות ושבילים.\nהעיר מתקנת, והחול חוזר.\nזו אנטרופיה בקנה מידה עירוני."
+   },
+   "quote": {
+    "text": "האנטרופיה של העולם שואפת למקסימום.",
+    "by": {
+     "he": "רודולף קלאוזיוס",
+     "latin": "Rudolf Clausius"
+    },
+    "work": "Annalen der Physik",
+    "year": "1865"
+   },
+   "haiku": {
+    "lines": [
+     "חומה ישנה",
+     "החול נכנס בסדקים",
+     "גם הוא בונה"
+    ],
+    "note": "במצודת אשדוד־ים הבלייה לא מוחקת. היא כותבת שכבה חדשה."
+   },
+   "models": []
+  },
+  {
+   "slug": "oxymoron",
+   "name": "אוקסימורון",
+   "latin": "Oxymoron · A ∧ ¬A",
+   "force": {
+    "id": "change",
+    "name": "שינוי",
+    "question": "איך משתנים"
+   },
+   "architecturalName": "מגדל השקט הרועם",
+   "url": "https://musag-matemati-gh.vercel.app/#/c/oxymoron",
+   "image": "https://musag-matemati-gh.vercel.app/media/oxymoron-ext.webp",
+   "insight": "ניגוד שמחזיק את המבנה.",
+   "insightText": "כבד וקל, אטום ושקוף באותו גוף: המתח ביניהם הוא מה שעוצר את העין.",
+   "rule": {
+    "text": "צירוף של שני מושגים סותרים שיוצר משמעות שלישית. בלוגיקה, A וגם לא־A הוא תמיד שקר. באוקסימורון הוא נעשה דימוי.",
+    "formula": "A ∧ ¬A",
+    "source": {
+     "label": "ביוונית: oxys, חד, ו־mōros, טיפש",
+     "href": "https://en.wikipedia.org/wiki/Oxymoron"
+    }
+   },
+   "precedent": {
+    "name": {
+     "he": "ספריית ביינקה לספרים נדירים",
+     "latin": "Beinecke Rare Book Library, Yale"
+    },
+    "by": "גורדון בנשאפט Gordon Bunshaft, SOM",
+    "year": "1963",
+    "text": "קירות של שיש דק מעבירים אור פנימה: אבן כבדה שמתנהגת כמו חלון.",
+    "source": {
+     "label": "Beinecke Rare Book & Manuscript Library",
+     "href": "https://en.wikipedia.org/wiki/Beinecke_Rare_Book_%26_Manuscript_Library"
+    }
+   },
+   "city": {
+    "name": {
+     "he": "היכל הספר, ירושלים",
+     "latin": "Shrine of the Book, Jerusalem"
+    },
+    "text": "כיפה לבנה מול קיר בזלת שחור.\nפרדריק קיסלר Frederick Kiesler וארמנד ברטוס Armand Bartos, 1965.\nבני האור ובני החושך מהמגילות, באבן."
+   },
+   "quote": {
+    "text": "פחות זה יותר.",
+    "by": {
+     "he": "רוברט בראונינג",
+     "latin": "Robert Browning"
+    },
+    "work": "Andrea del Sarto",
+    "year": "1855"
+   },
+   "haiku": {
+    "lines": [
+     "אבן שקופה",
+     "אור עובר בעד הכובד",
+     "שקט שרועם"
+    ],
+    "note": "השיש של ביינקה: כובד שמכניס אור."
+   },
+   "models": [
+    {
+     "id": "klein",
+     "relation": "near",
+     "why": "משטח שהפנים והחוץ שלו הם אותו משטח: סתירה שהגאומטריה מאפשרת."
+    }
+   ]
+  }
+ ]
+}
