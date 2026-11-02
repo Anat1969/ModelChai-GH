@@ -6,6 +6,7 @@ import { validateRecipe, type RuleIssue } from '../recipe/rules'
 import type { Recipe, SchemaError, SweepParams } from '../recipe/schema'
 import { computeMetrics, type Metrics } from './metrics'
 import { buildSurface } from './surface/build'
+import { buildTiling } from './tiling/build'
 import { computeEdges, pathCurve } from './sweep/edges'
 import { computeFloor, type FloorResult } from './sweep/floor'
 import { computeOpenings } from './sweep/openings'
@@ -48,6 +49,7 @@ export function build(input: unknown, resolution?: Resolution): BuildResult {
   if (!v.ok) return { ok: false, stage: 'rules', schemaErrors: [], issues: v.issues }
   const g = v.recipe.generator
   if (g.type === 'parametric_surface') return buildSurface(v.recipe, g.params, v.issues)
+  if (g.type === 'tiling') return buildTiling(v.recipe, g.params, v.issues)
   if (g.type !== 'sweep') {
     return { ok: false, stage: 'generator', schemaErrors: [], issues: v.issues, message: `generator "${g.type}" arrives later in Stage 6` }
   }

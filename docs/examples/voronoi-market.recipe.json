@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "id": "voronoi-market",
+    "created_at": "2026-11-02T12:00:00+02:00",
+    "source": "manual",
+    "notes": "Example: balanced default state, tiling"
+  },
+  "concept": {
+    "name": "Voronoi diagram",
+    "name_he": "דיאגרמת וורונוי",
+    "use": "שוק פתוח",
+    "context_hint": "שוליים עירוניים"
+  },
+  "generator": {
+    "type": "tiling",
+    "params": {
+      "pattern": "voronoi_cells",
+      "width": 48,
+      "depth": 32,
+      "count": 24,
+      "seed": 11,
+      "height_min": 2.4,
+      "height": 7,
+      "joint": 1.4
+    }
+  },
+  "bare": {
+    "mode": "solid",
+    "section_center_height": 0,
+    "highlight": [
+      "edges"
+    ]
+  },
+  "realistic": {
+    "site": {
+      "lat": 31.25,
+      "lon": 34.79,
+      "name": "Beersheba"
+    },
+    "datetime": "2026-03-10T10:00:00+02:00",
+    "weather": "clear",
+    "orientation_deg": 0,
+    "wind": {
+      "from_deg": 300,
+      "speed_ms": 5
+    },
+    "materials": {
+      "outer": "rammed_earth"
+    },
+    "context": {
+      "preset": "desert_loess",
+      "vegetation": "desert_acacia",
+      "people": 20
+    },
+    "camera": {
+      "preset": "aerial",
+      "height": 1.6,
+      "fov_deg": 42,
+      "aspect": "3:2"
+    }
+  },
+  "narrative": {
+    "name_he": "שוק התאים",
+    "insight": "עשרים וארבעה דוכנים, וכל דוכן הוא כל המקומות שקרובים לנקודה שלו יותר מלכל נקודה אחרת. השבילים ביניהם עוברים בדיוק באמצע בין שכנים, והגובה יורד מהמרכז החוצה.",
+    "maxim": "כל גבול הוא אמצע.",
+    "fit_note": null
+  }
+}

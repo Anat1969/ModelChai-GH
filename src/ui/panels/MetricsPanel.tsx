@@ -53,7 +53,34 @@ function surfaceRows(m: Metrics, r: Built): MetricRow[] {
   return out
 }
 
+const PHI = (1 + Math.sqrt(5)) / 2
+
+/** Rows of a tiling (DECISIONS.md 147): the elements, then the mathematics the pattern stands for. */
+function tilingRows(m: Metrics, r: Built): MetricRow[] {
+  const t = m.tiling!
+  const material = MATERIAL_LOOK[r.realistic.materials.outer].name_he
+  const out: MetricRow[] = []
+  out.push({ key: 'elements', label: 'מספר אלמנטים', value: num(t.elements, 0), raw: t.elements, rules: [24] })
+  out.push({ key: 'planSize', label: 'מידות בתוכנית', value: ltr(`${num(t.planWidth, 1)} × ${num(t.planDepth, 1)} מ'`), raw: t.planWidth * t.planDepth })
+  out.push({ key: 'height', label: t.tallest === t.lowest ? 'גובה' : 'גובה, מהנמוך לגבוה', value: t.tallest === t.lowest ? meters(t.tallest, 1) : range(t.lowest, t.tallest, 1), raw: t.tallest, rules: [22] })
+  if (t.passage !== null) out.push({ key: 'passage', label: 'מעבר בין אלמנטים', value: meters(t.passage, 2), raw: t.passage, rules: [23] })
+  if (t.riemannError !== null) {
+    out.push({ key: 'riemannSum', label: 'סכום הפסים מול האינטגרל', value: ltr(`${num(t.riemannSum!, 0)} / ${num(t.integral!, 0)} מ"ר`), raw: t.riemannSum! })
+    out.push({ key: 'riemannError', label: 'שגיאת הסכום', value: `${num(t.riemannError * 100, 2)}%`, raw: Math.abs(t.riemannError) })
+  }
+  if (t.primes !== null) out.push({ key: 'primes', label: `ראשוניים עד ${num(t.numbers!, 0)}`, value: `${num(t.primes, 0)}, והערכת N/ln N: ${num(t.primeEstimate!, 0)}`, raw: t.primes })
+  if (t.ratio !== null) out.push({ key: 'goldenRatio', label: 'יחס שני הריבועים הגדולים', value: `${num(t.ratio, 4)}, ו-φ = ${num(PHI, 4)}`, raw: Math.abs(t.ratio - PHI) })
+  if (t.endDistance !== null) out.push({ key: 'walkDistance', label: 'מרחק הסוף מההתחלה', value: `${meters(t.endDistance, 1)}, ו-√n × משבצת = ${meters(t.expectedDistance!, 1)}`, raw: t.endDistance })
+  if (t.maxVisits !== null) out.push({ key: 'maxVisits', label: 'ביקורים במשבצת העמוסה', value: num(t.maxVisits, 0), raw: t.maxVisits })
+  out.push({ key: 'footprintArea', label: 'שטח בנוי בתוכנית', value: `${num(t.footprint, 0)} מ"ר`, raw: t.footprint })
+  out.push({ key: 'volume', label: `${material}, גופים מלאים`, value: `${num(m.volume, 0)} מ"ק`, raw: m.volume })
+  const weight = m.volume * DENSITY[r.realistic.materials.outer]
+  out.push({ key: 'weight', label: 'משקל משוער', value: `${num(weight, 0)} טון`, raw: weight })
+  return out
+}
+
 export function metricRows(m: Metrics, r: Built): MetricRow[] {
+  if (m.tiling) return tilingRows(m, r)
   if (m.surface) return surfaceRows(m, r)
   const shell = r.bare.mode === 'shell'
   const material = MATERIAL_LOOK[r.realistic.materials.outer].name_he
@@ -185,7 +212,12 @@ export function MetricsPanel({ metrics, issues, recipe }: { metrics: Metrics; is
           )
         })}
       </dl>
-      {metrics.surface ? (
+      {metrics.tiling ? (
+        <p className="hint">
+          מחושב מהגאומטריה: כל אלמנט הוא מנסרה, והנפח הוא סכום השטח בתוכנית כפול הגובה. האלמנטים לא נוגעים זה בזה, ולכן כל אחד גוף סגור. המספרים
+          המתמטיים, כמו סכום רימן מול האינטגרל או מספר הראשוניים, מחושבים מהדפוס עצמו. המשקל לפי צפיפות משוערת, לבדיקת סדר גודל בלבד.
+        </p>
+      ) : metrics.surface ? (
         <p className="hint">
           מחושב מהגאומטריה: שטח המשטח באינטגרציה נומרית של <span dir="ltr" className="num">|S<sub>u</sub> × S<sub>v</sub>|</span>, והנפח הוא השטח כפול העובי, כי הקליפה היא היסט לאורך הנורמל לשני
           הצדדים. המשקל לפי צפיפות משוערת של החומר, לבדיקת סדר גודל בלבד.

@@ -9,6 +9,8 @@ import { preparePrint, type PrintOptions, type PrintReport } from './print'
 import { write3mf } from './threeMf'
 import { prepareSurfacePrint } from './printSurface'
 import { buildSurface, buildSurfaceClosedMesh } from '../surface/build'
+import { buildTiling, buildTilingClosedMesh } from '../tiling/build'
+import { prepareTilingPrint } from './printTiling'
 import { validateRecipe } from '../../recipe/rules'
 
 export type ExportFormat = 'obj' | 'stl' | 'glb' | 'json'
@@ -45,6 +47,15 @@ export function exportFile(input: unknown, format: ExportFormat): ExportFile | {
     if (format === 'obj') return { filename, mime: EXPORT_MIME.obj, bytes: new TextEncoder().encode(writeObj(r, title)) }
     return { filename, mime: EXPORT_MIME.glb, bytes: writeGlb(r, recipe, title) }
   }
+  if (recipe.generator.type === 'tiling') {
+    const params = recipe.generator.params
+    if (format === 'stl') return { filename, mime: EXPORT_MIME.stl, bytes: writeStl(buildTilingClosedMesh(recipe, params), `${recipe.concept.name}, meters, Z up`) }
+    const v = validateRecipe(input)
+    if (!v.ok) return { error: 'המודל לא נבנה, ולכן אין מה לייצא' }
+    const r = buildTiling(recipe, params, v.issues)
+    if (format === 'obj') return { filename, mime: EXPORT_MIME.obj, bytes: new TextEncoder().encode(writeObj(r, title)) }
+    return { filename, mime: EXPORT_MIME.glb, bytes: writeGlb(r, recipe, title) }
+  }
   if (recipe.generator.type !== 'sweep') return { error: 'המחולל הזה עוד לא נבנה, ולכן אין מה לייצא' }
   if (format === 'stl') {
     const mesh = buildClosedMesh(recipe, recipe.generator.params)
@@ -72,10 +83,15 @@ export async function printFiles(input: unknown, opts: PrintOptions): Promise<Pr
   const parsed = parseRecipe(input)
   if (!parsed.ok) return { error: 'המתכון לא עומד בסכמה, ולכן אי אפשר להכין אותו להדפסה' }
   const recipe = parsed.recipe
-  if (recipe.generator.type !== 'sweep' && recipe.generator.type !== 'parametric_surface') return { error: 'המחולל הזה עוד לא נבנה, ולכן אין מה להדפיס' }
+  if (recipe.generator.type === 'sdf') return { error: 'המחולל הזה עוד לא נבנה, ולכן אין מה להדפיס' }
   let prepared: ReturnType<typeof preparePrint>
   try {
-    prepared = recipe.generator.type === 'parametric_surface' ? prepareSurfacePrint(recipe, recipe.generator.params, opts) : preparePrint(recipe, opts)
+    prepared =
+      recipe.generator.type === 'parametric_surface'
+        ? prepareSurfacePrint(recipe, recipe.generator.params, opts)
+        : recipe.generator.type === 'tiling'
+          ? prepareTilingPrint(recipe, recipe.generator.params, opts)
+          : preparePrint(recipe, opts)
   } catch (e) {
     return { error: e instanceof Error ? e.message : String(e) }
   }

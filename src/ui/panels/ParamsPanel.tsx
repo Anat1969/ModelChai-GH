@@ -1,6 +1,6 @@
 import { Choice } from '../controls/Choice'
 import { Slider } from '../controls/Slider'
-import { GROUPS, SURFACE_GROUPS, twistFormat, type Built, type ParamGroup, type Sweep } from '../params'
+import { GROUPS, SURFACE_GROUPS, TILING_GROUPS, twistFormat, type Built, type ParamGroup, type Sweep } from '../params'
 import { useStudio } from '../store'
 
 export function ParamsPanel({ recipe }: { recipe: Built }) {
@@ -18,7 +18,7 @@ export function ParamsPanel({ recipe }: { recipe: Built }) {
   }
 
   // Each generator has its own sliders, read through the same definitions (DECISIONS.md 139).
-  const groups = (recipe.generator.type === 'sweep' ? GROUPS : SURFACE_GROUPS) as ParamGroup<Built>[]
+  const groups = (recipe.generator.type === 'sweep' ? GROUPS : recipe.generator.type === 'tiling' ? TILING_GROUPS : SURFACE_GROUPS) as ParamGroup<Built>[]
   const display = (id: string, v: number, format: (v: number) => string) =>
     id === 'twist' && recipe.generator.type === 'sweep' ? twistFormat(recipe as Sweep, v) : format(v)
 

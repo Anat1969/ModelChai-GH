@@ -185,12 +185,65 @@ export const SurfaceParams = z
     }
   })
 
-// The JSON Schema constrains params for "sweep" and "parametric_surface". "sdf" and "tiling" arrive later in Stage 6.
+// ---------- generator: tiling ----------
+
+/**
+ * Tiling and repetition (GENERATORS.md 4.2, DECISIONS.md 146): a fixed library of named patterns, each a base
+ * element (a prism) repeated by a rule the engine knows. Like the surface families, no free formulas.
+ */
+export const TILING_PATTERNS = ['riemann_walls', 'ulam_grid', 'fibonacci_blocks', 'voronoi_cells', 'random_walk'] as const
+export type TilingPattern = (typeof TILING_PATTERNS)[number]
+export const TILING_PROFILES = ['arch', 'parabola', 'ramp'] as const
+export type TilingField =
+  | 'length' | 'depth' | 'width' | 'count' | 'side' | 'steps' | 'peak' | 'base_height' | 'profile' | 'thickness'
+  | 'cell' | 'fill' | 'height' | 'height_min' | 'unit' | 'height_ratio' | 'joint' | 'seed' | 'invert'
+
+/** The fields each pattern needs. `base_height` and `invert` are optional everywhere they apply. */
+export const TILING_REQUIRED: Record<TilingPattern, TilingField[]> = {
+  riemann_walls: ['length', 'count', 'peak', 'depth', 'thickness', 'profile'],
+  ulam_grid: ['side', 'cell', 'fill', 'height'],
+  fibonacci_blocks: ['count', 'unit', 'height_ratio', 'joint'],
+  voronoi_cells: ['width', 'depth', 'count', 'seed', 'height_min', 'height', 'joint'],
+  random_walk: ['steps', 'cell', 'height', 'seed'],
+}
+
+export const TilingParams = z
+  .strictObject({
+    pattern: z.enum(TILING_PATTERNS),
+    length: num(4, 300).optional(),
+    depth: num(1, 300).optional(),
+    width: num(4, 300).optional(),
+    count: int(2, 400).optional(),
+    side: int(3, 61).optional(),
+    steps: int(10, 4000).optional(),
+    peak: num(1, 200).optional(),
+    base_height: num(0, 100).optional(),
+    profile: z.enum(TILING_PROFILES).optional(),
+    thickness: num(0.1, 20).optional(),
+    cell: num(0.5, 20).optional(),
+    fill: num(0.2, 1).optional(),
+    height: num(0.3, 200).optional(),
+    height_min: num(0.3, 200).optional(),
+    unit: num(0.5, 20).optional(),
+    height_ratio: num(0.05, 3).optional(),
+    joint: num(0, 5).optional(),
+    seed: int(1, 9999).optional(),
+    invert: z.boolean().optional(),
+  })
+  .superRefine((p, ctx) => {
+    for (const field of TILING_REQUIRED[p.pattern]) {
+      if (p[field] === undefined) {
+        ctx.addIssue({ code: 'custom', path: [field], message: `${field} is required when pattern is "${p.pattern}"` })
+      }
+    }
+  })
+
+// The JSON Schema constrains params for "sweep", "parametric_surface" and "tiling". "sdf" arrives later in Stage 6.
 export const Generator = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('sweep'), params: SweepParams }),
   z.strictObject({ type: z.literal('parametric_surface'), params: SurfaceParams }),
   z.strictObject({ type: z.literal('sdf'), params: z.record(z.string(), z.unknown()) }),
-  z.strictObject({ type: z.literal('tiling'), params: z.record(z.string(), z.unknown()) }),
+  z.strictObject({ type: z.literal('tiling'), params: TilingParams }),
 ])
 
 // ---------- bare ----------
@@ -316,15 +369,18 @@ export type SweepParams = z.output<typeof SweepParams>
 export type SweepSection = z.output<typeof SweepSection>
 export type SweepPath = z.output<typeof SweepPath>
 export type SurfaceParams = z.output<typeof SurfaceParams>
-/** A recipe whose generator the engine builds today: a sweep or a parametric surface. */
+export type TilingParams = z.output<typeof TilingParams>
+/** A recipe whose generator the engine builds today: a sweep, a parametric surface or a tiling. */
 export type SweepRecipe = Recipe & { generator: { type: 'sweep'; params: SweepParams } }
 export type SurfaceRecipe = Recipe & { generator: { type: 'parametric_surface'; params: SurfaceParams } }
-export type BuiltRecipe = SweepRecipe | SurfaceRecipe
-export const BUILT_GENERATORS = ['sweep', 'parametric_surface'] as const
+export type TilingRecipe = Recipe & { generator: { type: 'tiling'; params: TilingParams } }
+export type BuiltRecipe = SweepRecipe | SurfaceRecipe | TilingRecipe
+export const BUILT_GENERATORS = ['sweep', 'parametric_surface', 'tiling'] as const
 export const isSweep = (r: Recipe): r is SweepRecipe => r.generator.type === 'sweep'
 export const isSurface = (r: Recipe): r is SurfaceRecipe => r.generator.type === 'parametric_surface'
 /** The recipe when the engine can build its generator, null otherwise. */
-export const asBuilt = (r: Recipe): BuiltRecipe | null => (isSweep(r) || isSurface(r) ? r : null)
+export const isTiling = (r: Recipe): r is TilingRecipe => r.generator.type === 'tiling'
+export const asBuilt = (r: Recipe): BuiltRecipe | null => (isSweep(r) || isSurface(r) || isTiling(r) ? r : null)
 
 export interface SchemaError {
   /** Dotted path, e.g. "generator.params.section.cusps". */

@@ -6,6 +6,7 @@ import astroid from '../../docs/examples/astroid-pavilion.recipe.json'
 import catenary from '../../docs/examples/catenary-arch.recipe.json'
 import catenoid from '../../docs/examples/catenoid-pavilion.recipe.json'
 import ellipse from '../../docs/examples/elliptic-gallery.recipe.json'
+import fibonacci from '../../docs/examples/fibonacci-golden-blocks.recipe.json'
 import helicoid from '../../docs/examples/helicoid-spiral-ramp.recipe.json'
 import helix from '../../docs/examples/helix-ramp.recipe.json'
 import hypar from '../../docs/examples/hypar-canopy.recipe.json'
@@ -14,8 +15,12 @@ import klein from '../../docs/examples/klein-bottle-pavilion.recipe.json'
 import lame from '../../docs/examples/lame-curve-ring.recipe.json'
 import lemniscate from '../../docs/examples/lemniscate-walk.recipe.json'
 import pentacle from '../../docs/examples/pentacle-sculpture.recipe.json'
+import walk from '../../docs/examples/random-walk-wall.recipe.json'
+import riemann from '../../docs/examples/riemann-accumulation-pavilion.recipe.json'
 import sine from '../../docs/examples/sine-promenade.recipe.json'
 import trefoil from '../../docs/examples/trefoil-knot.recipe.json'
+import ulam from '../../docs/examples/ulam-prime-grove.recipe.json'
+import voronoi from '../../docs/examples/voronoi-market.recipe.json'
 import golden from '../../docs/fixtures/golden-ratio.recipe.json'
 import mobius from '../../docs/fixtures/mobius-strip.recipe.json'
 import umbilic from '../../docs/fixtures/umbilic-torus.recipe.json'
@@ -46,6 +51,12 @@ export const EXAMPLES: Example[] = (
     ['catenoid-pavilion', catenoid],
     ['klein-bottle-pavilion', klein],
     ['helicoid-spiral-ramp', helicoid],
+    // Tiling (DECISIONS.md 146).
+    ['riemann-accumulation-pavilion', riemann],
+    ['ulam-prime-grove', ulam],
+    ['fibonacci-golden-blocks', fibonacci],
+    ['voronoi-market', voronoi],
+    ['random-walk-wall', walk],
   ] as const
 ).map(([id, r]) => ({ id, recipe: r as unknown as Example['recipe'] }))
 

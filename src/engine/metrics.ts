@@ -2,7 +2,7 @@
  * Derived metrics (GENERATORS.md section 2). They are computed on every build and never stored in the recipe.
  * Volumes come from Pappus' theorem, so they are exact; the mesh is checked against them in tests.
  */
-import type { Recipe, SurfaceFamily, SweepParams } from '../recipe/schema'
+import type { Recipe, SurfaceFamily, SweepParams, TilingPattern } from '../recipe/schema'
 import { outerRadius } from '../recipe/rules'
 import { DENSITY } from './materials'
 import { curveLength, curveOf, pathLength } from './paths'
@@ -55,6 +55,40 @@ export interface Metrics {
   wallAtCorners: number | null
   /** Present only when the generator is a parametric surface (GENERATORS.md 4.1). */
   surface?: SurfaceMetrics
+  /** Present only when the generator is a tiling (GENERATORS.md 4.2). */
+  tiling?: TilingMetrics
+}
+
+/** What a tiling measures (GENERATORS.md 4.2): the elements, and the mathematics each pattern stands for. */
+export interface TilingMetrics {
+  pattern: TilingPattern
+  /** How many separate elements were built. */
+  elements: number
+  /** Σ plan area of the elements, m². */
+  footprint: number
+  /** Highest and lowest element, m. */
+  tallest: number
+  lowest: number
+  /** Plan extents along x and z, m. */
+  planWidth: number
+  planDepth: number
+  /** Narrowest passage between neighbors, m: walls and the spiral; null where the joint is the gap. */
+  passage: number | null
+  /** Riemann walls: the sum Σ f(xᵢ)·dx, the exact ∫f dx, and the relative error. */
+  riemannSum: number | null
+  integral: number | null
+  riemannError: number | null
+  /** Ulam spiral: the integers on the grid, how many are prime, and the prime number theorem's N / ln N. */
+  numbers: number | null
+  primes: number | null
+  primeEstimate: number | null
+  /** Fibonacci: the ratio of the last two squares (→ φ), and of the whole envelope. */
+  ratio: number | null
+  envelopeRatio: number | null
+  /** Random walk: distinct cells, most visits to one cell, the end's distance from the start, and √n · cell. */
+  endDistance: number | null
+  expectedDistance: number | null
+  maxVisits: number | null
 }
 
 export interface SurfaceMetrics {
