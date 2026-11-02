@@ -3566,3 +3566,99 @@ button.reset:disabled {
     position: static;
   }
 }
+
+/* Knowledge from "מושג מתמטי" (DECISIONS.md 143): black and white like the rest; the photograph carries the color. */
+.model-musag {
+  margin-block-start: 28px;
+  border-block-start: 2px solid var(--ink);
+  padding-block-start: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.model-musag h2 {
+  font-size: 24px;
+  margin: 0;
+}
+.musag-card {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  gap: 20px;
+  border: 1px solid var(--ink);
+  padding: 16px;
+}
+.musag-figure {
+  margin: 0;
+}
+.musag-figure img {
+  inline-size: 100%;
+  block-size: auto;
+  display: block;
+  background: var(--grey-1);
+}
+.musag-text {
+  min-width: 0;
+}
+.musag-text h3 {
+  font-size: 24px;
+  margin: 4px 0 8px;
+}
+.musag-text p {
+  margin: 0 0 8px;
+}
+.musag-meta {
+  font-size: 14px;
+  color: var(--muted);
+}
+.musag-insight {
+  font-size: 19px;
+  font-weight: 600;
+}
+.musag-facts {
+  margin: 8px 0;
+  display: grid;
+  gap: 10px;
+}
+.musag-facts div {
+  border-block-start: 1px solid var(--hairline);
+  padding-block-start: 8px;
+}
+.musag-facts dt {
+  font-family: var(--f-data);
+  font-size: 12px;
+  color: var(--muted);
+}
+.musag-facts dd {
+  margin: 2px 0 0;
+}
+.musag-formula {
+  font-family: var(--f-data);
+  font-weight: 600;
+  unicode-bidi: isolate;
+}
+.musag-latin,
+.musag-source {
+  font-size: 12px;
+  color: var(--muted);
+}
+.musag-haiku {
+  display: grid;
+  gap: 2px;
+  font-size: 18px;
+  font-weight: 300;
+  padding: 10px 0;
+  border-block: 1px solid var(--hairline);
+}
+.musag-open {
+  display: inline-block;
+  color: var(--accent-ink);
+  background: var(--accent);
+  padding: 8px 14px;
+  text-decoration: none;
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .musag-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

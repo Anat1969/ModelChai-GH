@@ -7,10 +7,12 @@
  */
 import { useEffect, useMemo, useState } from 'react'
 import { EXAMPLES } from '../../data/examples'
+import { useMusag } from '../../data/musag'
 import { exploreConcept, suggestConcepts, type ExploreResult, type SuggestResult } from '../../data/partner'
 import { ensureSession } from '../../data/supabase'
 import { createProject, loadWork, saveJourney } from '../../data/work'
 import { FIT_WORD, MODELS, modelById, modelsForUse, withUses, type Model } from '../../learn/atlas'
+import { conceptsForModel } from '../../learn/bridge'
 import { TRAITS, USES, type UseId } from '../../learn/traits'
 import type { Journey } from '../../journey/stages'
 import { ModelFigure } from '../learn/ModelFigure'
@@ -210,6 +212,8 @@ function ModelPage({ m, projectId }: { m: Model; projectId: string | null }) {
         </section>
       </div>
 
+      <MusagKnowledge id={m.id} />
+
       {explore && (
         <section className="model-claude" data-testid="explore-result">
           <h2>מה Claude מוסיף</h2>
@@ -254,6 +258,91 @@ function ModelPage({ m, projectId }: { m: Model; projectId: string | null }) {
         </section>
       )}
     </article>
+  )
+}
+
+const RELATION = { same: 'אותו מושג', near: 'מושג קרוב' } as const
+
+/**
+ * Knowledge with a source, from "מושג מתמטי" (DECISIONS.md 143): the rule, a real precedent, an example from the
+ * city and a haiku. It answers the warning under Claude's answer: these precedents are checked, with a source.
+ * Shown only for models that a concept there links to; otherwise nothing, not an empty box.
+ */
+function MusagKnowledge({ id }: { id: string }) {
+  const links = conceptsForModel(useMusag(), id)
+  if (!links.length) return null
+  return (
+    <section className="model-musag" data-testid="musag-knowledge" aria-label="ידע ותקדים ממושג מתמטי">
+      <span className="eyebrow">ידע ותקדים · מושג מתמטי</span>
+      <h2>מהגוף אל הכלל, התקדים והעיר</h2>
+      <p className="hint">ידע עם מקור לכל טענה, מהאפליקציה "מושג מתמטי". התקדימים נבדקו, ולכן אפשר לצטט אותם.</p>
+      {links.map(({ concept: c, link }) => (
+        <article key={c.slug} className="musag-card" data-concept={c.slug}>
+          <figure className="musag-figure">
+            <img src={c.image} alt={c.architecturalName} loading="lazy" />
+          </figure>
+          <div className="musag-text">
+            <p className="musag-meta">
+              <span className="atlas-fit" data-fit={link.relation === 'same' ? 'full' : 'partial'}>
+                {RELATION[link.relation]}
+              </span>{' '}
+              {c.force.name}: {c.force.question}
+            </p>
+            <h3>
+              {c.name} <span className="atlas-latin" lang="en">{c.latin}</span>
+            </h3>
+            <p>
+              <strong>הכלל שמחבר: </strong>
+              {link.why}
+            </p>
+            <p className="musag-insight">{c.insight}</p>
+            <dl className="musag-facts">
+              <div>
+                <dt>הכלל</dt>
+                <dd>
+                  <span className="musag-formula" dir="auto">{c.rule.formula}</span> {c.rule.text}{' '}
+                  <Source s={c.rule.source} />
+                </dd>
+              </div>
+              <div>
+                <dt>תקדים · {c.precedent.year}</dt>
+                <dd>
+                  <strong>{c.precedent.name.he}</strong> <span className="musag-latin">{c.precedent.name.latin}</span>
+                  <br />
+                  {c.precedent.by}. {c.precedent.text} <Source s={c.precedent.source} />
+                </dd>
+              </div>
+              <div>
+                <dt>בעיר</dt>
+                <dd>
+                  <strong>{c.city.name.he}</strong> <span className="musag-latin">{c.city.name.latin}</span>
+                  <br />
+                  {c.city.text.split('\n').join(' ')}
+                </dd>
+              </div>
+            </dl>
+            <p className="musag-haiku">
+              {c.haiku.lines.map((l) => (
+                <span key={l}>{l}</span>
+              ))}
+            </p>
+            <a className="musag-open" href={c.url} target="_blank" rel="noreferrer">
+              הכתבה המלאה: {c.architecturalName}
+            </a>
+          </div>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+function Source({ s }: { s: { label: string; href?: string } }) {
+  return s.href ? (
+    <a className="musag-source" href={s.href} target="_blank" rel="noreferrer">
+      {s.label}
+    </a>
+  ) : (
+    <span className="musag-source">{s.label}</span>
   )
 }
 
