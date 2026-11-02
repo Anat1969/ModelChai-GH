@@ -4,6 +4,7 @@ import { expose, transfer } from 'comlink'
 import { build, transferables, type BuildResult } from './build'
 import { buildClosedMesh } from './sweep/closedMesh'
 import { buildSurfaceClosedMesh } from './surface/build'
+import { buildTilingClosedMesh } from './tiling/build'
 import { parseRecipe } from '../recipe/schema'
 import { exportFile, printFiles, type ExportFile, type ExportFormat, type PrintFiles } from './export'
 import type { PrintOptions } from './export/print'
@@ -27,8 +28,8 @@ const api = {
     const p = parseRecipe(input)
     if (!p.ok) return null
     const g = p.recipe.generator
-    if (g.type !== 'sweep' && g.type !== 'parametric_surface') return null
-    const m = g.type === 'sweep' ? buildClosedMesh(p.recipe, g.params) : buildSurfaceClosedMesh(p.recipe, g.params)
+    if (g.type === 'sdf') return null
+    const m = g.type === 'sweep' ? buildClosedMesh(p.recipe, g.params) : g.type === 'tiling' ? buildTilingClosedMesh(p.recipe, g.params) : buildSurfaceClosedMesh(p.recipe, g.params)
     return transfer(m, [m.positions.buffer as ArrayBuffer, m.indices.buffer as ArrayBuffer])
   },
 }

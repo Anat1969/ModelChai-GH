@@ -103,7 +103,8 @@ describe('conceptToRecipe', () => {
   })
 
   it('a generator that is not offered is rejected', async () => {
-    const m = scripted([broken((r) => (r.generator = { type: 'tiling', params: {} })), fixture('umbilic-torus')])
+    // sdf is in the contract but not offered; tiling's own fields would fail first, before the generator check.
+    const m = scripted([broken((r) => (r.generator = { type: 'sdf', params: {} })), fixture('umbilic-torus')])
     const r = await conceptToRecipe(input, { call: m.call, now })
     expect(r.attempts).toBe(2)
     expect(m.seen[1]![2]!.content).toContain('generator.type')

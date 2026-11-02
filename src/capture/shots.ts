@@ -81,7 +81,8 @@ export const planSeconds = (keys: PathKey[]) => keys.reduce((a, k) => a + Math.m
  * view looks ahead, slightly down, at eye height.
  */
 export function entryPass(r: Built): Omit<Shot, 'id' | 'level'>[] {
-  if (r.generator.type === 'parametric_surface') return surfaceEntry(r)
+  // A tiling has no passages to walk either: the same approach, then its "inside" when the pattern leaves one.
+  if (r.generator.type === 'parametric_surface' || r.generator.type === 'tiling') return surfaceEntry(r)
   return sweepEntry(r as Sweep)
 }
 

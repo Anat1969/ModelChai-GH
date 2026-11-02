@@ -7,7 +7,9 @@ describe('metric meaning', () => {
   it('explains every metric the panel can show', () => {
     const keys = ['outerDiameter', 'courtyardDiameter', 'edgeCount', 'edgeLength', 'floorWidth', 'clearHeight', 'floorContinuous', 'wallAtCorners', 'openingFraction', 'volume', 'weight', 'saving', 'envelopeArea', 'cuspBurial', 'footprint', 'top', 'pathLength', 'crossingClearance',
       // Parametric surfaces.
-      'height', 'planSize', 'waistDiameter', 'surfaceArea', 'curvatureRadius', 'sinkDepth']
+      'height', 'planSize', 'waistDiameter', 'surfaceArea', 'curvatureRadius', 'sinkDepth',
+      // Tiling.
+      'elements', 'passage', 'riemannSum', 'riemannError', 'primes', 'goldenRatio', 'walkDistance', 'maxVisits', 'footprintArea']
     for (const k of keys) {
       const i = infoOf(k)
       expect(i, k).toBeDefined()

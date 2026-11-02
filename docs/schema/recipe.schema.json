@@ -49,6 +49,10 @@
         {
           "if": { "properties": { "type": { "const": "parametric_surface" } } },
           "then": { "properties": { "params": { "$ref": "#/$defs/surface" } } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "tiling" } } },
+          "then": { "properties": { "params": { "$ref": "#/$defs/tiling" } } }
         }
       ]
     },
@@ -245,6 +249,40 @@
         { "if": { "properties": { "family": { "const": "helicoid" } } }, "then": { "required": ["radius", "pitch", "turns"] } },
         { "if": { "properties": { "family": { "const": "klein_bottle" } } }, "then": { "required": ["radius", "tube"] } },
         { "if": { "properties": { "family": { "const": "monkey_saddle" } } }, "then": { "required": ["span", "rise"] } }
+      ]
+    },
+    "tiling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern"],
+      "properties": {
+        "pattern": { "enum": ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"] },
+        "length": { "type": "number", "minimum": 4, "maximum": 300 },
+        "depth": { "type": "number", "minimum": 1, "maximum": 300 },
+        "width": { "type": "number", "minimum": 4, "maximum": 300 },
+        "count": { "type": "integer", "minimum": 2, "maximum": 400 },
+        "side": { "type": "integer", "minimum": 3, "maximum": 61 },
+        "steps": { "type": "integer", "minimum": 10, "maximum": 4000 },
+        "peak": { "type": "number", "minimum": 1, "maximum": 200 },
+        "base_height": { "type": "number", "minimum": 0, "maximum": 100 },
+        "profile": { "enum": ["arch", "parabola", "ramp"] },
+        "thickness": { "type": "number", "minimum": 0.1, "maximum": 20 },
+        "cell": { "type": "number", "minimum": 0.5, "maximum": 20 },
+        "fill": { "type": "number", "minimum": 0.2, "maximum": 1 },
+        "height": { "type": "number", "minimum": 0.3, "maximum": 200 },
+        "height_min": { "type": "number", "minimum": 0.3, "maximum": 200 },
+        "unit": { "type": "number", "minimum": 0.5, "maximum": 20 },
+        "height_ratio": { "type": "number", "minimum": 0.05, "maximum": 3 },
+        "joint": { "type": "number", "minimum": 0, "maximum": 5 },
+        "seed": { "type": "integer", "minimum": 1, "maximum": 9999 },
+        "invert": { "type": "boolean" }
+      },
+      "allOf": [
+        { "if": { "properties": { "pattern": { "const": "riemann_walls" } } }, "then": { "required": ["length", "count", "peak", "depth", "thickness", "profile"] } },
+        { "if": { "properties": { "pattern": { "const": "ulam_grid" } } }, "then": { "required": ["side", "cell", "fill", "height"] } },
+        { "if": { "properties": { "pattern": { "const": "fibonacci_blocks" } } }, "then": { "required": ["count", "unit", "height_ratio", "joint"] } },
+        { "if": { "properties": { "pattern": { "const": "voronoi_cells" } } }, "then": { "required": ["width", "depth", "count", "seed", "height_min", "height", "joint"] } },
+        { "if": { "properties": { "pattern": { "const": "random_walk" } } }, "then": { "required": ["steps", "cell", "height", "seed"] } }
       ]
     },
     "sweep": {

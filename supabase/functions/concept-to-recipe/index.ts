@@ -54,6 +54,10 @@ var recipe_schema_default = {
         {
           if: { properties: { type: { const: "parametric_surface" } } },
           then: { properties: { params: { $ref: "#/$defs/surface" } } }
+        },
+        {
+          if: { properties: { type: { const: "tiling" } } },
+          then: { properties: { params: { $ref: "#/$defs/tiling" } } }
         }
       ]
     },
@@ -272,6 +276,40 @@ var recipe_schema_default = {
         { if: { properties: { family: { const: "helicoid" } } }, then: { required: ["radius", "pitch", "turns"] } },
         { if: { properties: { family: { const: "klein_bottle" } } }, then: { required: ["radius", "tube"] } },
         { if: { properties: { family: { const: "monkey_saddle" } } }, then: { required: ["span", "rise"] } }
+      ]
+    },
+    tiling: {
+      type: "object",
+      additionalProperties: false,
+      required: ["pattern"],
+      properties: {
+        pattern: { enum: ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"] },
+        length: { type: "number", minimum: 4, maximum: 300 },
+        depth: { type: "number", minimum: 1, maximum: 300 },
+        width: { type: "number", minimum: 4, maximum: 300 },
+        count: { type: "integer", minimum: 2, maximum: 400 },
+        side: { type: "integer", minimum: 3, maximum: 61 },
+        steps: { type: "integer", minimum: 10, maximum: 4e3 },
+        peak: { type: "number", minimum: 1, maximum: 200 },
+        base_height: { type: "number", minimum: 0, maximum: 100 },
+        profile: { enum: ["arch", "parabola", "ramp"] },
+        thickness: { type: "number", minimum: 0.1, maximum: 20 },
+        cell: { type: "number", minimum: 0.5, maximum: 20 },
+        fill: { type: "number", minimum: 0.2, maximum: 1 },
+        height: { type: "number", minimum: 0.3, maximum: 200 },
+        height_min: { type: "number", minimum: 0.3, maximum: 200 },
+        unit: { type: "number", minimum: 0.5, maximum: 20 },
+        height_ratio: { type: "number", minimum: 0.05, maximum: 3 },
+        joint: { type: "number", minimum: 0, maximum: 5 },
+        seed: { type: "integer", minimum: 1, maximum: 9999 },
+        invert: { type: "boolean" }
+      },
+      allOf: [
+        { if: { properties: { pattern: { const: "riemann_walls" } } }, then: { required: ["length", "count", "peak", "depth", "thickness", "profile"] } },
+        { if: { properties: { pattern: { const: "ulam_grid" } } }, then: { required: ["side", "cell", "fill", "height"] } },
+        { if: { properties: { pattern: { const: "fibonacci_blocks" } } }, then: { required: ["count", "unit", "height_ratio", "joint"] } },
+        { if: { properties: { pattern: { const: "voronoi_cells" } } }, then: { required: ["width", "depth", "count", "seed", "height_min", "height", "joint"] } },
+        { if: { properties: { pattern: { const: "random_walk" } } }, then: { required: ["steps", "cell", "height", "seed"] } }
       ]
     },
     sweep: {
@@ -858,11 +896,48 @@ var SurfaceParams = z.strictObject({
     }
   }
 });
+var TILING_PATTERNS = ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"];
+var TILING_PROFILES = ["arch", "parabola", "ramp"];
+var TILING_REQUIRED = {
+  riemann_walls: ["length", "count", "peak", "depth", "thickness", "profile"],
+  ulam_grid: ["side", "cell", "fill", "height"],
+  fibonacci_blocks: ["count", "unit", "height_ratio", "joint"],
+  voronoi_cells: ["width", "depth", "count", "seed", "height_min", "height", "joint"],
+  random_walk: ["steps", "cell", "height", "seed"]
+};
+var TilingParams = z.strictObject({
+  pattern: z.enum(TILING_PATTERNS),
+  length: num(4, 300).optional(),
+  depth: num(1, 300).optional(),
+  width: num(4, 300).optional(),
+  count: int(2, 400).optional(),
+  side: int(3, 61).optional(),
+  steps: int(10, 4e3).optional(),
+  peak: num(1, 200).optional(),
+  base_height: num(0, 100).optional(),
+  profile: z.enum(TILING_PROFILES).optional(),
+  thickness: num(0.1, 20).optional(),
+  cell: num(0.5, 20).optional(),
+  fill: num(0.2, 1).optional(),
+  height: num(0.3, 200).optional(),
+  height_min: num(0.3, 200).optional(),
+  unit: num(0.5, 20).optional(),
+  height_ratio: num(0.05, 3).optional(),
+  joint: num(0, 5).optional(),
+  seed: int(1, 9999).optional(),
+  invert: z.boolean().optional()
+}).superRefine((p, ctx) => {
+  for (const field of TILING_REQUIRED[p.pattern]) {
+    if (p[field] === void 0) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when pattern is "${p.pattern}"` });
+    }
+  }
+});
 var Generator = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("sweep"), params: SweepParams }),
   z.strictObject({ type: z.literal("parametric_surface"), params: SurfaceParams }),
   z.strictObject({ type: z.literal("sdf"), params: z.record(z.string(), z.unknown()) }),
-  z.strictObject({ type: z.literal("tiling"), params: z.record(z.string(), z.unknown()) })
+  z.strictObject({ type: z.literal("tiling"), params: TilingParams })
 ]);
 var Bare = z.strictObject({
   mode: z.enum(["solid", "shell"]),
@@ -1334,6 +1409,225 @@ function lowestPoints(g, h0) {
   return { surface, ends };
 }
 
+// src/engine/tiling/patterns.ts
+var polyArea = (p) => {
+  let a = 0;
+  for (let i = 0; i < p.length; i++) {
+    const [x1, z1] = p[i], [x2, z2] = p[(i + 1) % p.length];
+    a += x1 * z2 - x2 * z1;
+  }
+  return a / 2;
+};
+var ccw = (p) => polyArea(p) > 0 ? [...p].reverse() : p;
+var rect = (x0, x1, z0, z1) => ccw([[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
+function mulberry32(seed) {
+  let a = seed | 0;
+  return () => {
+    a = a + 1831565813 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+var isPrime = (n) => {
+  if (n < 2) return false;
+  for (let d = 2; d * d <= n; d++) if (n % d === 0) return false;
+  return true;
+};
+var profileShape = (profile, s) => profile === "arch" ? Math.sin(Math.PI * s) : profile === "parabola" ? 1 - (2 * s - 1) ** 2 : s;
+var PROFILE_INTEGRAL = { arch: 2 / Math.PI, parabola: 2 / 3, ramp: 1 / 2 };
+function riemann(p) {
+  const L = p.length, n = p.count, D = p.depth, t = p.thickness, base = p.base_height ?? 0, peak = p.peak;
+  const dx = L / n;
+  const f = (xl) => base + (peak - base) * profileShape(p.profile, xl / L);
+  const elements = [];
+  const order = [];
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const xl = (i + 0.5) * dx;
+    const h = f(xl);
+    sum += h * dx;
+    const x = xl - L / 2;
+    elements.push({ poly: rect(x - t / 2, x + t / 2, -D / 2, D / 2), height: h, tag: i + 1 });
+    order.push([x, 0]);
+  }
+  const integral = base * L + (peak - base) * L * PROFILE_INTEGRAL[p.profile];
+  return { elements, order, facts: { riemannSum: sum, integral, dx, gap: dx - t } };
+}
+function ulamCells(N) {
+  const cells = [];
+  let x = 0, z2 = 0, dx = 1, dz = 0, run = 1, done = 0, turns = 0;
+  for (let k = 1; k <= N; k++) {
+    cells.push([x, z2]);
+    x += dx;
+    z2 += dz;
+    if (++done === run) {
+      done = 0;
+      [dx, dz] = [-dz, dx];
+      if (++turns % 2 === 0) run++;
+    }
+  }
+  return cells;
+}
+function ulam(p) {
+  const N = p.side ** 2, c = p.cell, s = p.fill * c / 2;
+  const cells = ulamCells(N);
+  const xs = cells.map((q) => q[0]), zs = cells.map((q) => q[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const elements = [];
+  const order = [];
+  let primes = 0;
+  cells.forEach(([i, j], k) => {
+    const n = k + 1;
+    const prime = isPrime(n);
+    if (prime) primes++;
+    const x = (i - cx) * c, z2 = (j - cz) * c;
+    order.push([x, z2]);
+    if (prime !== !!p.invert) elements.push({ poly: rect(x - s, x + s, z2 - s, z2 + s), height: p.height, tag: n });
+  });
+  return { elements, order, facts: { N, primes, estimate: N / Math.log(N), gap: c - 2 * s } };
+}
+function fibonacci(p) {
+  const n = p.count, u = p.unit, j = p.joint / 2;
+  const F = [1, 1];
+  while (F.length < n) F.push(F.at(-1) + F.at(-2));
+  let x0 = 0, x1 = 1, z0 = 0, z1 = 1;
+  const squares = [[0, 1, 0, 1, 1]];
+  for (let k = 1; k < n; k++) {
+    const s = F[k];
+    switch (k % 4) {
+      case 1:
+        squares.push([x1, x1 + s, z0, z0 + s, s]);
+        x1 += s;
+        break;
+      case 2:
+        squares.push([x0, x0 + s, z1, z1 + s, s]);
+        z1 += s;
+        break;
+      case 3:
+        squares.push([x0 - s, x0, z1 - s, z1, s]);
+        x0 -= s;
+        break;
+      default:
+        squares.push([x0, x0 + s, z0 - s, z0, s]);
+        z0 -= s;
+    }
+  }
+  const cx = (x0 + x1) / 2 * u, cz = (z0 + z1) / 2 * u;
+  const elements = squares.map(([a, b, c, d, s]) => ({
+    poly: rect(a * u - cx + j, b * u - cx - j, c * u - cz + j, d * u - cz - j),
+    height: p.height_ratio * s * u,
+    tag: s
+  }));
+  const order = squares.map(([a, b, c, d]) => [(a + b) / 2 * u - cx, (c + d) / 2 * u - cz]);
+  const W = (x1 - x0) * u, D = (z1 - z0) * u;
+  return { elements, order, facts: { ratio: n >= 2 ? F[n - 1] / F[n - 2] : 1, envelopeRatio: Math.max(W, D) / Math.min(W, D), largest: F[n - 1] * u } };
+}
+function clip(poly, n, d) {
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length];
+    const fa = n[0] * a[0] + n[1] * a[1] - d, fb = n[0] * b[0] + n[1] * b[1] - d;
+    if (fa <= 0) out.push(a);
+    if (fa < 0 && fb > 0 || fa > 0 && fb < 0) {
+      const t = fa / (fa - fb);
+      out.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]);
+    }
+  }
+  return out;
+}
+function voronoiSeeds(p) {
+  const W = p.width, D = p.depth;
+  const rnd = mulberry32(p.seed);
+  return Array.from({ length: p.count }, () => [(rnd() - 0.5) * W * 0.96, (rnd() - 0.5) * D * 0.96]);
+}
+function voronoi(p) {
+  const W = p.width, D = p.depth, half = p.joint / 2;
+  const seeds = voronoiSeeds(p);
+  const rMax = Math.hypot(W / 2, D / 2);
+  const elements = [];
+  let total = 0, vanished = 0, smallest = Infinity;
+  seeds.forEach((s, i) => {
+    let poly = rect(-W / 2, W / 2, -D / 2, D / 2);
+    for (let k = 0; k < seeds.length && poly.length; k++) {
+      if (k === i) continue;
+      const o = seeds[k];
+      const v = [o[0] - s[0], o[1] - s[1]];
+      const len2 = Math.hypot(v[0], v[1]);
+      if (len2 < 1e-9) continue;
+      const n = [v[0] / len2, v[1] / len2];
+      poly = clip(poly, n, n[0] * s[0] + n[1] * s[1] + len2 / 2 - half);
+    }
+    const a = poly.length >= 3 ? Math.abs(polyArea(poly)) : 0;
+    if (a < 0.01) {
+      vanished++;
+      return;
+    }
+    total += a;
+    smallest = Math.min(smallest, a);
+    const h = p.height_min + (p.height - p.height_min) * (1 - Math.hypot(s[0], s[1]) / rMax);
+    elements.push({ poly: ccw(poly), height: h, tag: i + 1 });
+  });
+  return { elements, order: seeds, facts: { area: W * D, cellArea: total, vanished, smallest: Number.isFinite(smallest) ? smallest : 0 } };
+}
+var WALK_FILL = 0.92;
+function walk(p) {
+  const c = p.cell;
+  const rnd = mulberry32(p.seed);
+  const visits = /* @__PURE__ */ new Map();
+  const path = [[0, 0]];
+  let i = 0, j = 0;
+  const visit = () => {
+    const key = `${i},${j}`;
+    const v = visits.get(key);
+    if (v) v.n++;
+    else visits.set(key, { i, j, n: 1 });
+  };
+  visit();
+  for (let k = 0; k < p.steps; k++) {
+    const r = Math.floor(rnd() * 4);
+    if (r === 0) i++;
+    else if (r === 1) i--;
+    else if (r === 2) j++;
+    else j--;
+    visit();
+    path.push([i, j]);
+  }
+  const cells = [...visits.values()];
+  const xs = cells.map((v) => v.i), zs = cells.map((v) => v.j);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const s = WALK_FILL * c / 2;
+  const elements = cells.map((v) => {
+    const x = (v.i - cx) * c, z2 = (v.j - cz) * c;
+    return { poly: rect(x - s, x + s, z2 - s, z2 + s), height: p.height * v.n, tag: v.n };
+  });
+  const end = path.at(-1);
+  return {
+    elements,
+    order: path.map(([a, b]) => [(a - cx) * c, (b - cz) * c]),
+    facts: { cells: cells.length, maxVisits: Math.max(...cells.map((v) => v.n)), endDistance: Math.hypot(end[0], end[1]) * c, expected: Math.sqrt(p.steps) * c }
+  };
+}
+function layout(p) {
+  switch (p.pattern) {
+    case "riemann_walls":
+      return riemann(p);
+    case "ulam_grid":
+      return ulam(p);
+    case "fibonacci_blocks":
+      return fibonacci(p);
+    case "voronoi_cells":
+      return voronoi(p);
+    case "random_walk":
+      return walk(p);
+  }
+}
+var COUNT_RANGE = {
+  riemann_walls: [3, 120],
+  fibonacci_blocks: [3, 12],
+  voronoi_cells: [3, 200]
+};
+
 // src/engine/surface/families.ts
 function hyperboloidC(a, e, h) {
   return h / Math.sqrt(Math.max(1e-12, e * e / (a * a) - 1));
@@ -1580,7 +1874,13 @@ var RULES = [
   { id: 16, severity: "error", scope: "recipe", message: "מידות המשטח סותרות זו את זו" },
   { id: 17, severity: "error", scope: "recipe", message: "הדופן עבה מהעיקול של המשטח, והקליפה מתקפלת על עצמה" },
   { id: 18, severity: "warning", scope: "recipe", message: "הקליפה דקה מאוד ביחס למפתח שלה" },
-  { id: 19, severity: "warning", scope: "recipe", message: "אין גובה לעמידה מתחת לקליפה" }
+  { id: 19, severity: "warning", scope: "recipe", message: "אין גובה לעמידה מתחת לקליפה" },
+  // Tiling (GENERATORS.md 4.2, DECISIONS.md 146).
+  { id: 20, severity: "error", scope: "recipe", message: "ריצוף נבנה מגופים מלאים" },
+  { id: 21, severity: "error", scope: "recipe", message: "האלמנטים נוגעים זה בזה או נעלמים" },
+  { id: 22, severity: "warning", scope: "recipe", message: "אלמנט דק וגבוה מדי לעמוד לבד" },
+  { id: 23, severity: "warning", scope: "recipe", message: "אין מעבר בין האלמנטים" },
+  { id: 24, severity: "warning", scope: "recipe", message: "יותר מ-1,500 אלמנטים: המודל כבד" }
 ];
 var INTEGER_TOLERANCE = 1e-3;
 var MIN_CLEAR_HEIGHT = 2.4;
@@ -1742,7 +2042,40 @@ function curvePathIssues(g, h0, rOut) {
   if (burial > MAX_CUSP_BURIAL + EPS) out.push(issue(8, "bare.section_center_height", burial, `depth below the ground ≤ ${MAX_CUSP_BURIAL}`));
   return out;
 }
+var MIN_PASSAGE = 0.9;
+var MAX_SLENDERNESS = 30;
+var MAX_ELEMENTS = 1500;
+function tilingIssues(recipe, p) {
+  const out = [];
+  if (recipe.bare.mode !== "solid") return [issue(20, "bare.mode", 0, 'mode = "solid"')];
+  const range = COUNT_RANGE[p.pattern];
+  if (range && (p.count < range[0] || p.count > range[1])) out.push(issue(21, `${P}.count`, p.count, `${range[0]} ≤ count ≤ ${range[1]}`));
+  if (p.pattern === "riemann_walls" && !(p.thickness < p.length / p.count - EPS)) out.push(issue(21, `${P}.thickness`, p.thickness, `thickness < length / count = ${round(p.length / p.count)}`));
+  if (p.pattern === "ulam_grid" && !(p.fill < 1 - EPS)) out.push(issue(21, `${P}.fill`, p.fill, "fill < 1"));
+  if (p.pattern === "fibonacci_blocks" && !(p.joint < p.unit - EPS)) out.push(issue(21, `${P}.joint`, p.joint, `joint < unit = ${round(p.unit)}`));
+  if (out.length) return out;
+  const L = layout(p);
+  if (p.pattern === "voronoi_cells" && L.facts.vanished > 0) out.push(issue(21, `${P}.joint`, p.joint, `every cell keeps an area after the joint (${L.facts.vanished} vanished)`));
+  if (out.length) return out;
+  let worst = 0;
+  for (const e of L.elements) {
+    let minSide = Infinity;
+    for (let i = 0; i < e.poly.length; i++) {
+      const [ax, az] = e.poly[i], [bx, bz] = e.poly[(i + 1) % e.poly.length];
+      minSide = Math.min(minSide, Math.hypot(bx - ax, bz - az));
+    }
+    const thick = e.poly.length > 4 ? Math.sqrt(Math.abs(polyArea(e.poly))) : minSide;
+    worst = Math.max(worst, e.height / thick);
+  }
+  if (worst > MAX_SLENDERNESS + EPS) out.push(issue(22, p.pattern === "riemann_walls" ? `${P}.thickness` : `${P}.height`, round(worst, 1), `height ≤ ${MAX_SLENDERNESS} × smallest plan side`));
+  if ((p.pattern === "riemann_walls" || p.pattern === "ulam_grid") && L.facts.gap < MIN_PASSAGE - EPS) {
+    out.push(issue(23, p.pattern === "riemann_walls" ? `${P}.thickness` : `${P}.fill`, round(L.facts.gap), `passage ≥ ${MIN_PASSAGE}`));
+  }
+  if (L.elements.length > MAX_ELEMENTS) out.push(issue(24, p.pattern === "random_walk" ? `${P}.steps` : `${P}.side`, L.elements.length, `elements ≤ ${MAX_ELEMENTS}`));
+  return out;
+}
 function checkRules(recipe) {
+  if (recipe.generator.type === "tiling") return tilingIssues(recipe, recipe.generator.params);
   if (recipe.generator.type === "parametric_surface") return surfaceIssues(recipe, recipe.generator.params);
   if (recipe.generator.type !== "sweep") return [];
   return sweepIssues(recipe, recipe.generator.params);
@@ -1873,6 +2206,7 @@ function modelSchema(recipeSchema, generators) {
   const genProps = gen.properties;
   genProps.type = { type: "string", enum: generators };
   const defs = s.$defs;
+  delete defs.tiling;
   const surface = defs.surface;
   if (generators.includes("parametric_surface")) {
     const props2 = surface.properties;

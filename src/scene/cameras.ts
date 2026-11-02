@@ -5,8 +5,9 @@
 import { pathBounds } from '../engine/paths'
 import { sectionCut } from '../engine/sectionCut'
 import { surfaceBox } from '../engine/surface/build'
+import { tilingBox } from '../engine/tiling/build'
 import { outerRadius } from '../recipe/rules'
-import type { SurfaceRecipe } from '../recipe/schema'
+import type { SurfaceRecipe, TilingRecipe } from '../recipe/schema'
 import type { Built, Sweep } from '../ui/params'
 import type { CameraPreset } from '../ui/store'
 
@@ -17,11 +18,15 @@ const TAU = Math.PI * 2
 
 /** Center and radius of the model's footprint, plus its top. */
 export function bounds(r: Built): { center: Vec3; extent: number; top: number } {
+  if (r.generator.type === 'tiling') {
+    const b = tilingBox(r, r.generator.params)
+    return { center: b.center, extent: b.extent, top: b.top }
+  }
   if (r.generator.type === 'parametric_surface') {
     const b = surfaceBox(r, r.generator.params)
     return { center: b.center, extent: b.extent, top: b.top }
   }
-  const p = r.generator.params
+  const p = (r as Sweep).generator.params
   const h0 = r.bare.section_center_height
   const rOut = outerRadius(p.section) * Math.max(1, p.path.type === 'circle' || p.path.type === 'ellipse' ? 1 : p.scale_along_path)
   switch (p.path.type) {
@@ -90,7 +95,45 @@ function surfacePose(r: SurfaceRecipe, preset: CameraPreset): CameraPose {
   return { position: [cx + E * 2, eye, cz + E], target: b.center }
 }
 
+/**
+ * Presets for a tiling (DECISIONS.md 147): framed on its box like a surface. "Inside" walks the passage the pattern
+ * leaves: between the two middle walls, or between the columns next to the center of the spiral.
+ */
+function tilingPose(r: TilingRecipe, preset: CameraPreset): CameraPose {
+  const p = r.generator.params
+  const eye = r.realistic.camera.height
+  const b = tilingBox(r, p)
+  const [cx, , cz] = b.center
+  const E = b.extent
+  const y0 = b.bottom
+  switch (preset) {
+    case 'eye_level_oblique': {
+      const D = Math.min(Math.max(E * 2.2 + 10, (b.top - y0) * 1.6 + 4), E + 28)
+      return { position: [cx + D * 0.85, y0 + eye, cz + D * 0.5], target: [cx, Math.max(y0 + 2.4, y0 + (b.top - y0) * 0.45), cz] }
+    }
+    case 'aerial':
+      return { position: [cx + E * 1.3, b.top + E * 1.6, cz + E * 1.5], target: [cx, y0, cz] }
+    case 'inside': {
+      if (p.pattern === 'riemann_walls') {
+        const dx = p.length! / p.count!
+        // The gap next to the middle wall, entered from the front edge and looking along it.
+        const xg = -p.length! / 2 + Math.floor(p.count! / 2) * dx
+        return { position: [xg, y0 + eye, -p.depth! / 2 + 0.6], target: [xg, y0 + 2.4, p.depth! / 2] }
+      }
+      if (p.pattern === 'ulam_grid') {
+        // Between the columns, half a cell off the center, looking out along the row.
+        const c = p.cell!
+        return { position: [cx + c / 2, y0 + eye, cz - c * 0.5], target: [cx + c / 2, y0 + 2.4, cz + E] }
+      }
+      return { unavailable: 'בין הגושים אין מעבר מוגדר לעמוד בו. מבט מגובה העיניים או מלמעלה מראים את הדפוס כולו.' }
+    }
+    case 'courtyard':
+      return { unavailable: 'מבט מהחצר זמין רק בטבעת שסוגרת חצר.' }
+  }
+}
+
 export function cameraPose(r: Built, preset: CameraPreset): CameraPose {
+  if (r.generator.type === 'tiling') return tilingPose(r as TilingRecipe, preset)
   if (r.generator.type === 'parametric_surface') return surfacePose(r as SurfaceRecipe, preset)
   return sweepPose(r as Sweep, preset)
 }
@@ -138,6 +181,22 @@ function sweepPose(r: Sweep, preset: CameraPreset): CameraPose {
 
 /** Where to stand the 1.75 m figures: outside the ring, in the courtyard, and on the inner floor. */
 export function peopleSpots(r: Built): { at: Vec3; h: number }[] {
+  if (r.generator.type === 'tiling') {
+    // Around the footprint, and in the passages between walls, so the scale reads.
+    const p = r.generator.params
+    const b = bounds(r)
+    const D = b.extent + 2.5
+    const spots: { at: Vec3; h: number }[] = []
+    for (const [ang, h] of [[0.3, 1.75], [0.5, 1.68], [2.6, 1.72]] as const) spots.push({ at: [b.center[0] + Math.cos(ang) * D, 0, b.center[2] + Math.sin(ang) * D], h })
+    if (p.pattern === 'riemann_walls') {
+      const dx = p.length! / p.count!
+      for (const [k, z, h] of [[0.3, -0.2, 1.72], [0.55, 0.15, 1.66]] as const) {
+        const x = -p.length! / 2 + Math.round(p.count! * k) * dx
+        spots.push({ at: [x, 0, z * p.depth!], h })
+      }
+    }
+    return spots
+  }
   if (r.generator.type === 'parametric_surface') {
     // Around the footprint on the ground, and under the shell where there is room to stand.
     const p = r.generator.params
@@ -150,7 +209,7 @@ export function peopleSpots(r: Built): { at: Vec3; h: number }[] {
     }
     return spots
   }
-  const p = r.generator.params
+  const p = (r as Sweep).generator.params
   const rOut = outerRadius(p.section)
   const spots: { at: Vec3; h: number }[] = []
   if (p.path.type === 'circle' || p.path.type === 'ellipse') {

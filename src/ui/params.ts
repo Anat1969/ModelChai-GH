@@ -6,7 +6,7 @@
 import { isClosedPath } from '../engine/paths'
 import { KLEIN_REACH, family, minCurvatureRadius } from '../engine/surface/families'
 import { outerRadius, symmetryOrder } from '../recipe/rules'
-import { RING_PATH_TYPES, type BuiltRecipe, type SurfaceRecipe, type SweepParams, type SweepRecipe } from '../recipe/schema'
+import { RING_PATH_TYPES, type BuiltRecipe, type SurfaceRecipe, type SweepParams, type SweepRecipe, type TilingRecipe } from '../recipe/schema'
 import { num, percent, turnsLabel } from './format'
 
 type Sweep = SweepRecipe
@@ -628,6 +628,57 @@ export const SURFACE_GROUPS: ParamGroup<S>[] = [
         value: (r) => thick(r),
         format: m(2),
       },
+    ],
+  },
+]
+
+
+// ---------- tiling (DECISIONS.md 147) ----------
+
+type T = TilingRecipe
+const pat = (...ps: string[]) => (r: T) => ps.includes(r.generator.params.pattern)
+const tp = (r: T) => r.generator.params
+const int0 = (v: number) => num(v, 0)
+
+/** The sliders of a tiling: each pattern's own rule, then the base. */
+export const TILING_GROUPS: ParamGroup<T>[] = [
+  {
+    title: 'הכלל שחוזר',
+    params: [
+      { kind: 'slider', id: 't-count-walls', path: `${P}.count`, label: 'מספר קירות', why: 'כל קיר הוא פס של סכום רימן. יותר קירות צרים: הסכום מתקרב לשטח שמתחת לעקומה.', min: () => 3, max: () => 120, step: 1, value: (r) => tp(r).count ?? 24, format: int0, show: pat('riemann_walls') },
+      { kind: 'slider', id: 't-length', path: `${P}.length`, label: 'אורך השורה', why: 'המרחק מהקיר הראשון לאחרון. רוחב כל פס הוא האורך חלקי מספר הקירות.', min: () => 4, max: () => 300, step: 1, value: (r) => tp(r).length ?? 60, format: m(0), show: pat('riemann_walls') },
+      { kind: 'slider', id: 't-peak', path: `${P}.peak`, label: 'גובה השיא', why: 'הגובה של העקומה בנקודה הגבוהה. הקירות דוגמים אותה במרכז כל פס.', min: () => 1, max: () => 200, step: 0.5, value: (r) => tp(r).peak ?? 30, format: m(1), show: pat('riemann_walls') },
+      { kind: 'slider', id: 't-base', path: `${P}.base_height`, label: 'גובה בקצוות', why: 'הגובה המזערי של העקומה. מעל אפס, גם הקירות בקצוות עומדים.', min: () => 0, max: (r) => Math.min(100, tp(r).peak ?? 30), step: 0.5, value: (r) => tp(r).base_height ?? 0, format: m(1), show: pat('riemann_walls') },
+      { kind: 'choice', id: 't-profile', path: `${P}.profile`, label: 'העקומה', why: 'הצורה שהקירות דוגמים. בעלייה ישרה הסכום מדויק, כי הקו ישר.', options: [{ value: 'arch', label: 'קשת' }, { value: 'parabola', label: 'פרבולה' }, { value: 'ramp', label: 'עלייה ישרה' }], value: (r) => tp(r).profile ?? 'arch', show: pat('riemann_walls') },
+      { kind: 'slider', id: 't-thickness', path: `${P}.thickness`, label: 'עובי קיר', why: 'הקיר עבה יותר, והמעבר בין הקירות צר יותר. הוא חייב להיות דק מרוחב הפס.', min: () => 0.1, max: (r) => Math.max(0.1, floor2((tp(r).length ?? 60) / (tp(r).count ?? 24) - 0.05)), step: 0.05, value: (r) => tp(r).thickness ?? 1, format: m(2), show: pat('riemann_walls') },
+      { kind: 'slider', id: 't-depth', path: `${P}.depth`, label: 'עומק הקיר', why: 'אורך כל קיר בכיוון הניצב לשורה: אורך המעבר בין שני קירות.', min: () => 1, max: () => 120, step: 0.5, value: (r) => tp(r).depth ?? 12, format: m(1), show: pat('riemann_walls') },
+
+      { kind: 'slider', id: 't-side', path: `${P}.side`, label: 'צלע הרשת', why: 'הספירלה מכילה את המספרים עד הצלע בריבוע. ככל שהיא גדלה, האלכסונים של הראשוניים בולטים.', min: () => 3, max: () => 61, step: 1, value: (r) => tp(r).side ?? 15, format: int0, show: pat('ulam_grid') },
+      { kind: 'slider', id: 't-cell', path: `${P}.cell`, label: 'גודל משבצת', why: 'המרחק בין מרכזי שתי משבצות שכנות.', min: () => 0.5, max: () => 20, step: 0.1, value: (r) => tp(r).cell ?? 2, format: m(1), show: pat('ulam_grid', 'random_walk') },
+      { kind: 'slider', id: 't-fill', path: `${P}.fill`, label: 'רוחב העמוד', why: 'החלק מהמשבצת שהעמוד תופס. מה שנשאר הוא המעבר בין העמודים.', min: () => 0.2, max: () => 0.95, step: 0.01, value: (r) => tp(r).fill ?? 0.6, format: percent, show: pat('ulam_grid') },
+      { kind: 'slider', id: 't-invert', path: `${P}.invert`, label: 'הראשוניים הם', why: 'עמודים: הראשוניים בונים. פתחים: כל השאר בונים, והראשוניים נשארים פתוחים.', min: () => 0, max: () => 1, step: 1, value: (r) => (tp(r).invert ? 1 : 0), format: (v) => (v ? 'פתחים' : 'עמודים'), write: (v) => v === 1, show: pat('ulam_grid') },
+
+      { kind: 'slider', id: 't-count-fib', path: `${P}.count`, label: 'מספר ריבועים', why: 'כל ריבוע הוא סכום שני הקודמים. אחרי כמה צעדים, היחס בין שניים סמוכים מתקרב ליחס הזהב.', min: () => 3, max: () => 12, step: 1, value: (r) => tp(r).count ?? 8, format: int0, show: pat('fibonacci_blocks') },
+      { kind: 'slider', id: 't-unit', path: `${P}.unit`, label: 'צלע הריבוע הקטן', why: 'יחידת המידה של הסדרה: כל ריבוע הוא מספר פיבונאצ׳י כפול היחידה.', min: () => 0.5, max: () => 20, step: 0.1, value: (r) => tp(r).unit ?? 1.5, format: m(1), show: pat('fibonacci_blocks') },
+      { kind: 'slider', id: 't-ratio', path: `${P}.height_ratio`, label: 'גובה ביחס לצלע', why: 'כל גוש גבוה כמו הצלע שלו כפול היחס: הגדולים גבוהים, והספירלה מטפסת.', min: () => 0.05, max: () => 3, step: 0.05, value: (r) => tp(r).height_ratio ?? 0.5, format: (v) => num(v, 2), show: pat('fibonacci_blocks') },
+
+      { kind: 'slider', id: 't-count-cells', path: `${P}.count`, label: 'מספר תאים', why: 'כל תא הוא כל המקומות שקרובים לנקודה שלו יותר מלכל נקודה אחרת.', min: () => 3, max: () => 200, step: 1, value: (r) => tp(r).count ?? 20, format: int0, show: pat('voronoi_cells') },
+      { kind: 'slider', id: 't-width', path: `${P}.width`, label: 'רוחב התוכנית', why: 'המלבן שהתאים מחלקים ביניהם.', min: () => 4, max: () => 300, step: 1, value: (r) => tp(r).width ?? 40, format: m(0), show: pat('voronoi_cells') },
+      { kind: 'slider', id: 't-vdepth', path: `${P}.depth`, label: 'עומק התוכנית', why: 'הצלע השנייה של המלבן.', min: () => 4, max: () => 300, step: 1, value: (r) => tp(r).depth ?? 30, format: m(0), show: pat('voronoi_cells') },
+      { kind: 'slider', id: 't-seed', path: `${P}.seed`, label: 'פיזור', why: 'מספר שקובע איפה הנקודות נופלות. אותו מספר נותן תמיד אותו דפוס.', min: () => 1, max: () => 999, step: 1, value: (r) => tp(r).seed ?? 1, format: int0, show: pat('voronoi_cells', 'random_walk') },
+      { kind: 'slider', id: 't-hmax', path: `${P}.height`, label: 'גובה במרכז', why: 'התא שהנקודה שלו במרכז הוא הגבוה. הגובה יורד לכיוון הקצוות.', min: (r) => tp(r).height_min ?? 0.3, max: () => 200, step: 0.5, value: (r) => tp(r).height ?? 10, format: m(1), show: pat('voronoi_cells') },
+      { kind: 'slider', id: 't-hmin', path: `${P}.height_min`, label: 'גובה בקצה', why: 'הגובה של התא הרחוק ביותר מהמרכז.', min: () => 0.3, max: (r) => tp(r).height ?? 10, step: 0.5, value: (r) => tp(r).height_min ?? 2, format: m(1), show: pat('voronoi_cells') },
+      { kind: 'slider', id: 't-joint', path: `${P}.joint`, label: 'מרווח', why: 'הרווח בין שני אלמנטים שכנים. אפס: התאים מכסים את התוכנית בלי רווח.', min: () => 0, max: (r) => (tp(r).pattern === 'fibonacci_blocks' ? Math.min(5, floor2((tp(r).unit ?? 1) - 0.05)) : 5), step: 0.05, value: (r) => tp(r).joint ?? 0.4, format: m(2), show: pat('fibonacci_blocks', 'voronoi_cells') },
+
+      { kind: 'slider', id: 't-steps', path: `${P}.steps`, label: 'מספר צעדים', why: 'אחרי n צעדים, ההילוך מתרחק מההתחלה בערך כמו השורש של n, ולא כמו n.', min: () => 10, max: () => 4000, step: 10, value: (r) => tp(r).steps ?? 500, format: int0, show: pat('random_walk') },
+      { kind: 'slider', id: 't-hvisit', path: `${P}.height`, label: 'גובה לכל ביקור', why: 'משבצת שההילוך חזר אליה הרבה גבוהה יותר: מפה של צפיפות.', min: () => 0.3, max: () => 10, step: 0.1, value: (r) => tp(r).height ?? 0.6, format: m(1), show: pat('random_walk') },
+      { kind: 'slider', id: 't-hcol', path: `${P}.height`, label: 'גובה העמוד', why: 'כל העמודים באותו גובה: הדפוס נקרא מהתוכנית, לא מהגובה.', min: () => 0.3, max: () => 60, step: 0.1, value: (r) => tp(r).height ?? 4, format: m(1), show: pat('ulam_grid') },
+    ],
+  },
+  {
+    title: 'בסיס',
+    params: [
+      { kind: 'slider', id: 't-ground', path: 'bare.section_center_height', label: 'גובה הבסיס', why: 'כל האלמנטים עומדים על אותו מפלס. אפס: על הקרקע.', min: () => -5, max: () => 20, step: 0.1, value: (r) => r.bare.section_center_height, format: m(1) },
     ],
   },
 ]

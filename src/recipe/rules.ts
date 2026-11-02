@@ -7,7 +7,8 @@
 import { CURVE_PATHS, bendAxis, crossingClearance, lowestPoints, minCurvatureRadius, sectionExtent } from '../engine/paths/analysis'
 import { gcd } from '../engine/math'
 import { pathFrames } from '../engine/paths'
-import type { Recipe, SurfaceParams, SweepParams, SweepSection } from './schema'
+import type { Recipe, SurfaceParams, SweepParams, SweepSection, TilingParams } from './schema'
+import { COUNT_RANGE, layout, polyArea } from '../engine/tiling/patterns'
 import { KLEIN_REACH, clearance, family, minCurvatureRadius as surfaceMinCurvature, planSpan } from '../engine/surface/families'
 import { CLOSED_PATH_TYPES, RING_PATH_TYPES, parseRecipe, type SchemaError } from './schema'
 
@@ -43,6 +44,12 @@ export const RULES: readonly RuleDef[] = [
   { id: 17, severity: 'error', scope: 'recipe', message: 'הדופן עבה מהעיקול של המשטח, והקליפה מתקפלת על עצמה' },
   { id: 18, severity: 'warning', scope: 'recipe', message: 'הקליפה דקה מאוד ביחס למפתח שלה' },
   { id: 19, severity: 'warning', scope: 'recipe', message: 'אין גובה לעמידה מתחת לקליפה' },
+  // Tiling (GENERATORS.md 4.2, DECISIONS.md 146).
+  { id: 20, severity: 'error', scope: 'recipe', message: 'ריצוף נבנה מגופים מלאים' },
+  { id: 21, severity: 'error', scope: 'recipe', message: 'האלמנטים נוגעים זה בזה או נעלמים' },
+  { id: 22, severity: 'warning', scope: 'recipe', message: 'אלמנט דק וגבוה מדי לעמוד לבד' },
+  { id: 23, severity: 'warning', scope: 'recipe', message: 'אין מעבר בין האלמנטים' },
+  { id: 24, severity: 'warning', scope: 'recipe', message: 'יותר מ-1,500 אלמנטים: המודל כבד' },
 ]
 
 export interface RuleIssue {
@@ -273,8 +280,53 @@ function curvePathIssues(g: SweepParams, h0: number, rOut: number): RuleIssue[] 
   return out
 }
 
+/** A walkable passage between walls or columns, m (rule 23). */
+export const MIN_PASSAGE = 0.9
+/** An element taller than this many times its smallest plan dimension is a warning (rule 22). */
+export const MAX_SLENDERNESS = 30
+/** More elements than this is a warning (rule 24). */
+export const MAX_ELEMENTS = 1500
+
+/** Rules for a tiling (RECIPE_SCHEMA.md, rules 20–24). */
+function tilingIssues(recipe: Recipe, p: TilingParams): RuleIssue[] {
+  const out: RuleIssue[] = []
+  // 20. Every element is a solid prism.
+  if (recipe.bare.mode !== 'solid') return [issue(20, 'bare.mode', 0, 'mode = "solid"')]
+  // 21. Elements that touch share faces, and the closed solid breaks; elements that vanish leave a hole in the rule.
+  const range = COUNT_RANGE[p.pattern]
+  if (range && (p.count! < range[0] || p.count! > range[1])) out.push(issue(21, `${P}.count`, p.count!, `${range[0]} ≤ count ≤ ${range[1]}`))
+  if (p.pattern === 'riemann_walls' && !(p.thickness! < p.length! / p.count! - EPS)) out.push(issue(21, `${P}.thickness`, p.thickness!, `thickness < length / count = ${round(p.length! / p.count!)}`))
+  if (p.pattern === 'ulam_grid' && !(p.fill! < 1 - EPS)) out.push(issue(21, `${P}.fill`, p.fill!, 'fill < 1'))
+  if (p.pattern === 'fibonacci_blocks' && !(p.joint! < p.unit! - EPS)) out.push(issue(21, `${P}.joint`, p.joint!, `joint < unit = ${round(p.unit!)}`))
+  if (out.length) return out
+  const L = layout(p)
+  if (p.pattern === 'voronoi_cells' && L.facts.vanished! > 0) out.push(issue(21, `${P}.joint`, p.joint!, `every cell keeps an area after the joint (${L.facts.vanished} vanished)`))
+  if (out.length) return out
+  // 22. Slender elements: height over the smallest side of the plan.
+  let worst = 0
+  for (const e of L.elements) {
+    let minSide = Infinity
+    for (let i = 0; i < e.poly.length; i++) {
+      const [ax, az] = e.poly[i]!, [bx, bz] = e.poly[(i + 1) % e.poly.length]!
+      minSide = Math.min(minSide, Math.hypot(bx - ax, bz - az))
+    }
+    // A sliver cell has a short side but a fat body: measure by area over the longest chord instead.
+    const thick = e.poly.length > 4 ? Math.sqrt(Math.abs(polyArea(e.poly))) : minSide
+    worst = Math.max(worst, e.height / thick)
+  }
+  if (worst > MAX_SLENDERNESS + EPS) out.push(issue(22, p.pattern === 'riemann_walls' ? `${P}.thickness` : `${P}.height`, round(worst, 1), `height ≤ ${MAX_SLENDERNESS} × smallest plan side`))
+  // 23. Walls and columns are walked between.
+  if ((p.pattern === 'riemann_walls' || p.pattern === 'ulam_grid') && L.facts.gap! < MIN_PASSAGE - EPS) {
+    out.push(issue(23, p.pattern === 'riemann_walls' ? `${P}.thickness` : `${P}.fill`, round(L.facts.gap!), `passage ≥ ${MIN_PASSAGE}`))
+  }
+  // 24. A heavy model.
+  if (L.elements.length > MAX_ELEMENTS) out.push(issue(24, p.pattern === 'random_walk' ? `${P}.steps` : `${P}.side`, L.elements.length, `elements ≤ ${MAX_ELEMENTS}`))
+  return out
+}
+
 /** Runs every recipe-scope rule. Assumes the recipe already passed the schema. */
 export function checkRules(recipe: Recipe): RuleIssue[] {
+  if (recipe.generator.type === 'tiling') return tilingIssues(recipe, recipe.generator.params)
   if (recipe.generator.type === 'parametric_surface') return surfaceIssues(recipe, recipe.generator.params)
   if (recipe.generator.type !== 'sweep') return []
   return sweepIssues(recipe, recipe.generator.params)

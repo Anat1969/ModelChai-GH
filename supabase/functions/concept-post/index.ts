@@ -149,11 +149,48 @@ var SurfaceParams = z.strictObject({
     }
   }
 });
+var TILING_PATTERNS = ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"];
+var TILING_PROFILES = ["arch", "parabola", "ramp"];
+var TILING_REQUIRED = {
+  riemann_walls: ["length", "count", "peak", "depth", "thickness", "profile"],
+  ulam_grid: ["side", "cell", "fill", "height"],
+  fibonacci_blocks: ["count", "unit", "height_ratio", "joint"],
+  voronoi_cells: ["width", "depth", "count", "seed", "height_min", "height", "joint"],
+  random_walk: ["steps", "cell", "height", "seed"]
+};
+var TilingParams = z.strictObject({
+  pattern: z.enum(TILING_PATTERNS),
+  length: num(4, 300).optional(),
+  depth: num(1, 300).optional(),
+  width: num(4, 300).optional(),
+  count: int(2, 400).optional(),
+  side: int(3, 61).optional(),
+  steps: int(10, 4e3).optional(),
+  peak: num(1, 200).optional(),
+  base_height: num(0, 100).optional(),
+  profile: z.enum(TILING_PROFILES).optional(),
+  thickness: num(0.1, 20).optional(),
+  cell: num(0.5, 20).optional(),
+  fill: num(0.2, 1).optional(),
+  height: num(0.3, 200).optional(),
+  height_min: num(0.3, 200).optional(),
+  unit: num(0.5, 20).optional(),
+  height_ratio: num(0.05, 3).optional(),
+  joint: num(0, 5).optional(),
+  seed: int(1, 9999).optional(),
+  invert: z.boolean().optional()
+}).superRefine((p, ctx) => {
+  for (const field of TILING_REQUIRED[p.pattern]) {
+    if (p[field] === void 0) {
+      ctx.addIssue({ code: "custom", path: [field], message: `${field} is required when pattern is "${p.pattern}"` });
+    }
+  }
+});
 var Generator = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("sweep"), params: SweepParams }),
   z.strictObject({ type: z.literal("parametric_surface"), params: SurfaceParams }),
   z.strictObject({ type: z.literal("sdf"), params: z.record(z.string(), z.unknown()) }),
-  z.strictObject({ type: z.literal("tiling"), params: z.record(z.string(), z.unknown()) })
+  z.strictObject({ type: z.literal("tiling"), params: TilingParams })
 ]);
 var Bare = z.strictObject({
   mode: z.enum(["solid", "shell"]),

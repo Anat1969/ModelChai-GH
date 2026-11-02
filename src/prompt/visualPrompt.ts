@@ -7,7 +7,7 @@ import { MATERIAL_LOOK } from '../engine/materials'
 import { isClosedPath } from '../engine/paths'
 import { CURVE_PATHS, lowestPoints } from '../engine/paths/analysis'
 import { outerRadius, symmetryOrder } from '../recipe/rules'
-import type { BuiltRecipe, SurfaceRecipe, SweepParams, SweepRecipe } from '../recipe/schema'
+import type { BuiltRecipe, SurfaceRecipe, SweepParams, SweepRecipe, TilingRecipe } from '../recipe/schema'
 import { CONTEXTS, VEGETATION, type ContextId, type VegetationId } from '../scene/contexts/layout'
 import { seasonOf } from '../scene/seasons'
 import { clockLabel, dateLabel, localTime, siteWords, sunAt } from '../scene/sun'
@@ -108,7 +108,45 @@ function surfaceShape(r: SurfaceRecipe): PromptPart {
   return { slot: 'shape', text: words.join(', '), sources: [`${P}.family`, P, 'bare.shell', 'bare.section_center_height'] }
 }
 
+const PROFILE_HE = { arch: 'קשת', parabola: 'פרבולה', ramp: 'עלייה ישרה' } as const
+
+/** A tiling in words (DECISIONS.md 147): the element, the rule it repeats by, and how many. */
+function tilingShape(r: TilingRecipe): PromptPart {
+  const p = r.generator.params
+  const words: string[] = []
+  switch (p.pattern) {
+    case 'riemann_walls':
+      words.push(`שורה של ${p.count} קירות מקבילים בעובי ${m(p.thickness!)} ובעומק ${m(p.depth!)}, לאורך ${m(p.length!)}`, `גובה הקירות עולה ויורד לפי ${PROFILE_HE[p.profile!]} עד ${m(p.peak!)}, כמו פסים של סכום רימן`, 'מעברים צרים בין הקירות')
+      break
+    case 'ulam_grid':
+      words.push(p.invert ? `גוש של ${p.side! ** 2 - countPrimes(p.side! ** 2)} עמודים מרובעים ברשת, עם פתחים במקומות של המספרים הראשוניים` : `${countPrimes(p.side! ** 2)} עמודים מרובעים בגובה ${m(p.height!)}, פזורים על רשת ${p.side} × ${p.side} במקומות של המספרים הראשוניים`, 'העמודים מסתדרים באלכסונים')
+      break
+    case 'fibonacci_blocks':
+      words.push(`${p.count} גושים ריבועיים בגדלי סדרת פיבונאצ׳י, מסודרים בספירלת זהב`, 'כל גוש גבוה יותר מהקודם, והספירלה מטפסת', `מרווחים של ${m(p.joint!)} בין הגושים`)
+      break
+    case 'voronoi_cells':
+      words.push(`${p.count} תאים מצולעים בגבהים שונים, שמחלקים מגרש של ${m(p.width!)} על ${m(p.depth!)}`, `התאים גבוהים במרכז (${m(p.height!)}) ויורדים לקצוות (${m(p.height_min!)})`, p.joint! > 0 ? `מרווחים של ${m(p.joint!)} בין התאים` : 'התאים צמודים זה לזה')
+      break
+    case 'random_walk':
+      words.push(`רצף מתפתל של גושים קטנים על רשת, כמו עקבות של הליכה אקראית בת ${p.steps} צעדים`, 'במקומות שההליכה חזרה אליהם הגושים גבוהים יותר')
+  }
+  const base = r.bare.section_center_height
+  if (base > 0.05) words.push(`הבסיס מורם ${m(base)} מעל הקרקע`)
+  return { slot: 'shape', text: words.join(', '), sources: [`${P}.pattern`, P, 'bare.section_center_height'] }
+}
+
+const countPrimes = (N: number) => {
+  let c = 0
+  for (let n = 2; n <= N; n++) {
+    let prime = true
+    for (let d = 2; d * d <= n; d++) if (n % d === 0) { prime = false; break }
+    if (prime) c++
+  }
+  return c
+}
+
 function shapePart(r: Built): PromptPart {
+  if (r.generator.type === 'tiling') return tilingShape(r as TilingRecipe)
   if (r.generator.type === 'parametric_surface') return surfaceShape(r as SurfaceRecipe)
   return sweepShape(r as Sweep)
 }
@@ -224,7 +262,12 @@ const SURFACE_INSIDE: Record<string, string> = {
 
 function cameraPart(r: Built): PromptPart {
   const c = r.realistic.camera
-  const words = c.preset === 'inside' && r.generator.type === 'parametric_surface' ? SURFACE_INSIDE[r.generator.params.family]! : CAMERA_WORDS[c.preset]
+  const words =
+    c.preset === 'inside' && r.generator.type === 'parametric_surface'
+      ? SURFACE_INSIDE[r.generator.params.family]!
+      : c.preset === 'inside' && r.generator.type === 'tiling'
+        ? 'מבט מבפנים, בגובה עיניים, במעבר בין האלמנטים'
+        : CAMERA_WORDS[c.preset]
   return { slot: 'camera', text: `${words}, מגובה ${m(c.height)}, זווית ראייה ${num(c.fov_deg, 0)}°`, sources: ['realistic.camera'] }
 }
 

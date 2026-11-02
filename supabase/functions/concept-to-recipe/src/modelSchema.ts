@@ -130,6 +130,9 @@ export function modelSchema(recipeSchema: Json, generators: string[]): Json {
   const genProps = gen.properties as Json
   genProps.type = { type: 'string', enum: generators }
   const defs = s.$defs as Json
+  // Tiling is built in the studio but not yet offered to Claude (DECISIONS.md 146): its fields would pass the API's
+  // limit of optional fields, so its definition leaves the model's schema.
+  delete defs.tiling
   const surface = defs.surface as Json
   if (generators.includes('parametric_surface')) {
     // Every dimension required and nullable: no optional fields, and the family decides which carry numbers.
