@@ -176,6 +176,45 @@ export const FIGURES: Record<string, () => Figure> = {
       }
     return fit([guide([[0, 0], [9.6, 0], [9.6, 6.4], [0, 6.4]], true), ...lines, ...seeds.map((s) => guide(circle(0.06, s[0], s[1], 12), true))])
   },
+  ulam_spiral: () => {
+    // The numbers 1..441 on a square spiral; each prime is a filled cell, the spiral itself is the guide.
+    const isPrime = (n: number) => {
+      if (n < 2) return false
+      for (let d = 2; d * d <= n; d++) if (n % d === 0) return false
+      return true
+    }
+    const cells: Pt[] = []
+    let [x, y, dx, dy, run, done, turns] = [0, 0, 1, 0, 1, 0, 0]
+    for (let n = 1; n <= 441; n++) {
+      cells.push([x, y])
+      x += dx
+      y += dy
+      if (++done === run) {
+        done = 0
+        ;[dx, dy] = [-dy, dx]
+        if (++turns % 2 === 0) run++
+      }
+    }
+    const sq = ([cx, cy]: Pt): Pt[] => [[cx - 0.32, cy - 0.32], [cx + 0.32, cy - 0.32], [cx + 0.32, cy + 0.32], [cx - 0.32, cy + 0.32]]
+    return fit([guide(cells), ...cells.flatMap((c, i) => (isPrime(i + 1) ? [main(sq(c), true)] : []))])
+  },
+  random_walk: () => {
+    // A fixed pseudo-random walk of 400 steps (seeded mulberry32, so it draws the same each time), and the √n circle.
+    let seed = 20
+    const rnd = () => {
+      seed = (seed + 0x6d2b79f5) | 0
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const pts: Pt[] = [[0, 0]]
+    for (let i = 0; i < 400; i++) {
+      const [px, py] = pts.at(-1)!
+      const r = Math.floor(rnd() * 4)
+      pts.push(r === 0 ? [px + 1, py] : r === 1 ? [px - 1, py] : r === 2 ? [px, py + 1] : [px, py - 1])
+    }
+    return fit([main(pts), guide(circle(20), true)])
+  },
   koch: () => {
     let pts: Pt[] = [[0, 0], [1, 0], [0.5, -Math.sqrt(3) / 2], [0, 0]]
     for (let k = 0; k < 4; k++) {

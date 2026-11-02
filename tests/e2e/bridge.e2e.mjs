@@ -53,9 +53,28 @@ try {
   check('Möbius: link to the full article', (await page.locator('.musag-open').getAttribute('href')) === 'https://musag-matemati-gh.vercel.app/#/c/mobius')
   await page.close()
 
+  page = await open('#/learn?m=klein')
+  const errors = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto(BASE + '#/learn?m=mobius')
+  await page.waitForSelector('[data-model=mobius][data-testid=model-page]', { timeout: 10000 })
+  check('From model to model in the same tab: the page stays (DECISIONS.md 145)', errors.length === 0, errors.join(' | '))
+  await page.close()
+
   page = await open('#/learn?m=riemann')
   await page.waitForSelector('[data-testid=musag-knowledge]', { timeout: 10000 })
   check('Riemann sum: the integral article', (await page.locator('.musag-card').getAttribute('data-concept')) === 'integral')
+  await page.close()
+
+  page = await open('#/learn?m=ulam_spiral')
+  await page.waitForSelector('[data-testid=musag-knowledge]', { timeout: 10000 })
+  check('Ulam spiral: new model, with the prime-number article', (await page.locator('.musag-card').getAttribute('data-concept')) === 'prime')
+  check('Ulam spiral: drawn from its equation', (await page.locator('[data-testid=model-page] svg path').count()) > 20)
+  await page.close()
+
+  page = await open('#/learn?m=random_walk')
+  await page.waitForSelector('[data-testid=musag-knowledge]', { timeout: 10000 })
+  check('Random walk: the entropy article', (await page.locator('.musag-card').getAttribute('data-concept')) === 'entropy')
   await page.close()
 
   page = await open('#/learn?m=umbilic_torus')

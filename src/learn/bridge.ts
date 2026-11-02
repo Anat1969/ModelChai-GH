@@ -63,3 +63,23 @@ export function conceptsForModel(concepts: MusagConcept[], modelId: string) {
     .flatMap((c) => c.models.filter((l) => l.id === modelId).map((link) => ({ concept: c, link })))
     .sort((a, b) => (a.link.relation === b.link.relation ? 0 : a.link.relation === 'same' ? -1 : 1))
 }
+
+/** The server reads at most this much of the context it is given (concept-partner, `clip(context, 600)`). */
+export const CONTEXT_LIMIT = 600
+
+/**
+ * The checked knowledge from "מושג מתמטי", as context for Claude's deeper look (DECISIONS.md 144): it builds on
+ * precedents that have a source instead of inventing new ones. Most important first, inside the server's limit.
+ * Undefined when no concept links to the model.
+ */
+export function verifiedContext(links: ReturnType<typeof conceptsForModel>): string | undefined {
+  if (!links.length) return undefined
+  const head = 'Verified by the app "מושג מתמטי", with sources. Cite as given; do not invent other precedents.'
+  const parts = links.map(({ concept: c }) => {
+    const p = c.precedent
+    return `${c.name} (${c.rule.formula}). Precedent: ${p.name.he} (${p.name.latin}), ${p.by}, ${p.year} [${p.source.label}]. City: ${c.city.name.he} (${c.city.name.latin}).`
+  })
+  let out = head
+  for (const part of parts) if ((out + ' ' + part).length <= CONTEXT_LIMIT) out += ' ' + part
+  return out
+}
