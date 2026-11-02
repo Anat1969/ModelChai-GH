@@ -12,7 +12,7 @@ import { exploreConcept, suggestConcepts, type ExploreResult, type SuggestResult
 import { ensureSession } from '../../data/supabase'
 import { createProject, loadWork, saveJourney } from '../../data/work'
 import { FIT_WORD, MODELS, modelById, modelsForUse, withUses, type Model } from '../../learn/atlas'
-import { conceptsForModel } from '../../learn/bridge'
+import { conceptsForModel, verifiedContext } from '../../learn/bridge'
 import { TRAITS, USES, type UseId } from '../../learn/traits'
 import type { Journey } from '../../journey/stages'
 import { ModelFigure } from '../learn/ModelFigure'
@@ -56,9 +56,10 @@ function ModelPage({ m, projectId }: { m: Model; projectId: string | null }) {
   const load = useStudio((s) => s.loadRecipe)
   const example = m.fit.example ? EXAMPLES.find((e) => e.id === m.fit.example) : undefined
 
+  const musagLinks = conceptsForModel(useMusag(), m.id)
   const deeper = async () => {
     setBusy('explore')
-    const out = await exploreConcept({ name: m.name, name_he: m.name_he, plain: m.plain, dna: m.dna })
+    const out = await exploreConcept({ name: m.name, name_he: m.name_he, plain: m.plain, dna: m.dna }, verifiedContext(musagLinks))
     setBusy(null)
     if (out.ok) setExplore(out)
     else setStatus(out.error)
@@ -254,7 +255,10 @@ function ModelPage({ m, projectId }: { m: Model; projectId: string | null }) {
               <li key={q}>{q}</li>
             ))}
           </ul>
-          <p className="hint">התשובה של Claude היא נקודת מבט, לא עובדה מאומתת. כדאי לבדוק תקדימים לפני שמצטטים אותם.</p>
+          <p className="hint">
+            התשובה של Claude היא נקודת מבט, לא עובדה מאומתת. כדאי לבדוק תקדימים לפני שמצטטים אותם.
+            {musagLinks.length > 0 && ' התקדימים בחלק "ידע ותקדים" כבר נבדקו מול מקור, ו-Claude קיבל אותם כבסיס.'}
+          </p>
         </section>
       )}
     </article>
@@ -262,6 +266,7 @@ function ModelPage({ m, projectId }: { m: Model; projectId: string | null }) {
 }
 
 const RELATION = { same: 'אותו מושג', near: 'מושג קרוב' } as const
+
 
 /**
  * Knowledge with a source, from "מושג מתמטי" (DECISIONS.md 143): the rule, a real precedent, an example from the
@@ -519,7 +524,11 @@ export function LearnScreen() {
   const m = modelId ? modelById(modelId) : undefined
   const go = (params: Record<string, string>) => navigate('learn', { ...params, ...(projectId ? { p: projectId } : {}) })
 
-  useEffect(() => window.scrollTo(0, 0), [modelId])
+  // A block, not an expression: in Chromium 153 scrollTo returns a Promise, and React would call it as the cleanup
+  // when the model changes, which threw "destroy is not a function" and blanked the page (DECISIONS.md 145).
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [modelId])
 
   const crumbs = [{ label: 'בית', to: 'home' as const }, { label: 'מושגים', to: 'learn' as const, params: projectId ? { p: projectId } : undefined }, ...(m ? [{ label: m.name_he }] : [])]
   return (

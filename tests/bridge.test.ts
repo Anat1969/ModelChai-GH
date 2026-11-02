@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MODELS } from '../src/learn/atlas'
-import { buildBridge, conceptsForModel, type MusagConcept } from '../src/learn/bridge'
+import { readFileSync } from 'node:fs'
+import { buildBridge, conceptsForModel, CONTEXT_LIMIT, verifiedContext, type MusagConcept } from '../src/learn/bridge'
 
 describe('bridge to "מושג מתמטי" (DECISIONS.md 143)', () => {
   const b = buildBridge()
@@ -24,8 +25,27 @@ describe('bridge to "מושג מתמטי" (DECISIONS.md 143)', () => {
     expect(conceptsForModel(list, 'klein')).toEqual([])
   })
 
+  const recorded = JSON.parse(readFileSync(new URL('./e2e/recorded/musag-bridge.json', import.meta.url), 'utf8')).concepts as MusagConcept[]
+
   it('every model "מושג מתמטי" links to exists in the atlas', () => {
     const ids = new Set(MODELS.map((m) => m.id))
-    for (const id of ['golden_spiral', 'fibonacci', 'mobius', 'riemann', 'klein']) expect(ids.has(id)).toBe(true)
+    const linked = recorded.flatMap((c) => c.models.map((l) => l.id))
+    expect(linked.length).toBeGreaterThanOrEqual(7)
+    for (const id of linked) expect(ids.has(id), id).toBe(true)
+  })
+
+  it('every concept there has a body here: no concept is left without a model', () => {
+    for (const c of recorded) expect(c.models.length, c.slug).toBeGreaterThan(0)
+  })
+
+  it('gives Claude the checked precedent, inside the server limit (DECISIONS.md 144)', () => {
+    for (const m of MODELS) {
+      const ctx = verifiedContext(conceptsForModel(recorded, m.id))
+      if (!ctx) continue
+      expect(ctx.length, m.id).toBeLessThanOrEqual(CONTEXT_LIMIT)
+      expect(ctx, m.id).toContain('Precedent:')
+    }
+    expect(verifiedContext(conceptsForModel(recorded, 'mobius'))).toContain('Möbius House, Het Gooi')
+    expect(verifiedContext(conceptsForModel(recorded, 'umbilic_torus'))).toBeUndefined()
   })
 })
