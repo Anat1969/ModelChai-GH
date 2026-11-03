@@ -640,6 +640,13 @@ const pat = (...ps: string[]) => (r: T) => ps.includes(r.generator.params.patter
 const tp = (r: T) => r.generator.params
 const int0 = (v: number) => num(v, 0)
 
+/** The most Koch steps whose smallest teeth survive the joint (rule 21): inradius·0.95 must exceed joint/2. */
+export function kochMaxSteps(length: number, joint: number): number {
+  let n = 1
+  while (n < 5 && ((length / 3 ** (n + 1)) / (2 * Math.sqrt(3))) * 0.95 > joint / 2) n++
+  return n
+}
+
 /** The sliders of a tiling: each pattern's own rule, then the base. */
 export const TILING_GROUPS: ParamGroup<T>[] = [
   {
@@ -668,8 +675,12 @@ export const TILING_GROUPS: ParamGroup<T>[] = [
       { kind: 'slider', id: 't-seed', path: `${P}.seed`, label: 'פיזור', why: 'מספר שקובע איפה הנקודות נופלות. אותו מספר נותן תמיד אותו דפוס.', min: () => 1, max: () => 999, step: 1, value: (r) => tp(r).seed ?? 1, format: int0, show: pat('voronoi_cells', 'random_walk') },
       { kind: 'slider', id: 't-hmax', path: `${P}.height`, label: 'גובה במרכז', why: 'התא שהנקודה שלו במרכז הוא הגבוה. הגובה יורד לכיוון הקצוות.', min: (r) => tp(r).height_min ?? 0.3, max: () => 200, step: 0.5, value: (r) => tp(r).height ?? 10, format: m(1), show: pat('voronoi_cells') },
       { kind: 'slider', id: 't-hmin', path: `${P}.height_min`, label: 'גובה בקצה', why: 'הגובה של התא הרחוק ביותר מהמרכז.', min: () => 0.3, max: (r) => tp(r).height ?? 10, step: 0.5, value: (r) => tp(r).height_min ?? 2, format: m(1), show: pat('voronoi_cells') },
-      { kind: 'slider', id: 't-joint', path: `${P}.joint`, label: 'מרווח', why: 'הרווח בין שני אלמנטים שכנים. אפס: התאים מכסים את התוכנית בלי רווח.', min: () => 0, max: (r) => (tp(r).pattern === 'fibonacci_blocks' ? Math.min(5, floor2((tp(r).unit ?? 1) - 0.05)) : 5), step: 0.05, value: (r) => tp(r).joint ?? 0.4, format: m(2), show: pat('fibonacci_blocks', 'voronoi_cells') },
+      { kind: 'slider', id: 't-joint', path: `${P}.joint`, label: 'מרווח', why: 'הרווח בין שני אלמנטים שכנים. אפס: התאים מכסים את התוכנית בלי רווח.', min: () => 0, max: (r) => (tp(r).pattern === 'fibonacci_blocks' ? Math.min(5, floor2((tp(r).unit ?? 1) - 0.05)) : 5), step: 0.05, value: (r) => tp(r).joint ?? 0.4, format: m(2), show: pat('fibonacci_blocks', 'voronoi_cells', 'koch_snowflake') },
 
+      { kind: 'slider', id: 't-klen', path: `${P}.length`, label: 'צלע המשולש', why: 'הצלע של המשולש הראשון. כל שלב מוסיף משולשים בשליש מהצלע של השלב הקודם.', min: () => 4, max: () => 300, step: 1, value: (r) => tp(r).length ?? 36, format: m(0), show: pat('koch_snowflake') },
+      { kind: 'slider', id: 't-kiter', path: `${P}.count`, label: 'מספר שלבים', why: 'כל שלב מכפיל את מספר השיניים פי ארבעה, וההיקף גדל פי ארבעה שלישים. המקסימום הוא השלב שבו השן הקטנה עוד רחבה מהמרווח.', min: () => 1, max: (r) => kochMaxSteps(tp(r).length ?? 36, tp(r).joint ?? 0), step: 1, value: (r) => tp(r).count ?? 3, format: int0, show: pat('koch_snowflake') },
+      { kind: 'slider', id: 't-kheight', path: `${P}.height`, label: 'גובה המשולש הראשון', why: 'הגוש המרכזי. כל שכבה של שיניים נמוכה ממנו לפי היחס.', min: () => 0.3, max: () => 60, step: 0.1, value: (r) => tp(r).height ?? 6, format: m(1), show: pat('koch_snowflake') },
+      { kind: 'slider', id: 't-kratio', path: `${P}.height_ratio`, label: 'יחס בין שכבות', why: 'כמה נמוכה כל שכבה מהקודמת. 1: הכול באותו גובה; קטן: מדרגות שיורדות אל הקצה.', min: () => 0.05, max: () => 1, step: 0.05, value: (r) => tp(r).height_ratio ?? 0.6, format: (v) => num(v, 2), show: pat('koch_snowflake') },
       { kind: 'slider', id: 't-steps', path: `${P}.steps`, label: 'מספר צעדים', why: 'אחרי n צעדים, ההילוך מתרחק מההתחלה בערך כמו השורש של n, ולא כמו n.', min: () => 10, max: () => 4000, step: 10, value: (r) => tp(r).steps ?? 500, format: int0, show: pat('random_walk') },
       { kind: 'slider', id: 't-hvisit', path: `${P}.height`, label: 'גובה לכל ביקור', why: 'משבצת שההילוך חזר אליה הרבה גבוהה יותר: מפה של צפיפות.', min: () => 0.3, max: () => 10, step: 0.1, value: (r) => tp(r).height ?? 0.6, format: m(1), show: pat('random_walk') },
       { kind: 'slider', id: 't-hcol', path: `${P}.height`, label: 'גובה העמוד', why: 'כל העמודים באותו גובה: הדפוס נקרא מהתוכנית, לא מהגובה.', min: () => 0.3, max: () => 60, step: 0.1, value: (r) => tp(r).height ?? 4, format: m(1), show: pat('ulam_grid') },

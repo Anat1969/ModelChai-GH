@@ -143,7 +143,7 @@ export const MODELS: Model[] = [
     program: 'גלריה, בית ספר או מעונות עם חדרים בגדלים מדורגים.',
     traits: ['growth', 'discrete', 'tiling', 'open_path'],
     limits: ['הגדלים גדלים מהר: אחרי שבעה שלבים הפער גדול מאוד.', 'הסדרה היא יחס, לא צורה: צריך לבחור לה גאומטריה.'],
-    fit: { level: 'full', note: 'מחולל הריצוף בונה ריבועים בגדלי הסדרה בספירלת זהב, כל אחד גוש בגובה יחסי לצלע. היחס בין שני הגדולים נמדד מול φ.', example: 'fibonacci-golden-blocks' },
+    fit: { level: 'full', note: 'מחולל הריצוף בונה ריבועים בגדלי הסדרה בספירלת זהב, כל אחד גוש בגובה יחסי לצלע. היחס בין שני הגדולים נמדד מול φ.', example: 'fibonacci-spiral-garden' },
     ask: 'Fibonacci sequence',
   },
   {
@@ -297,7 +297,7 @@ export const MODELS: Model[] = [
     program: 'חזית, מעטפת, הצללה, גן עם הרבה שוליים.',
     traits: ['self_similar', 'closed_loop', 'symmetry', 'cusps'],
     limits: ['אחרי שלושה או ארבעה צעדים הפרטים קטנים מכדי לבנות.'],
-    fit: { level: 'none', note: 'דורש מחולל פרקטלי או ריצוף.' },
+    fit: { level: 'full', note: 'מחולל הריצוף בונה את הפתית בשכבות: משולש מרכזי, ובכל שלב משולשים על השליש האמצעי של כל קצה, נמוכים מהשכבה הקודמת. ההיקף והשטח נמדדים מול הנוסחה.', example: 'koch-snowflake-pavilion' },
     ask: 'Koch snowflake',
   },
   {

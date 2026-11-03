@@ -127,6 +127,9 @@ function tilingShape(r: TilingRecipe): PromptPart {
     case 'voronoi_cells':
       words.push(`${p.count} תאים מצולעים בגבהים שונים, שמחלקים מגרש של ${m(p.width!)} על ${m(p.depth!)}`, `התאים גבוהים במרכז (${m(p.height!)}) ויורדים לקצוות (${m(p.height_min!)})`, p.joint! > 0 ? `מרווחים של ${m(p.joint!)} בין התאים` : 'התאים צמודים זה לזה')
       break
+    case 'koch_snowflake':
+      words.push(`פתית קוך: משולש מרכזי בצלע ${m(p.length!)} ועליו ${p.count} שכבות של שיניים משולשות שהולכות וקטנות`, 'כל שכבה נמוכה מהקודמת, וקו המתאר מתפצל לפרטים קטנים לאורך הקצה', `מרווחים של ${m(p.joint!)} בין המשולשים`)
+      break
     case 'random_walk':
       words.push(`רצף מתפתל של גושים קטנים על רשת, כמו עקבות של הליכה אקראית בת ${p.steps} צעדים`, 'במקומות שההליכה חזרה אליהם הגושים גבוהים יותר')
   }

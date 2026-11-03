@@ -256,11 +256,11 @@
       "additionalProperties": false,
       "required": ["pattern"],
       "properties": {
-        "pattern": { "enum": ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"] },
+        "pattern": { "enum": ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk", "koch_snowflake"] },
         "length": { "type": "number", "minimum": 4, "maximum": 300 },
         "depth": { "type": "number", "minimum": 1, "maximum": 300 },
         "width": { "type": "number", "minimum": 4, "maximum": 300 },
-        "count": { "type": "integer", "minimum": 2, "maximum": 400 },
+        "count": { "type": "integer", "minimum": 1, "maximum": 400 },
         "side": { "type": "integer", "minimum": 3, "maximum": 61 },
         "steps": { "type": "integer", "minimum": 10, "maximum": 4000 },
         "peak": { "type": "number", "minimum": 1, "maximum": 200 },
@@ -282,7 +282,8 @@
         { "if": { "properties": { "pattern": { "const": "ulam_grid" } } }, "then": { "required": ["side", "cell", "fill", "height"] } },
         { "if": { "properties": { "pattern": { "const": "fibonacci_blocks" } } }, "then": { "required": ["count", "unit", "height_ratio", "joint"] } },
         { "if": { "properties": { "pattern": { "const": "voronoi_cells" } } }, "then": { "required": ["width", "depth", "count", "seed", "height_min", "height", "joint"] } },
-        { "if": { "properties": { "pattern": { "const": "random_walk" } } }, "then": { "required": ["steps", "cell", "height", "seed"] } }
+        { "if": { "properties": { "pattern": { "const": "random_walk" } } }, "then": { "required": ["steps", "cell", "height", "seed"] } },
+        { "if": { "properties": { "pattern": { "const": "koch_snowflake" } } }, "then": { "required": ["length", "count", "height", "height_ratio", "joint"] } }
       ]
     },
     "sweep": {

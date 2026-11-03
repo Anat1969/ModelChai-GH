@@ -300,7 +300,7 @@ function tilingIssues(recipe: Recipe, p: TilingParams): RuleIssue[] {
   if (p.pattern === 'fibonacci_blocks' && !(p.joint! < p.unit! - EPS)) out.push(issue(21, `${P}.joint`, p.joint!, `joint < unit = ${round(p.unit!)}`))
   if (out.length) return out
   const L = layout(p)
-  if (p.pattern === 'voronoi_cells' && L.facts.vanished! > 0) out.push(issue(21, `${P}.joint`, p.joint!, `every cell keeps an area after the joint (${L.facts.vanished} vanished)`))
+  if ((p.pattern === 'voronoi_cells' || p.pattern === 'koch_snowflake') && L.facts.vanished! > 0) out.push(issue(21, `${P}.joint`, p.joint!, `every element keeps an area after the joint (${L.facts.vanished} vanished)`))
   if (out.length) return out
   // 22. Slender elements: height over the smallest side of the plan.
   let worst = 0

@@ -71,6 +71,8 @@ function tilingRows(m: Metrics, r: Built): MetricRow[] {
   if (t.primes !== null) out.push({ key: 'primes', label: `ראשוניים עד ${num(t.numbers!, 0)}`, value: `${num(t.primes, 0)}, והערכת N/ln N: ${num(t.primeEstimate!, 0)}`, raw: t.primes })
   if (t.ratio !== null) out.push({ key: 'goldenRatio', label: 'יחס שני הריבועים הגדולים', value: `${num(t.ratio, 4)}, ו-φ = ${num(PHI, 4)}`, raw: Math.abs(t.ratio - PHI) })
   if (t.endDistance !== null) out.push({ key: 'walkDistance', label: 'מרחק הסוף מההתחלה', value: `${meters(t.endDistance, 1)}, ו-√n × משבצת = ${meters(t.expectedDistance!, 1)}`, raw: t.endDistance })
+  if (t.perimeter !== null) out.push({ key: 'kochPerimeter', label: 'היקף הפתית', value: meters(t.perimeter, 1), raw: t.perimeter })
+  if (t.areaRatio !== null) out.push({ key: 'kochArea', label: 'שטח ביחס למשולש הראשון', value: `${num(t.areaRatio, 4)}, והגבול 1.6`, raw: Math.abs(t.areaRatio - 1.6) })
   if (t.maxVisits !== null) out.push({ key: 'maxVisits', label: 'ביקורים במשבצת העמוסה', value: num(t.maxVisits, 0), raw: t.maxVisits })
   out.push({ key: 'footprintArea', label: 'שטח בנוי בתוכנית', value: `${num(t.footprint, 0)} מ"ר`, raw: t.footprint })
   out.push({ key: 'volume', label: `${material}, גופים מלאים`, value: `${num(m.volume, 0)} מ"ק`, raw: m.volume })

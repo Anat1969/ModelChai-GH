@@ -7,7 +7,9 @@ import catenary from '../../docs/examples/catenary-arch.recipe.json'
 import catenoid from '../../docs/examples/catenoid-pavilion.recipe.json'
 import ellipse from '../../docs/examples/elliptic-gallery.recipe.json'
 import fibonacci from '../../docs/examples/fibonacci-golden-blocks.recipe.json'
+import fibGarden from '../../docs/examples/fibonacci-spiral-garden.recipe.json'
 import helicoid from '../../docs/examples/helicoid-spiral-ramp.recipe.json'
+import koch from '../../docs/examples/koch-snowflake-pavilion.recipe.json'
 import helix from '../../docs/examples/helix-ramp.recipe.json'
 import hypar from '../../docs/examples/hypar-canopy.recipe.json'
 import hyperboloid from '../../docs/examples/hyperboloid-water-tower.recipe.json'
@@ -54,9 +56,11 @@ export const EXAMPLES: Example[] = (
     // Tiling (DECISIONS.md 146).
     ['riemann-accumulation-pavilion', riemann],
     ['ulam-prime-grove', ulam],
+    ['fibonacci-spiral-garden', fibGarden],
     ['fibonacci-golden-blocks', fibonacci],
     ['voronoi-market', voronoi],
     ['random-walk-wall', walk],
+    ['koch-snowflake-pavilion', koch],
   ] as const
 ).map(([id, r]) => ({ id, recipe: r as unknown as Example['recipe'] }))
 
