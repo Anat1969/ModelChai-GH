@@ -2,8 +2,8 @@
  * The recipe JSON Schema reshaped for structured outputs. The API compiles a subset of JSON Schema: no
  * numeric or length constraints, no if/then, no uniqueItems, and every object closed. Those constraints are
  * not lost: the full schema and the semantic rules run on every answer, and failures go to the repair loop.
- * The generator is narrowed to the generators the app offers, so `params` is the sweep definition, or the
- * parametric surface definition when the surface is offered. The surface's dimensions are each optional in the
+ * The generator is narrowed to the generators the app offers, so `params` is the sweep definition, the
+ * parametric surface definition, or one tiling pattern, as offered. The surface's dimensions are each optional in the
  * contract (a family needs only its own); here they are all required and nullable, which costs no optional
  * fields, and the model writes null for the ones its family does not use. `dropNullSurfaceFields` removes them
  * before validation (DECISIONS.md 142).
@@ -115,6 +115,29 @@ function splitPath(recipeSchema: Json, s: Json) {
   ;(((s.$defs as Json).sweep as Json).properties as Json).path = { anyOf: variants }
 }
 
+/**
+ * Tiling's fields are optional in the contract and required per pattern (the if/then in the recipe schema): 19
+ * optional fields, beyond the limit. Like the path, each pattern becomes its own closed object, under $defs as
+ * tiling_<pattern>, with exactly the fields that pattern requires. The fields with a default (base_height,
+ * invert) are left out, so the model gets the default (DECISIONS.md 150).
+ */
+function splitTiling(recipeSchema: Json, defs: Json): string[] {
+  const original = (recipeSchema.$defs as Json).tiling as Json
+  const fields = (defs.tiling as Json).properties as Json
+  return (original.allOf as Json[]).map((c) => {
+    const pattern = (((c.if as Json).properties as Json).pattern as Json).const as string
+    const required = (c.then as Json).required as string[]
+    const name = `tiling_${pattern}`
+    defs[name] = {
+      type: 'object',
+      properties: { pattern: { type: 'string', const: pattern }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
+      required: ['pattern', ...required],
+      additionalProperties: false,
+    }
+    return name
+  })
+}
+
 export function modelSchema(recipeSchema: Json, generators: string[]): Json {
   const s = clean(recipeSchema) as Json
   for (const [path, field] of NOT_FOR_MODEL) {
@@ -130,8 +153,8 @@ export function modelSchema(recipeSchema: Json, generators: string[]): Json {
   const genProps = gen.properties as Json
   genProps.type = { type: 'string', enum: generators }
   const defs = s.$defs as Json
-  // Tiling is built in the studio but not yet offered to Claude (DECISIONS.md 146): its fields would pass the API's
-  // limit of optional fields, so its definition leaves the model's schema.
+  // Tiling as one closed object per pattern, every field required: no optional fields (DECISIONS.md 150).
+  const tiling = generators.includes('tiling') ? splitTiling(recipeSchema, defs) : []
   delete defs.tiling
   const surface = defs.surface as Json
   if (generators.includes('parametric_surface')) {
@@ -139,11 +162,14 @@ export function modelSchema(recipeSchema: Json, generators: string[]): Json {
     const props = surface.properties as Json
     for (const k of Object.keys(props)) if (k !== 'family') props[k] = { anyOf: [props[k], { type: 'null' }] }
     surface.required = Object.keys(props)
-    genProps.params = generators.includes('sweep') ? { anyOf: [{ $ref: '#/$defs/sweep' }, { $ref: '#/$defs/surface' }] } : { $ref: '#/$defs/surface' }
-  } else {
-    delete defs.surface
-    genProps.params = { $ref: '#/$defs/sweep' }
-  }
+  } else delete defs.surface
+  if (!generators.includes('sweep')) delete defs.sweep
+  const offered = [
+    ...(generators.includes('sweep') ? [{ $ref: '#/$defs/sweep' }] : []),
+    ...(generators.includes('parametric_surface') ? [{ $ref: '#/$defs/surface' }] : []),
+    ...tiling.map((t) => ({ $ref: `#/$defs/${t}` })),
+  ]
+  genProps.params = offered.length === 1 ? offered[0] : { anyOf: offered }
   delete gen.allOf
   return s
 }

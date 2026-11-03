@@ -149,21 +149,22 @@ var SurfaceParams = z.strictObject({
     }
   }
 });
-var TILING_PATTERNS = ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"];
+var TILING_PATTERNS = ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk", "koch_snowflake"];
 var TILING_PROFILES = ["arch", "parabola", "ramp"];
 var TILING_REQUIRED = {
   riemann_walls: ["length", "count", "peak", "depth", "thickness", "profile"],
   ulam_grid: ["side", "cell", "fill", "height"],
   fibonacci_blocks: ["count", "unit", "height_ratio", "joint"],
   voronoi_cells: ["width", "depth", "count", "seed", "height_min", "height", "joint"],
-  random_walk: ["steps", "cell", "height", "seed"]
+  random_walk: ["steps", "cell", "height", "seed"],
+  koch_snowflake: ["length", "count", "height", "height_ratio", "joint"]
 };
 var TilingParams = z.strictObject({
   pattern: z.enum(TILING_PATTERNS),
   length: num(4, 300).optional(),
   depth: num(1, 300).optional(),
   width: num(4, 300).optional(),
-  count: int(2, 400).optional(),
+  count: int(1, 400).optional(),
   side: int(3, 61).optional(),
   steps: int(10, 4e3).optional(),
   peak: num(1, 200).optional(),

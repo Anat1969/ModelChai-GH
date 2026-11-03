@@ -189,6 +189,33 @@ describe('structured-output schema', () => {
     expect(v(sweep), JSON.stringify(v.errors)).toBe(true)
   })
 
+  it('offers tiling: one closed object per pattern, no optional field more, every tiling example passes', () => {
+    const all = modelSchema(recipeSchema as Record<string, unknown>, ['sweep', 'parametric_surface', 'tiling'])
+    console.info(`[optional] with tiling ${countOptional(all)}, limit ${MAX_OPTIONAL}`)
+    expect(countOptional(all)).toBe(countOptional(s))
+    const defs = all.$defs as Record<string, { required: string[] }>
+    expect(Object.keys(defs).filter((k) => k.startsWith('tiling_')).length).toBe(6)
+    expect(defs.tiling).toBeUndefined()
+    expect(defs.tiling_koch_snowflake!.required).toEqual(['pattern', 'length', 'count', 'height', 'height_ratio', 'joint'])
+    const ajv = new Ajv2020({ strict: false })
+    addFormats(ajv)
+    const v = ajv.compile(all)
+    const tilings = readdirSync('docs/examples').filter((f) => JSON.parse(readFileSync(join('docs/examples', f), 'utf8')).generator.type === 'tiling')
+    expect(tilings.length).toBeGreaterThanOrEqual(7)
+    for (const f of tilings) {
+      const r = JSON.parse(readFileSync(join('docs/examples', f), 'utf8'))
+      expect(v(r), `${f}: ${JSON.stringify(v.errors)}`).toBe(true)
+      expect(parseRecipe(r).ok, f).toBe(true)
+    }
+    // A pattern with a field of another pattern, or missing its own, is rejected before the contract.
+    const r = JSON.parse(readFileSync('docs/examples/koch-snowflake-pavilion.recipe.json', 'utf8'))
+    r.generator.params.side = 9
+    expect(v(r)).toBe(false)
+    delete r.generator.params.side
+    delete r.generator.params.joint
+    expect(v(r)).toBe(false)
+  })
+
   it('narrows the generator to the sweep and accepts complete recipes', () => {
     const ajv = new Ajv2020({ strict: false })
     addFormats(ajv)

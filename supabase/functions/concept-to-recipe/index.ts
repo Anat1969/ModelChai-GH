@@ -283,11 +283,11 @@ var recipe_schema_default = {
       additionalProperties: false,
       required: ["pattern"],
       properties: {
-        pattern: { enum: ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"] },
+        pattern: { enum: ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk", "koch_snowflake"] },
         length: { type: "number", minimum: 4, maximum: 300 },
         depth: { type: "number", minimum: 1, maximum: 300 },
         width: { type: "number", minimum: 4, maximum: 300 },
-        count: { type: "integer", minimum: 2, maximum: 400 },
+        count: { type: "integer", minimum: 1, maximum: 400 },
         side: { type: "integer", minimum: 3, maximum: 61 },
         steps: { type: "integer", minimum: 10, maximum: 4e3 },
         peak: { type: "number", minimum: 1, maximum: 200 },
@@ -309,7 +309,8 @@ var recipe_schema_default = {
         { if: { properties: { pattern: { const: "ulam_grid" } } }, then: { required: ["side", "cell", "fill", "height"] } },
         { if: { properties: { pattern: { const: "fibonacci_blocks" } } }, then: { required: ["count", "unit", "height_ratio", "joint"] } },
         { if: { properties: { pattern: { const: "voronoi_cells" } } }, then: { required: ["width", "depth", "count", "seed", "height_min", "height", "joint"] } },
-        { if: { properties: { pattern: { const: "random_walk" } } }, then: { required: ["steps", "cell", "height", "seed"] } }
+        { if: { properties: { pattern: { const: "random_walk" } } }, then: { required: ["steps", "cell", "height", "seed"] } },
+        { if: { properties: { pattern: { const: "koch_snowflake" } } }, then: { required: ["length", "count", "height", "height_ratio", "joint"] } }
       ]
     },
     sweep: {
@@ -617,6 +618,76 @@ var hypar_canopy_recipe_default = {
   }
 };
 
+// docs/examples/riemann-accumulation-pavilion.recipe.json
+var riemann_accumulation_pavilion_recipe_default = {
+  schema_version: "1.0",
+  meta: {
+    id: "riemann-accumulation-pavilion",
+    created_at: "2026-11-02T12:00:00+02:00",
+    source: "manual",
+    notes: "Example: balanced default state, tiling"
+  },
+  concept: {
+    name: "Riemann sum",
+    name_he: "סכום רימן",
+    use: "ביתן הליכה",
+    context_hint: "כיכר עירונית"
+  },
+  generator: {
+    type: "tiling",
+    params: {
+      pattern: "riemann_walls",
+      length: 60,
+      count: 24,
+      peak: 30,
+      depth: 14,
+      thickness: 1,
+      profile: "arch"
+    }
+  },
+  bare: {
+    mode: "solid",
+    section_center_height: 0,
+    highlight: [
+      "edges"
+    ]
+  },
+  realistic: {
+    site: {
+      lat: 31.8,
+      lon: 34.65,
+      name: "Ashdod"
+    },
+    datetime: "2026-04-18T16:30:00+03:00",
+    weather: "clear",
+    orientation_deg: 20,
+    wind: {
+      from_deg: 280,
+      speed_ms: 6
+    },
+    materials: {
+      outer: "jerusalem_stone"
+    },
+    context: {
+      preset: "urban_plaza",
+      vegetation: "olive_trees",
+      people: 14
+    },
+    camera: {
+      preset: "inside",
+      height: 1.6,
+      fov_deg: 42,
+      aspect: "3:2"
+    }
+  },
+  narrative: {
+    name_he: "ביתן הצבירה",
+    insight: "עשרים וארבעה קירות של אבן, כל אחד בגובה הקשת במרכז הפס שלו. מבחוץ רואים את הסכום מתקרב לעקומה; מבפנים הולכים בתוך פרוסה אחת שלה, בין שני קירות.",
+    maxim: "השלם הוא סכום של צעדים קטנים.",
+    fit_note: null
+  }
+};
+
 // supabase/functions/concept-to-recipe/system.md
 var system_default = `You translate a mathematical concept into a buildable architectural recipe for a parametric 3D engine.
 
@@ -646,6 +717,18 @@ The parametric_surface generator (when it is available): a named surface from a 
 - klein_bottle (figure-8 immersion, one-sided, no edge, passes through itself along one ring): radius (ring), tube (half-height of the figure 8). radius > 1.25 * tube + thickness.
 - monkey_saddle (three valleys and three ridges meeting at a flat center, square plan): span, rise.
 Write null for every dimension field the family does not use. Surfaces need bare.mode "shell" with bare.shell.thickness (inner_method "normal_offset"). bare.section_center_height is the height of the shell's lowest point: 0 stands it on the ground, negative sinks it as a foundation. Openings and floors are not built on surfaces: leave bare.openings out, and say so in fit_note when the use needs an entrance.
+
+The tiling generator (when it is available): a field of separate solid prisms laid out by a fixed pattern. Choose it when the concept is a count, a sequence, a distribution or a sum of many parts, not one continuous form: the building is the pattern, and each element is one term. Each pattern takes exactly its own fields:
+- riemann_walls (length, count, peak, depth, thickness, profile): count walls standing in a row along x, each as high as the curve at the middle of its strip, so the row is a Riemann sum of the curve. profile: arch (half sine), parabola, ramp. Integrals, accumulation, area under a curve.
+- ulam_grid (side, cell, fill, height): the numbers 1 to side² in a square spiral; every prime is a square column of side fill * cell. Primes, number patterns, sieves.
+- fibonacci_blocks (count, unit, height_ratio, joint): squares of side unit * F_k in a spiral around a growing rectangle, each a block height_ratio * its side high. Fibonacci, the golden ratio as growth. A low height_ratio (0.1) reads the spiral from above.
+- voronoi_cells (width, depth, count, seed, height_min, height, joint): count seeds in a width x depth plan; each cell is the area closest to its seed, from height at the center down to height_min at the edge. Voronoi, nearest neighbours, territories, markets.
+- random_walk (steps, cell, height, seed): a random walk of steps on a grid; every visited cell is a block, height times the number of visits. Randomness, entropy, diffusion, Brownian motion.
+- koch_snowflake (length, count, height, height_ratio, joint): an equilateral triangle of side length, and at each of count steps (1 to 5) a triangle on the middle third of every outer edge; each layer is height_ratio times lower than the one before. Fractals, self-similarity, infinite edge around a finite area.
+Tiling needs bare.mode "solid"; bare.section_center_height is the base of every element (0 on the ground). Openings, floors and shells are not built: the gaps between the elements are the passages. Leave bare.openings, bare.shell and bare.floor out.
+Tiling hard rules: elements must not touch or vanish: walls thickness < length / count; spiral fill < 1; Fibonacci joint < unit; Voronoi and Koch, each element keeps a positive area after the joint (in Koch, the smallest tooth, of side length / 3^count, must stay wider than 2 * joint). Counts: walls 3-120, squares 3-12, cells 3-200, Koch steps 1-5.
+Tiling soft rules: an element at most 30 times taller than its smallest plan dimension; between walls and between spiral columns at least 0.9 m to pass; at most 1,500 elements (side² for the spiral, steps for the walk).
+Tiling ranges: length, width, depth 4-300 (depth from 1); count 1-400; side 3-61; steps 10-4000; peak 1-200; thickness 0.1-20; cell and unit 0.5-20; fill 0.2-1; height and height_min 0.3-200; height_ratio 0.05-3; joint 0-5; seed 1-9999.
 
 The default state (the recipe you return is the concept's ideal, the state "reset" returns to):
 - Balanced and harmonious: proportions that follow the concept's own number (its symmetry order, ratio or count), a ring radius between 4 and 8 times the section's outer radius, and the simplest twist that closes the form.
@@ -896,21 +979,22 @@ var SurfaceParams = z.strictObject({
     }
   }
 });
-var TILING_PATTERNS = ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk"];
+var TILING_PATTERNS = ["riemann_walls", "ulam_grid", "fibonacci_blocks", "voronoi_cells", "random_walk", "koch_snowflake"];
 var TILING_PROFILES = ["arch", "parabola", "ramp"];
 var TILING_REQUIRED = {
   riemann_walls: ["length", "count", "peak", "depth", "thickness", "profile"],
   ulam_grid: ["side", "cell", "fill", "height"],
   fibonacci_blocks: ["count", "unit", "height_ratio", "joint"],
   voronoi_cells: ["width", "depth", "count", "seed", "height_min", "height", "joint"],
-  random_walk: ["steps", "cell", "height", "seed"]
+  random_walk: ["steps", "cell", "height", "seed"],
+  koch_snowflake: ["length", "count", "height", "height_ratio", "joint"]
 };
 var TilingParams = z.strictObject({
   pattern: z.enum(TILING_PATTERNS),
   length: num(4, 300).optional(),
   depth: num(1, 300).optional(),
   width: num(4, 300).optional(),
-  count: int(2, 400).optional(),
+  count: int(1, 400).optional(),
   side: int(3, 61).optional(),
   steps: int(10, 4e3).optional(),
   peak: num(1, 200).optional(),
@@ -1608,6 +1692,48 @@ function walk(p) {
     facts: { cells: cells.length, maxVisits: Math.max(...cells.map((v) => v.n)), endDistance: Math.hypot(end[0], end[1]) * c, expected: Math.sqrt(p.steps) * c }
   };
 }
+function koch(p) {
+  const L = p.length, n = p.count, half = p.joint / 2;
+  const h0 = L * Math.sqrt(3) / 2;
+  let edges = [];
+  const A = [-L / 2, -h0 / 3], B = [L / 2, -h0 / 3], C = [0, 2 * h0 / 3];
+  edges = [[A, B], [B, C], [C, A]];
+  const tris = [{ pts: [A, B, C], level: 0 }];
+  for (let k = 1; k <= n; k++) {
+    const next = [];
+    for (const [a, b] of edges) {
+      const d = [b[0] - a[0], b[1] - a[1]];
+      const p1 = [a[0] + d[0] / 3, a[1] + d[1] / 3];
+      const p3 = [a[0] + 2 * d[0] / 3, a[1] + 2 * d[1] / 3];
+      const len2 = Math.hypot(d[0], d[1]), s = len2 / 3;
+      const m = [(p1[0] + p3[0]) / 2, (p1[1] + p3[1]) / 2];
+      const p2 = [m[0] + d[1] / len2 * s * (Math.sqrt(3) / 2), m[1] - d[0] / len2 * s * (Math.sqrt(3) / 2)];
+      tris.push({ pts: [p1, p2, p3], level: k });
+      next.push([a, p1], [p1, p2], [p2, p3], [p3, b]);
+    }
+    edges = next;
+  }
+  const elements = [];
+  let area = 0, vanished = 0;
+  for (const t of tris) {
+    const side = L / 3 ** t.level;
+    const r = side / (2 * Math.sqrt(3));
+    const k = (r - half) / r;
+    area += Math.sqrt(3) / 4 * side * side;
+    if (k <= 0.05) {
+      vanished++;
+      continue;
+    }
+    const cx = (t.pts[0][0] + t.pts[1][0] + t.pts[2][0]) / 3, cz = (t.pts[0][1] + t.pts[1][1] + t.pts[2][1]) / 3;
+    elements.push({ poly: ccw(t.pts.map(([x, z2]) => [cx + (x - cx) * k, cz + (z2 - cz) * k])), height: p.height * p.height_ratio ** t.level, tag: t.level });
+  }
+  const A0 = Math.sqrt(3) / 4 * L * L;
+  return {
+    elements,
+    order: tris.map((t) => [(t.pts[0][0] + t.pts[1][0] + t.pts[2][0]) / 3, (t.pts[0][1] + t.pts[1][1] + t.pts[2][1]) / 3]),
+    facts: { perimeter: 3 * L * (4 / 3) ** n, area, areaRatio: area / A0, vanished, smallest: L / 3 ** n }
+  };
+}
 function layout(p) {
   switch (p.pattern) {
     case "riemann_walls":
@@ -1620,12 +1746,15 @@ function layout(p) {
       return voronoi(p);
     case "random_walk":
       return walk(p);
+    case "koch_snowflake":
+      return koch(p);
   }
 }
 var COUNT_RANGE = {
   riemann_walls: [3, 120],
   fibonacci_blocks: [3, 12],
-  voronoi_cells: [3, 200]
+  voronoi_cells: [3, 200],
+  koch_snowflake: [1, 5]
 };
 
 // src/engine/surface/families.ts
@@ -2055,7 +2184,7 @@ function tilingIssues(recipe, p) {
   if (p.pattern === "fibonacci_blocks" && !(p.joint < p.unit - EPS)) out.push(issue(21, `${P}.joint`, p.joint, `joint < unit = ${round(p.unit)}`));
   if (out.length) return out;
   const L = layout(p);
-  if (p.pattern === "voronoi_cells" && L.facts.vanished > 0) out.push(issue(21, `${P}.joint`, p.joint, `every cell keeps an area after the joint (${L.facts.vanished} vanished)`));
+  if ((p.pattern === "voronoi_cells" || p.pattern === "koch_snowflake") && L.facts.vanished > 0) out.push(issue(21, `${P}.joint`, p.joint, `every element keeps an area after the joint (${L.facts.vanished} vanished)`));
   if (out.length) return out;
   let worst = 0;
   for (const e of L.elements) {
@@ -2191,6 +2320,22 @@ function splitPath(recipeSchema, s) {
   });
   s.$defs.sweep.properties.path = { anyOf: variants };
 }
+function splitTiling(recipeSchema, defs) {
+  const original = recipeSchema.$defs.tiling;
+  const fields = defs.tiling.properties;
+  return original.allOf.map((c) => {
+    const pattern = c.if.properties.pattern.const;
+    const required = c.then.required;
+    const name = `tiling_${pattern}`;
+    defs[name] = {
+      type: "object",
+      properties: { pattern: { type: "string", const: pattern }, ...Object.fromEntries(required.map((f) => [f, fields[f]])) },
+      required: ["pattern", ...required],
+      additionalProperties: false
+    };
+    return name;
+  });
+}
 function modelSchema(recipeSchema, generators) {
   const s = clean(recipeSchema);
   for (const [path, field] of NOT_FOR_MODEL) {
@@ -2206,17 +2351,21 @@ function modelSchema(recipeSchema, generators) {
   const genProps = gen.properties;
   genProps.type = { type: "string", enum: generators };
   const defs = s.$defs;
+  const tiling = generators.includes("tiling") ? splitTiling(recipeSchema, defs) : [];
   delete defs.tiling;
   const surface = defs.surface;
   if (generators.includes("parametric_surface")) {
     const props2 = surface.properties;
     for (const k of Object.keys(props2)) if (k !== "family") props2[k] = { anyOf: [props2[k], { type: "null" }] };
     surface.required = Object.keys(props2);
-    genProps.params = generators.includes("sweep") ? { anyOf: [{ $ref: "#/$defs/sweep" }, { $ref: "#/$defs/surface" }] } : { $ref: "#/$defs/surface" };
-  } else {
-    delete defs.surface;
-    genProps.params = { $ref: "#/$defs/sweep" };
-  }
+  } else delete defs.surface;
+  if (!generators.includes("sweep")) delete defs.sweep;
+  const offered = [
+    ...generators.includes("sweep") ? [{ $ref: "#/$defs/sweep" }] : [],
+    ...generators.includes("parametric_surface") ? [{ $ref: "#/$defs/surface" }] : [],
+    ...tiling.map((t) => ({ $ref: `#/$defs/${t}` }))
+  ];
+  genProps.params = offered.length === 1 ? offered[0] : { anyOf: offered };
   delete gen.allOf;
   return s;
 }
@@ -2351,8 +2500,8 @@ var pick = (l) => ({ schemaErrors: l.schemaErrors, issues: l.issues });
 // supabase/functions/concept-to-recipe/src/handler.ts
 var RATE_LIMIT_PER_HOUR = 20;
 var DEFAULT_MODEL = "claude-sonnet-5-5";
-var GENERATORS = ["sweep", "parametric_surface"];
-var SYSTEM = systemPrompt(system_default, [umbilic_torus_recipe_default, mobius_strip_recipe_default, golden_ratio_recipe_default, hypar_canopy_recipe_default]);
+var GENERATORS = ["sweep", "parametric_surface", "tiling"];
+var SYSTEM = systemPrompt(system_default, [umbilic_torus_recipe_default, mobius_strip_recipe_default, golden_ratio_recipe_default, hypar_canopy_recipe_default, riemann_accumulation_pavilion_recipe_default]);
 var SCHEMA = modelSchema(recipe_schema_default, GENERATORS);
 var CORS = {
   "Access-Control-Allow-Origin": "*",

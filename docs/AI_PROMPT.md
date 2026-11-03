@@ -7,7 +7,7 @@ Claude מתרגם מושג מתמטי למתכון שעומד בסכמה. הקר
 |---|---|
 | מודל | משתנה סביבה `CLAUDE_MODEL`. ברירת מחדל: `claude-sonnet-5-5`, מהיר ומספיק למשימה מובנית. לבדוק שמות מודלים עדכניים ב-docs.claude.com לפני פריסה |
 | פלט מובנה | Structured outputs (`output_config.format`) עם גרסה של `recipe.schema.json` שהמהדר של ה-API מקבל: בלי מגבלות טווח ואורך ובלי if/then, והמחולל מצומצם למחוללים הזמינים. `params` הוא הסוויפ או המשטח הפרמטרי (`anyOf`). במשטח כל המידות נדרשות ויכולות להיות `null`, כך שלא נוסף אף שדה אופציונלי (12 מתוך 24 המותרים, יחד עם המסלולים הסגורים של `DECISIONS.md` 130), והשרת מוחק את ה-`null` לפני הבדיקה (`DECISIONS.md` 142). הבדיקה המלאה מול הסכמה והכללים רצה אחרי כל תשובה. בגלל ש-Sonnet 5.5 דוחה `tool_choice` מכריח, אין כלי `submit_recipe` (`DECISIONS.md` 32) |
-| מחוללים זמינים | נשלחים בהודעת המשתמש לפי הגדרת האפליקציה. מאז שלב 6: `["sweep", "parametric_surface"]` |
+| מחוללים זמינים | נשלחים בהודעת המשתמש לפי הגדרת האפליקציה. מאז שלב 6: `["sweep", "parametric_surface"]`, ומהחלטה 150 גם `"tiling"` |
 | דוגמאות | שלושת הקבצים ב-`docs/fixtures/`, ואחריהם `docs/examples/hypar-canopy.recipe.json` כדוגמה למשטח, מצורפים להנחיית המערכת בזמן ריצה, כך שאין שכפול בין המסמך לקוד |
 | טמפרטורה | לא נשלחת. ב-Sonnet 5.5 ערך שאינו ברירת המחדל מחזיר שגיאה. במקומה `effort: medium` (`DECISIONS.md` 33) |
 | מטמון | הנחיית המערכת והדוגמאות מסומנות ל-prompt caching, כי הן זהות בכל קריאה |
@@ -47,6 +47,7 @@ The default state (the recipe you return is the concept's ideal, the state "rese
 The parametric_surface generator (when it is available): a named surface from a fixed library, built as a shell of even thickness by offsetting the surface along its normal. Choose it when the concept IS one of these surfaces; choose the sweep when the concept is a section moving along a path.
 - hyperboloid: waist_radius, end_radius (> waist_radius), height. hyperbolic_paraboloid: span, span2, rise. catenoid: waist_radius, height (at most 4 * waist_radius). helicoid: radius, pitch, turns. klein_bottle: radius, tube (radius > 1.25 * tube + thickness). monkey_saddle: span, rise.
 Write null for every dimension field the family does not use. Surfaces need bare.mode "shell". bare.section_center_height is the height of the shell's lowest point. Openings and floors are not built on surfaces.
+The tiling generator (when it is available): a field of separate solid prisms laid out by a fixed pattern. Choose it when the concept is a count, a sequence, a distribution or a sum of many parts. riemann_walls, ulam_grid, fibonacci_blocks, voronoi_cells, random_walk, koch_snowflake, each with exactly its own fields. bare.mode "solid"; no openings, floors or shells.
 (The full text is in system.md.)
 
 Hard rules (the engine rejects recipes that break them):
@@ -97,7 +98,7 @@ Examples of correct recipes follow.
 Concept: {concept}
 Use: {use | "not specified"}
 Context hint: {context | "not specified"}
-Available generators: {["sweep", "parametric_surface"]}
+Available generators: {["sweep", "parametric_surface", "tiling"]}
 Timestamp: {ISO datetime, Asia/Jerusalem}
 ```
 
