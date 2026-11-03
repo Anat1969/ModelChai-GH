@@ -10,6 +10,7 @@ import golden from '../../../../docs/fixtures/golden-ratio.recipe.json'
 import mobius from '../../../../docs/fixtures/mobius-strip.recipe.json'
 import umbilic from '../../../../docs/fixtures/umbilic-torus.recipe.json'
 import hypar from '../../../../docs/examples/hypar-canopy.recipe.json'
+import riemann from '../../../../docs/examples/riemann-accumulation-pavilion.recipe.json'
 import template from '../system.md'
 import { conceptToRecipe, systemPrompt, type ModelReply, type Turn } from './core'
 import { modelSchema } from './modelSchema'
@@ -21,9 +22,10 @@ declare const Deno: {
 
 const RATE_LIMIT_PER_HOUR = 20
 const DEFAULT_MODEL = 'claude-sonnet-5-5'
-const GENERATORS = ['sweep', 'parametric_surface']
-// The three sweep fixtures, and one parametric surface so the model sees how a surface recipe looks (DECISIONS.md 142).
-const SYSTEM = systemPrompt(template, [umbilic, mobius, golden, hypar])
+const GENERATORS = ['sweep', 'parametric_surface', 'tiling']
+// The three sweep fixtures, one parametric surface and one tiling, so the model sees how each recipe looks
+// (DECISIONS.md 142, 150).
+const SYSTEM = systemPrompt(template, [umbilic, mobius, golden, hypar, riemann])
 const SCHEMA = modelSchema(recipeSchema as Record<string, unknown>, GENERATORS)
 
 const CORS = {
