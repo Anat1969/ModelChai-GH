@@ -191,7 +191,7 @@ export const SurfaceParams = z
  * Tiling and repetition (GENERATORS.md 4.2, DECISIONS.md 146): a fixed library of named patterns, each a base
  * element (a prism) repeated by a rule the engine knows. Like the surface families, no free formulas.
  */
-export const TILING_PATTERNS = ['riemann_walls', 'ulam_grid', 'fibonacci_blocks', 'voronoi_cells', 'random_walk'] as const
+export const TILING_PATTERNS = ['riemann_walls', 'ulam_grid', 'fibonacci_blocks', 'voronoi_cells', 'random_walk', 'koch_snowflake'] as const
 export type TilingPattern = (typeof TILING_PATTERNS)[number]
 export const TILING_PROFILES = ['arch', 'parabola', 'ramp'] as const
 export type TilingField =
@@ -205,6 +205,7 @@ export const TILING_REQUIRED: Record<TilingPattern, TilingField[]> = {
   fibonacci_blocks: ['count', 'unit', 'height_ratio', 'joint'],
   voronoi_cells: ['width', 'depth', 'count', 'seed', 'height_min', 'height', 'joint'],
   random_walk: ['steps', 'cell', 'height', 'seed'],
+  koch_snowflake: ['length', 'count', 'height', 'height_ratio', 'joint'],
 }
 
 export const TilingParams = z
@@ -213,7 +214,7 @@ export const TilingParams = z
     length: num(4, 300).optional(),
     depth: num(1, 300).optional(),
     width: num(4, 300).optional(),
-    count: int(2, 400).optional(),
+    count: int(1, 400).optional(),
     side: int(3, 61).optional(),
     steps: int(10, 4000).optional(),
     peak: num(1, 200).optional(),

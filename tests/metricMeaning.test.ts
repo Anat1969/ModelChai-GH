@@ -9,7 +9,7 @@ describe('metric meaning', () => {
       // Parametric surfaces.
       'height', 'planSize', 'waistDiameter', 'surfaceArea', 'curvatureRadius', 'sinkDepth',
       // Tiling.
-      'elements', 'passage', 'riemannSum', 'riemannError', 'primes', 'goldenRatio', 'walkDistance', 'maxVisits', 'footprintArea']
+      'elements', 'passage', 'riemannSum', 'riemannError', 'primes', 'goldenRatio', 'walkDistance', 'maxVisits', 'footprintArea', 'kochPerimeter', 'kochArea']
     for (const k of keys) {
       const i = infoOf(k)
       expect(i, k).toBeDefined()

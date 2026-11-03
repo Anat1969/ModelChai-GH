@@ -4,6 +4,7 @@ import { build } from '../src/engine/build'
 import { buildTilingClosedMesh, closedTilingVolume } from '../src/engine/tiling/build'
 import { isPrime, layout, polyArea, PROFILE_INTEGRAL } from '../src/engine/tiling/patterns'
 import { checkRules } from '../src/recipe/rules'
+import { kochMaxSteps } from '../src/ui/params'
 import { parseRecipe, type Recipe, type TilingParams } from '../src/recipe/schema'
 import { fixture } from './helpers'
 
@@ -22,7 +23,8 @@ const ULAM = { pattern: 'ulam_grid', side: 15, cell: 2.4, fill: 0.55, height: 5 
 const FIB = { pattern: 'fibonacci_blocks', count: 8, unit: 1.5, height_ratio: 0.5, joint: 0.3 }
 const VORONOI = { pattern: 'voronoi_cells', width: 48, depth: 32, count: 24, seed: 11, height_min: 2, height: 10, joint: 0 }
 const WALK = { pattern: 'random_walk', steps: 500, cell: 1.6, height: 0.6, seed: 7 }
-const ALL = { RIEMANN, ULAM, FIB, VORONOI, WALK }
+const KOCH = { pattern: 'koch_snowflake', length: 36, count: 3, height: 6, height_ratio: 0.6, joint: 0.3 }
+const ALL = { RIEMANN, ULAM, FIB, VORONOI, WALK, KOCH }
 
 /** Every edge of the closed mesh is shared by exactly two triangles, once in each direction. */
 function closed(m: { indices: Uint32Array }) {
@@ -103,6 +105,18 @@ describe('the mathematics behind each pattern', () => {
     expect(again.elements.map((e) => e.height)).toEqual(L.elements.map((e) => e.height))
   })
 
+  it('Koch snowflake: 4ⁿ triangles, the outline grows by 4/3 a step, the area converges to 8/5', () => {
+    const at = (count: number) => layout({ ...KOCH, count, joint: 0 } as TilingParams)
+    expect(at(3).elements).toHaveLength(1 + 3 + 12 + 48)
+    expect(at(3).facts.perimeter).toBeCloseTo(3 * 36 * (4 / 3) ** 3, 9)
+    // A_n / A_0 = 8/5 − 3/5 (4/9)ⁿ
+    for (const n of [1, 2, 4]) expect(at(n).facts.areaRatio).toBeCloseTo(8 / 5 - (3 / 5) * (4 / 9) ** n, 9)
+    // The triangles really cover that area: Σ of their own polygons.
+    const L4 = at(4)
+    const sum = L4.elements.reduce((s, e) => s + Math.abs(polyArea(e.poly)), 0)
+    expect(sum / ((Math.sqrt(3) / 4) * 36 * 36)).toBeCloseTo(8 / 5 - (3 / 5) * (4 / 9) ** 4, 6)
+  })
+
   it('Random walk: the same seed draws the same walk, and the visits add up to the steps', () => {
     const a = layout(WALK as TilingParams), b = layout(WALK as TilingParams)
     expect(a.order).toEqual(b.order)
@@ -120,6 +134,14 @@ describe('rules 20–24', () => {
   it('21: too many walls', () => expect(rules({ ...RIEMANN, count: 121, thickness: 0.2, length: 300 })).toContain(21))
   it('22: a wall 30 m high and 0.5 m thick is slender', () => expect(rules({ ...RIEMANN, thickness: 0.5 })).toContain(22))
   it('23: no passage between walls', () => expect(rules({ ...RIEMANN, thickness: 1.8 })).toContain(23))
+  it('21: a joint wider than the smallest teeth erases them', () => expect(rules({ ...KOCH, count: 5, joint: 0.5 })).toContain(21))
+  it('the Koch steps slider never offers a step that rule 21 rejects', () => {
+    for (const [L, j] of [[36, 0.3], [36, 0], [120, 1], [12, 0.5]] as const) {
+      const n = kochMaxSteps(L, j)
+      expect(rules({ ...KOCH, length: L, joint: j, count: n })).not.toContain(21)
+      if (n < 5) expect(rules({ ...KOCH, length: L, joint: j, count: n + 1 })).toContain(21)
+    }
+  })
   it('the example dimensions break no rule', () => {
     for (const p of Object.values(ALL)) expect(rules(p)).toEqual([])
   })

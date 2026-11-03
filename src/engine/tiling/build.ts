@@ -119,6 +119,8 @@ export function tilingMetrics(recipe: Recipe, params: TilingParams, L: TilingLay
     endDistance: pattern === 'random_walk' ? f.endDistance! : null,
     expectedDistance: pattern === 'random_walk' ? f.expected! : null,
     maxVisits: pattern === 'random_walk' ? f.maxVisits! : null,
+    perimeter: pattern === 'koch_snowflake' ? f.perimeter! : null,
+    areaRatio: pattern === 'koch_snowflake' ? f.areaRatio! : null,
   }
   return {
     sectionArea: null,

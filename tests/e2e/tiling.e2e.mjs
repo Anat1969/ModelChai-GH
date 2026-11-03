@@ -42,6 +42,8 @@ const CASES = [
   { id: 'ulam-prime-grove', slider: 't-side', elements: 48, own: 'primes', words: 'המספרים הראשוניים', inside: true },
   { id: 'fibonacci-golden-blocks', slider: 't-count-fib', elements: 8, own: 'goldenRatio', words: 'פיבונאצ׳י', inside: false },
   { id: 'voronoi-market', slider: 't-count-cells', elements: 24, own: 'footprintArea', words: 'תאים מצולעים', inside: false },
+  { id: 'koch-snowflake-pavilion', slider: 't-kiter', elements: 64, own: 'kochArea', words: 'פתית קוך', inside: false },
+  { id: 'fibonacci-spiral-garden', slider: 't-count-fib', elements: 6, own: 'goldenRatio', words: 'פיבונאצ׳י', inside: false },
   { id: 'random-walk-wall', slider: 't-steps', elements: 0, own: 'walkDistance', words: 'הליכה אקראית', inside: false },
 ]
 
@@ -100,7 +102,8 @@ try {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
       const step = Number(input.step) || 0.1
       const next = Math.min(Number(input.max), Number(input.value) + 4 * step)
-      setter.call(input, String(next === Number(input.value) ? Number(input.value) - 4 * step : next))
+      // At the top of its range, step down, but never below the slider's own minimum.
+      setter.call(input, String(next === Number(input.value) ? Math.max(Number(input.min), Number(input.value) - 4 * step) : next))
       input.dispatchEvent(new Event('input', { bubbles: true }))
     }, `[data-testid=param-${c.slider}]`)
     await page.waitForFunction((v) => Number(document.querySelector('[data-testid=stage]').dataset.modelVersion) > v, v0, { timeout: 30000 })

@@ -89,6 +89,9 @@ export interface TilingMetrics {
   endDistance: number | null
   expectedDistance: number | null
   maxVisits: number | null
+  /** Koch snowflake: the outline after n steps, 3L(4/3)ⁿ, and the area over the first triangle's (→ 8/5). */
+  perimeter: number | null
+  areaRatio: number | null
 }
 
 export interface SurfaceMetrics {

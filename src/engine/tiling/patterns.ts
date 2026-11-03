@@ -244,6 +244,59 @@ function walk(p: TilingParams): TilingLayout {
   }
 }
 
+// ---------- Koch snowflake ----------
+
+/**
+ * The snowflake as layers (GENERATORS.md 4.2): the first triangle, then at every step a triangle on the middle
+ * third of each outer edge. Each layer is a ring of triangles one step lower than the one before, so the outline
+ * grows by 4/3 a step while the area converges to 8/5 of the first triangle.
+ */
+function koch(p: TilingParams): TilingLayout {
+  const L = p.length!, n = p.count!, half = p.joint! / 2
+  const h0 = (L * Math.sqrt(3)) / 2
+  // Counter-clockwise in standard orientation (positive area), centered on the centroid.
+  let edges: [P2, P2][] = []
+  const A: P2 = [-L / 2, -h0 / 3], B: P2 = [L / 2, -h0 / 3], C: P2 = [0, (2 * h0) / 3]
+  edges = [[A, B], [B, C], [C, A]]
+  const tris: { pts: P2[]; level: number }[] = [{ pts: [A, B, C], level: 0 }]
+  for (let k = 1; k <= n; k++) {
+    const next: [P2, P2][] = []
+    for (const [a, b] of edges) {
+      const d: P2 = [b[0] - a[0], b[1] - a[1]]
+      const p1: P2 = [a[0] + d[0] / 3, a[1] + d[1] / 3]
+      const p3: P2 = [a[0] + (2 * d[0]) / 3, a[1] + (2 * d[1]) / 3]
+      // Outward is to the right of a CCW edge: (dy, −dx).
+      const len = Math.hypot(d[0], d[1]), s = len / 3
+      const m: P2 = [(p1[0] + p3[0]) / 2, (p1[1] + p3[1]) / 2]
+      const p2: P2 = [m[0] + (d[1] / len) * s * (Math.sqrt(3) / 2), m[1] - (d[0] / len) * s * (Math.sqrt(3) / 2)]
+      tris.push({ pts: [p1, p2, p3], level: k })
+      next.push([a, p1], [p1, p2], [p2, p3], [p3, b])
+    }
+    edges = next
+  }
+  // Each triangle shrinks toward its centroid so its inradius loses half the joint: neighbors never touch.
+  const elements: Element[] = []
+  let area = 0, vanished = 0
+  for (const t of tris) {
+    const side = L / 3 ** t.level
+    const r = side / (2 * Math.sqrt(3))
+    const k = (r - half) / r
+    area += (Math.sqrt(3) / 4) * side * side
+    if (k <= 0.05) {
+      vanished++
+      continue
+    }
+    const cx = (t.pts[0]![0] + t.pts[1]![0] + t.pts[2]![0]) / 3, cz = (t.pts[0]![1] + t.pts[1]![1] + t.pts[2]![1]) / 3
+    elements.push({ poly: ccw(t.pts.map(([x, z]) => [cx + (x - cx) * k, cz + (z - cz) * k] as P2)), height: p.height! * p.height_ratio! ** t.level, tag: t.level })
+  }
+  const A0 = (Math.sqrt(3) / 4) * L * L
+  return {
+    elements,
+    order: tris.map((t) => [(t.pts[0]![0] + t.pts[1]![0] + t.pts[2]![0]) / 3, (t.pts[0]![1] + t.pts[1]![1] + t.pts[2]![1]) / 3] as P2),
+    facts: { perimeter: 3 * L * (4 / 3) ** n, area, areaRatio: area / A0, vanished, smallest: L / 3 ** n },
+  }
+}
+
 export function layout(p: TilingParams): TilingLayout {
   switch (p.pattern) {
     case 'riemann_walls': return riemann(p)
@@ -251,6 +304,7 @@ export function layout(p: TilingParams): TilingLayout {
     case 'fibonacci_blocks': return fibonacci(p)
     case 'voronoi_cells': return voronoi(p)
     case 'random_walk': return walk(p)
+    case 'koch_snowflake': return koch(p)
   }
 }
 
@@ -259,4 +313,5 @@ export const COUNT_RANGE: Partial<Record<TilingParams['pattern'], [number, numbe
   riemann_walls: [3, 120],
   fibonacci_blocks: [3, 12],
   voronoi_cells: [3, 200],
+  koch_snowflake: [1, 5],
 }
