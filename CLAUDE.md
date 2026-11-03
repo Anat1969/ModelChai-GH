@@ -54,6 +54,7 @@
 
 ## פריסה
 - האפליקציה: Vercel, פרויקט `math-creator`, בכתובת https://math-creator.vercel.app. כל דחיפה לענף ברירת המחדל נפרסת לבד.
+- פונקציות השרת: שורת `import` לקובץ הבנוי ב-commit נעול. לעדכון בונים, ממזגים ופורסים מחדש עם ה-commit (`DECISIONS.md` 151).
 - השרת: Supabase ‏`cultura-GH`. כל טבלה ודלי מתחילים ב-`mathcreator_` או `mathcreator-`, כי הפרויקט משותף לאפליקציות אחרות.
 - סביבת הפיתוח לא מגיעה ל-supabase.co. בדיקות חיות רצות מתוך Postgres בהרחבת `http`, עם משתמש הבדיקה שהסיסמה שלו ב-Vault (`DECISIONS.md` 45).
 
